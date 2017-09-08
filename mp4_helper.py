@@ -21,7 +21,8 @@ from construct import Container
 UNITY_MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000]
 
 
-def build_mp4_header_and_footer(duration_in_units, units_per_sec, width, height):
+def build_mp4_header_and_footer(units_per_sec, frame_rate_per_sec,
+    width, height, profile, compatibility, level, frame_sizes):
     # The mandatory hierarchy for a minimal MP4 file
 
     #   ftyp
@@ -33,6 +34,18 @@ def build_mp4_header_and_footer(duration_in_units, units_per_sec, width, height)
     #        +- mdia
     #            +- mdhd
     #            +- hdlr
+    #            +- minf
+    #                +- dinf
+    #                    +- dref
+    #                +- stbl
+    #                    +- stsd
+    #                    +- stts
+    #                    +- stsc
+    #                    +- stco
+    #                    +- stsz
+
+    num_frames = len(frame_sizes)
+    duration_in_units = num_frames * units_per_sec // frame_rate_per_sec
 
     FTYP = Container(type=b'ftyp')(
         major_brand=b'isom')(
@@ -43,6 +56,8 @@ def build_mp4_header_and_footer(duration_in_units, units_per_sec, width, height)
             b'avc1',
             b'mp41'
         ])
+
+    built_ftyp = Box.build(FTYP)
 
     HDLR = Container(type=b'hdlr')(
         version=0)(
@@ -59,10 +74,108 @@ def build_mp4_header_and_footer(duration_in_units, units_per_sec, width, height)
         duration=duration_in_units)(
         language='und')
 
+    DREF = Container(type=b'dref')(
+        version=0)(
+        flags=0)(
+        data_entries=[
+            Container(type=b'url ')(
+                version=0)(
+                flags=Container(self_contained=True))(
+                location=None)
+        ])
+
+    DINF = Container(type=b'dinf')(children=[DREF])
+
+    STTS = Container(type=b'stts')(
+        version=0)(
+        flags=0)(
+        entries=[Container(sample_count=num_frames)(sample_delta=frame_rate_per_sec)])
+
+
+    AVC1 = Container(format=b'avc1')(
+        data_reference_index=1)(
+        version=0)(
+        revision=0)(
+        # vendor=b'\x00\x00\x00\x00')(
+        vendor=b'')(
+        temporal_quality=0)(
+        spatial_quality=0)(
+        width=640)(
+        height=480)(
+        horizontal_resolution=72)(
+        vertical_resolution=72)(
+        data_size=0)(
+        frame_count=1)(
+        # compressor_name=b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')(
+        compressor_name=b'')(
+        depth=24)(
+        color_table_id=-1)(
+        avc_data=Container(type=b'avcC')(
+            version=1)(
+            profile=profile)(
+            compatibility=compatibility)(
+            level=level)(
+            nal_unit_length_field=3)(
+            sps=[b"'d\x00(\xac+@P\x1e\xd0\x0f\x12&\xa0"])(
+            # sps=[])(
+            pps=[b'(\xee\x01\x0f,']))
+            # pps=[]))
+
+    STSD = Container(type=b'stsd')(
+        version=0)(
+        flags=0)(
+        entries=[AVC1])
+
+    STSC = Container(type=b'stsc')(
+        version=0)(
+        flags=0)(
+        entries=[
+            Container(first_chunk=1)(
+                samples_per_chunk=num_frames)(
+                sample_description_index=1)
+        ])
+
+    STCO = Container(type=b'stco')(
+        version=0)(
+        flags=0)(
+        entries=[Container(
+            chunk_offset=len(built_ftyp)
+        )])
+
+    STSZ = Container(type=b'stsz')(
+        version=0)(
+        flags=0)(
+        sample_size=0)(
+        sample_count=num_frames)(
+        entry_sizes=frame_sizes)
+
+    STBL = Container(type=b'stbl')(
+        children=[
+            STSD,
+            STTS,
+            STSC,
+            STSZ,
+            STCO
+        ])
+
+    VMHD = Container(type=b'vmhd')(
+        version=0)(
+        flags=1)(
+        graphics_mode=0)(
+        opcolor=Container(red=0)(green=0)(blue=0))
+
+    MINF = Container(type=b'minf')(
+        children=[
+            VMHD,
+            DINF,
+            STBL
+        ])
+
     MDIA = Container(type=b'mdia')(
         children=[
             MDHD,
-            HDLR
+            HDLR,
+            MINF
         ])
 
     TKHD = Container(type=b'tkhd')(
@@ -105,4 +218,4 @@ def build_mp4_header_and_footer(duration_in_units, units_per_sec, width, height)
             TRAK
         ])
 
-    return (Box.build(FTYP), Box.build(MOOV))
+    return (built_ftyp, Box.build(MOOV))
