@@ -1,0 +1,6 @@
+construct==2.8.8
+numpy==1.13.1
+picamera==1.13
+Pillow==4.2.1
+pymp4==1.0.2
+python-telegram-bot==8.0
