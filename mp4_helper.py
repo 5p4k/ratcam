@@ -136,10 +136,10 @@ class MP4Output(object):
         #                    +- stco
         #                    +- stsz
 
-        timescale = self._framerate
         sample_count = len(self._sample_sizes)
-        duration = sample_count
-        sample_delta = 1
+        timescale = self._framerate.numerator
+        sample_delta = self._framerate.denominator
+        duration = sample_count * sample_delta
         # 8 is the size of <size_block> + b'mdat'
         chunk_offset = len(STATIC_FTYP) + 8
         width = self._resolution[0]
