@@ -64,6 +64,9 @@ class MP4Output:
         self._mdat_size += frame_size
 
     def _flush_sps_hdr(self, frame_size):
+        # There seem to be a padding error in the SPS header,
+        # see https://github.com/waveform80/picamera/issues/439
+        # This patches it up
         assert(self._sps_hdr.tell() == frame_size)
         self._sps_hdr.seek(0)
         data = self._sps_hdr.read(frame_size)
