@@ -17,37 +17,15 @@
 
 from pymp4.parser import Box
 from construct import Container
+from picamera.frames import PiVideoFrameType
+from io import BytesIO
+import struct
 
 UNITY_MATRIX = [0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x40000000]
 
 
-def build_mp4_header_and_footer(units_per_sec, frame_rate_per_sec,
-    width, height, profile, compatibility, level, frame_sizes):
-    # The mandatory hierarchy for a minimal MP4 file
-
-    #   ftyp
-    #   mdat
-    #   moov
-    #    +- mvhd
-    #    +- trak
-    #        +- tkhd
-    #        +- mdia
-    #            +- mdhd
-    #            +- hdlr
-    #            +- minf
-    #                +- dinf
-    #                    +- dref
-    #                +- stbl
-    #                    +- stsd
-    #                    +- stts
-    #                    +- stsc
-    #                    +- stco
-    #                    +- stsz
-
-    num_frames = len(frame_sizes)
-    duration_in_units = int(0.5 + num_frames * units_per_sec / frame_rate_per_sec)
-
-    FTYP = Container(type=b'ftyp')(
+STATIC_FTYP = Box.build(
+    Container(type=b'ftyp')(
         major_brand=b'isom')(
         minor_version=0x200)(
         compatible_brands=[
@@ -56,164 +34,270 @@ def build_mp4_header_and_footer(units_per_sec, frame_rate_per_sec,
             b'avc1',
             b'mp41'
         ])
-
-    built_ftyp = Box.build(FTYP)
-
-    HDLR = Container(type=b'hdlr')(
-        version=0)(
-        flags=0)(
-        handler_type=b'vide')(
-        name='Raspicam Video')
-
-    MDHD = Container(type=b'mdhd')(
-        version=0)(
-        flags=0)(
-        creation_time=0)(
-        modification_time=0)(
-        timescale=units_per_sec)(
-        duration=duration_in_units)(
-        language='und')
-
-    DREF = Container(type=b'dref')(
-        version=0)(
-        flags=0)(
-        data_entries=[
-            Container(type=b'url ')(
-                version=0)(
-                flags=Container(self_contained=True))(
-                location=None)
-        ])
-
-    DINF = Container(type=b'dinf')(children=[DREF])
-
-    STTS = Container(type=b'stts')(
-        version=0)(
-        flags=0)(
-        entries=[Container(sample_count=num_frames)(sample_delta=int(0.5 + units_per_sec / frame_rate_per_sec))])
+)
 
 
-    AVC1 = Container(format=b'avc1')(
-        data_reference_index=1)(
-        version=0)(
-        revision=0)(
-        vendor=b'')(
-        temporal_quality=0)(
-        spatial_quality=0)(
-        width=width)(
-        height=height)(
-        horizontal_resolution=72)(
-        vertical_resolution=72)(
-        data_size=0)(
-        frame_count=1)(
-        compressor_name=b'')(
-        depth=24)(
-        color_table_id=-1)(
-        avc_data=Container(type=b'avcC')(
-            version=1)(
-            profile=profile)(
-            compatibility=compatibility)(
-            level=level)(
-            nal_unit_length_field=3)(
-            sps=[])(
-            pps=[]))
-
-    STSD = Container(type=b'stsd')(
-        version=0)(
-        flags=0)(
-        entries=[AVC1])
-
-    STSC = Container(type=b'stsc')(
-        version=0)(
-        flags=0)(
-        entries=[
-            Container(first_chunk=1)(
-                samples_per_chunk=num_frames)(
-                sample_description_index=1)
-        ])
-
-    STCO = Container(type=b'stco')(
-        version=0)(
-        flags=0)(
-        entries=[Container(
-            chunk_offset=len(built_ftyp) + 8
-            # 8 is the 4 bytes of the size + b'mdat'
-            # This offset is absolute in the file
-        )])
-
-    STSZ = Container(type=b'stsz')(
-        version=0)(
-        flags=0)(
-        sample_size=0)(
-        sample_count=num_frames)(
-        entry_sizes=frame_sizes)
-
-    STBL = Container(type=b'stbl')(
-        children=[
-            STSD,
-            STTS,
-            STSC,
-            STSZ,
-            STCO
-        ])
-
-    VMHD = Container(type=b'vmhd')(
-        version=0)(
-        flags=1)(
-        graphics_mode=0)(
-        opcolor=Container(red=0)(green=0)(blue=0))
-
-    MINF = Container(type=b'minf')(
-        children=[
-            VMHD,
-            DINF,
-            STBL
-        ])
-
-    MDIA = Container(type=b'mdia')(
-        children=[
-            MDHD,
-            HDLR,
-            MINF
-        ])
-
-    TKHD = Container(type=b'tkhd')(
-        version=0)(
-        flags=3)(
-        creation_time=0)(
-        modification_time=0)(
-        track_ID=1)(
-        duration=duration_in_units)(
-        layer=0)(
-        alternate_group=0)(
-        volume=0)(
-        matrix=UNITY_MATRIX)(
-        width=width << 16)(
-        height=height << 16)
-
-    TRAK = Container(type=b'trak')(
-        children=[
-            TKHD,
-            MDIA
-        ])
+STATIC_EMPTY_MDAT = Box.build(Container(type=b'mdat')(data=b''))
 
 
-    MVHD = Container(type=b'mvhd')(
-        version=0)(
-        flags=0)(
-        creation_time=0)(
-        modification_time=0)(
-        timescale=units_per_sec)(
-        duration=duration_in_units)(
-        rate=0x10000)(
-        volume=0x100)(
-        matrix=UNITY_MATRIX)(
-        pre_defined=[0, 0, 0, 0, 0, 0])(
-        next_track_ID=2)
+class MP4Output:
+    def __init__(self, stream, camera):
+        self._stream = stream
+        self._camera = camera
+        self._sample_sizes = []
+        self._mdat_size = 0
+        self._sps_hdr = BytesIO()
+        # Mp4 attributes
+        self._resolution = None
+        self._framerate = None
+        self._profile = None
+        self._compatibility = None
+        self._level = None
 
-    MOOV = Container(type=b'moov')(
-        children=[
-            MVHD,
-            TRAK
-        ])
+    def _store_size(self, frame_type, frame_size):
+        if frame_type == PiVideoFrameType.key_frame:
+            assert(len(self._sample_sizes) > 0)
+            # Key frames and sps headers are the same sample as far as mp4 is concerned
+            self._sample_sizes[-1] += frame_size
+        else:
+            self._sample_sizes.append(frame_size)
+        self._mdat_size += frame_size
 
-    return (built_ftyp, Box.build(MOOV))
+    def _flush_sps_hdr(self, frame_size):
+        assert(self._sps_hdr.tell() == frame_size)
+        self._sps_hdr.seek(0)
+        data = self._sps_hdr.read(frame_size)
+        self._stream.write(data[:-7])
+        self._stream.write(data[-6:])
+        self._stream.write(b'\x00')
+        self._sps_hdr.seek(0)
+
+    def write(self, s):
+        # Write the data
+        if self._camera.frame.frame_type == PiVideoFrameType.sps_header:
+            self._sps_hdr.write(s)
+        else:
+            # Directly to stream
+            self._stream.write(s)
+
+        if self._camera.frame.complete:
+            # Store the sizes to assemble the STSZ table afterwards
+            self._store_size(self._camera.frame.frame_type, self._camera.frame.frame_size)
+            # Patch and flush the SPS header
+            if self._camera.frame.frame_type == PiVideoFrameType.sps_header:
+                self._flush_sps_hdr(self._camera.frame.frame_size)
+
+    def flush(self):
+        # Use this call also to cache the remaining information we need for mp4
+        self._resolution = self._camera.resolution
+        self._framerate = self._camera.framerate
+        # TODO hardcoded for now
+        self._profile = 100
+        self._compatibility = 0
+        self._level = 40
+        # Actually do flush
+        self._stream.flush()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # Write out the moov section
+        self._assemble_moov()
+        # And patch the mdat to have the right size
+        self._patch_mdat()
+        # Done.
+        self._stream.flush()
+
+    def _patch_mdat(self):
+        # Move to the position where the mdat size was
+        self._stream.seek(len(STATIC_FTYP))
+        # Write the actual mdat size as big endian 32 bit integer
+        self._stream.write(struct.pack('>I', self._mdat_size)[-4:])
+
+
+    def _assemble_moov(self):
+        # The mandatory hierarchy for a minimal MP4 file
+
+        #   ftyp
+        #   mdat
+        #   moov
+        #    +- mvhd
+        #    +- trak
+        #        +- tkhd
+        #        +- mdia
+        #            +- mdhd
+        #            +- hdlr
+        #            +- minf
+        #                +- dinf
+        #                    +- dref
+        #                +- stbl
+        #                    +- stsd
+        #                    +- stts
+        #                    +- stsc
+        #                    +- stco
+        #                    +- stsz
+
+        timescale = self._framerate
+        sample_count = len(self._sample_sizes)
+        duration = sample_count
+        sample_delta = 1
+        # 8 is the size of <size_block> + b'mdat'
+        chunk_offset = len(STATIC_FTYP) + 8
+        width = self._resolution[0]
+        height = self._resolution[1]
+
+        HDLR = Container(type=b'hdlr')(
+            version=0)(
+            flags=0)(
+            handler_type=b'vide')(
+            name='Raspicam Video')
+
+        MDHD = Container(type=b'mdhd')(
+            version=0)(
+            flags=0)(
+            creation_time=0)(
+            modification_time=0)(
+            timescale=timescale)(
+            duration=duration)(
+            language='und')
+
+        DREF = Container(type=b'dref')(
+            version=0)(
+            flags=0)(
+            data_entries=[
+                Container(type=b'url ')(
+                    version=0)(
+                    flags=Container(self_contained=True))(
+                    location=None)
+            ])
+
+        DINF = Container(type=b'dinf')(children=[DREF])
+
+        STTS = Container(type=b'stts')(
+            version=0)(
+            flags=0)(
+            entries=[Container(sample_count=sample_count)(sample_delta=sample_delta)])
+
+
+        AVC1 = Container(format=b'avc1')(
+            data_reference_index=1)(
+            version=0)(
+            revision=0)(
+            vendor=b'')(
+            temporal_quality=0)(
+            spatial_quality=0)(
+            width=width)(
+            height=height)(
+            horizontal_resolution=72)(
+            vertical_resolution=72)(
+            data_size=0)(
+            frame_count=1)(
+            compressor_name=b'')(
+            depth=24)(
+            color_table_id=-1)(
+            avc_data=Container(type=b'avcC')(
+                version=1)(
+                profile=profile)(
+                compatibility=compatibility)(
+                level=level)(
+                nal_unit_length_field=3)(
+                sps=[])(
+                pps=[]))
+
+        STSD = Container(type=b'stsd')(
+            version=0)(
+            flags=0)(
+            entries=[AVC1])
+
+        STSC = Container(type=b'stsc')(
+            version=0)(
+            flags=0)(
+            entries=[
+                Container(first_chunk=1)(
+                    samples_per_chunk=sample_count)(
+                    sample_description_index=1)
+            ])
+
+        STCO = Container(type=b'stco')(
+            version=0)(
+            flags=0)(
+            entries=[Container(chunk_offset=chunk_offset)])
+
+        STSZ = Container(type=b'stsz')(
+            version=0)(
+            flags=0)(
+            sample_size=0)(
+            sample_count=sample_count)(
+            entry_sizes=frame_sizes)
+
+        STBL = Container(type=b'stbl')(
+            children=[
+                STSD,
+                STTS,
+                STSC,
+                STSZ,
+                STCO
+            ])
+
+        VMHD = Container(type=b'vmhd')(
+            version=0)(
+            flags=1)(
+            graphics_mode=0)(
+            opcolor=Container(red=0)(green=0)(blue=0))
+
+        MINF = Container(type=b'minf')(
+            children=[
+                VMHD,
+                DINF,
+                STBL
+            ])
+
+        MDIA = Container(type=b'mdia')(
+            children=[
+                MDHD,
+                HDLR,
+                MINF
+            ])
+
+        TKHD = Container(type=b'tkhd')(
+            version=0)(
+            flags=3)(
+            creation_time=0)(
+            modification_time=0)(
+            track_ID=1)(
+            duration=duration)(
+            layer=0)(
+            alternate_group=0)(
+            volume=0)(
+            matrix=UNITY_MATRIX)(
+            width=width << 16)( # width and height are 16.16 integers
+            height=height << 16)
+
+        TRAK = Container(type=b'trak')(
+            children=[
+                TKHD,
+                MDIA
+            ])
+
+
+        MVHD = Container(type=b'mvhd')(
+            version=0)(
+            flags=0)(
+            creation_time=0)(
+            modification_time=0)(
+            timescale=timescale)(
+            duration=duration)(
+            rate=0x10000)(
+            volume=0x100)(
+            matrix=UNITY_MATRIX)(
+            pre_defined=[0, 0, 0, 0, 0, 0])(
+            next_track_ID=2)
+
+        MOOV = Container(type=b'moov')(
+            children=[
+                MVHD,
+                TRAK
+            ])
+
+        # Finally write
+        self._stream.write(Box.build(MOOV))
+
+
