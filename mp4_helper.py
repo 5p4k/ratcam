@@ -101,6 +101,11 @@ class MP4Output:
         # Actually do flush
         self._stream.flush()
 
+    def __enter__(self):
+        # Assemble the ftyp header and place an empty mdat block.
+        self._stream.write(STATIC_FTYP)
+        self._stream.write(STATIC_EMPTY_MDAT)
+
     def __exit__(self, exc_type, exc_value, traceback):
         # Write out the moov section
         self._assemble_moov()
