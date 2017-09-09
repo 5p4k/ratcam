@@ -45,7 +45,7 @@ def build_mp4_header_and_footer(units_per_sec, frame_rate_per_sec,
     #                    +- stsz
 
     num_frames = len(frame_sizes)
-    duration_in_units = num_frames * units_per_sec // frame_rate_per_sec
+    duration_in_units = int(0.5 + num_frames * units_per_sec / frame_rate_per_sec)
 
     FTYP = Container(type=b'ftyp')(
         major_brand=b'isom')(
@@ -89,24 +89,22 @@ def build_mp4_header_and_footer(units_per_sec, frame_rate_per_sec,
     STTS = Container(type=b'stts')(
         version=0)(
         flags=0)(
-        entries=[Container(sample_count=num_frames)(sample_delta=frame_rate_per_sec)])
+        entries=[Container(sample_count=num_frames)(sample_delta=int(0.5 + units_per_sec / frame_rate_per_sec))])
 
 
     AVC1 = Container(format=b'avc1')(
         data_reference_index=1)(
         version=0)(
         revision=0)(
-        # vendor=b'\x00\x00\x00\x00')(
         vendor=b'')(
         temporal_quality=0)(
         spatial_quality=0)(
-        width=640)(
-        height=480)(
+        width=width)(
+        height=height)(
         horizontal_resolution=72)(
         vertical_resolution=72)(
         data_size=0)(
         frame_count=1)(
-        # compressor_name=b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')(
         compressor_name=b'')(
         depth=24)(
         color_table_id=-1)(
@@ -116,10 +114,8 @@ def build_mp4_header_and_footer(units_per_sec, frame_rate_per_sec,
             compatibility=compatibility)(
             level=level)(
             nal_unit_length_field=3)(
-            sps=[b"'d\x00(\xac+@P\x1e\xd0\x0f\x12&\xa0"])(
-            # sps=[])(
-            pps=[b'(\xee\x01\x0f,']))
-            # pps=[]))
+            sps=[])(
+            pps=[]))
 
     STSD = Container(type=b'stsd')(
         version=0)(
@@ -139,7 +135,9 @@ def build_mp4_header_and_footer(units_per_sec, frame_rate_per_sec,
         version=0)(
         flags=0)(
         entries=[Container(
-            chunk_offset=len(built_ftyp)
+            chunk_offset=len(built_ftyp) + 8
+            # 8 is the 4 bytes of the size + b'mdat'
+            # This offset is absolute in the file
         )])
 
     STSZ = Container(type=b'stsz')(
