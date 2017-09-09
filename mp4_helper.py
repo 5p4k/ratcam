@@ -110,7 +110,8 @@ class MP4Output(object):
         # Move to the position where the mdat size was
         self._stream.seek(len(STATIC_FTYP))
         # Write the actual mdat size as big endian 32 bit integer
-        self._stream.write(struct.pack('>I', self._mdat_size)[-4:])
+        # 8 is the length of the header, <size> + b'mdat'
+        self._stream.write(struct.pack('>I', self._mdat_size + 8)[-4:])
 
 
     def _assemble_moov(self):
