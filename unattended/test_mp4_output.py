@@ -11,7 +11,6 @@ if __name__ == '__main__':
         sleep(2)
         print('Recording...')
         with open('video.mp4', 'wb') as stream:
-            with MP4Output(stream, camera) as mp4:
-                camera.start_recording(mp4, format='h264')
-                camera.wait_recording(2)
-                camera.stop_recording()
+            camera.start_recording(MP4Output(stream, camera), format='h264')
+            camera.wait_recording(2)
+            camera.stop_recording()

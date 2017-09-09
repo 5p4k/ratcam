@@ -40,7 +40,7 @@ STATIC_FTYP = Box.build(
 STATIC_EMPTY_MDAT = Box.build(Container(type=b'mdat')(data=b''))
 
 
-class MP4Output:
+class MP4Output(object):
     def __init__(self, stream, camera):
         self._stream = stream
         self._camera = camera
@@ -48,11 +48,14 @@ class MP4Output:
         self._mdat_size = 0
         self._sps_hdr = BytesIO()
         # Mp4 attributes
-        self._resolution = None
-        self._framerate = None
-        self._profile = None
-        self._compatibility = None
-        self._level = None
+        # Use this call also to cache the remaining information we need for mp4
+        self._resolution = self._camera.resolution
+        self._framerate = self._camera.framerate
+        # TODO hardcoded for now
+        self._profile = 100
+        self._compatibility = 0
+        self._level = 40
+        self._write_header()
 
     def _store_size(self, frame_type, frame_size):
         if frame_type == PiVideoFrameType.key_frame:
@@ -91,28 +94,17 @@ class MP4Output:
                 self._flush_sps_hdr(self._camera.frame.frame_size)
 
     def flush(self):
-        # Use this call also to cache the remaining information we need for mp4
-        self._resolution = self._camera.resolution
-        self._framerate = self._camera.framerate
-        # TODO hardcoded for now
-        self._profile = 100
-        self._compatibility = 0
-        self._level = 40
-        # Actually do flush
-        self._stream.flush()
-
-    def __enter__(self):
-        # Assemble the ftyp header and place an empty mdat block.
-        self._stream.write(STATIC_FTYP)
-        self._stream.write(STATIC_EMPTY_MDAT)
-
-    def __exit__(self, exc_type, exc_value, traceback):
         # Write out the moov section
         self._assemble_moov()
         # And patch the mdat to have the right size
         self._patch_mdat()
         # Done.
         self._stream.flush()
+
+    def _write_header(self):
+        # Assemble the ftyp header and place an empty mdat block.
+        self._stream.write(STATIC_FTYP)
+        self._stream.write(STATIC_EMPTY_MDAT)
 
     def _patch_mdat(self):
         # Move to the position where the mdat size was
@@ -151,6 +143,10 @@ class MP4Output:
         chunk_offset = len(STATIC_FTYP) + 8
         width = self._resolution[0]
         height = self._resolution[1]
+        profile = self._profile
+        compatibility = self._compatibility
+        level = self._level
+        sample_sizes = self._sample_sizes
 
         HDLR = Container(type=b'hdlr')(
             version=0)(
@@ -234,7 +230,7 @@ class MP4Output:
             flags=0)(
             sample_size=0)(
             sample_count=sample_count)(
-            entry_sizes=frame_sizes)
+            entry_sizes=sample_sizes)
 
         STBL = Container(type=b'stbl')(
             children=[
