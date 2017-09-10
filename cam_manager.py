@@ -24,13 +24,13 @@ class CameraMode(Enum):
     DEFAULT = {'iso': 800, 'sensor_mode': 3, 'exposure_mode': 'night'}
 
 class CameraManager:
-    def __getattr__(self, key):
+    def __getattribute__(self, key):
         if key == 'mode':
             return self._mode
         elif key == 'cam':
             return self._cam
         else:
-            return super(CameraManager, self).__getattr__(key)
+            return super(CameraManager, self).__getattribute__(key)
 
     def __setattr__(self, key, value):
         if key == 'mode':
