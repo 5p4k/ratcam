@@ -39,16 +39,21 @@ STATIC_FTYP = Box.build(
 
 STATIC_EMPTY_MDAT = Box.build(Container(type=b'mdat')(data=b''))
 
+NAL_TYPE_SPS = 7
+NAL_TYPE_PPS = 8
+
 
 class MP4Output(object):
     def __init__(self, stream, camera):
-        self._stream = stream
-        self._camera = camera
-        self._sample_sizes = []
-        self._mdat_size = 0
-        self._sps_hdr = BytesIO()
-        # Mp4 attributes
-        # Use this call also to cache the remaining information we need for mp4
+        self._stream = stream       # Output stream
+        self._camera = camera       # Camera reference
+        self._sample_sizes = []     # List of sample sizes, where sps hdr is merged with I-frame
+        self._mdat_size = 0         # Total size of the mdat payload
+        self._sps_hdr = BytesIO()   # Buffer for processing the sps hdr
+        self._seq_parm_sets = []    # All the sequence parm sets found in the stream
+        self._pic_parm_sets = []    # All the picture parm sets found in the stream
+        self._nal_size_patches = [] # All the points in the stream where we need to patch the NAL size
+        # Cached Mp4 attributes
         self._resolution = self._camera.resolution
         self._framerate = self._camera.framerate
         # TODO hardcoded for now
@@ -64,19 +69,40 @@ class MP4Output(object):
             self._sample_sizes[-1] += frame_size
         else:
             self._sample_sizes.append(frame_size)
+        # At the current _mdat_size offset, we have the beginning of a frame of type
+        # frame_type and of size frame_size. That's a NAL unit for which we have to
+        # patch the size. The size of the NAL unit is frame size - the actual size field
+        self._nal_size_patches.append(self._mdat_size, frame_size - 4)
         self._mdat_size += frame_size
 
+    @staticmethod
+    def _get_nal_unit_type(first_nal_byte):
+        # The first NAL byte has this structure:
+        #   1 forbidden bit (0)
+        #   2 bits for nal ref idc
+        #   5 bits for nal type
+        MASK = (1 << 5) - 1
+        return first_nal_byte & MASK
+
     def _flush_sps_hdr(self, frame_size):
-        # There seem to be a padding error in the SPS header,
-        # see https://github.com/waveform80/picamera/issues/439
-        # This patches it up
-        assert(self._sps_hdr.tell() == frame_size)
+        # The SPS header consists of several NAL units. NAL units are separated by
+        # the binary sequence b'\x00\x00\x00\x01'
         self._sps_hdr.seek(0)
-        data = self._sps_hdr.read(frame_size)
-        self._stream.write(data[:-7])
-        self._stream.write(data[-6:])
-        self._stream.write(b'\x00')
-        self._sps_hdr.seek(0)
+        nal_units = self._sps_hdr.read(frame_size).split(b'\x00\x00\x00\x01')
+        # We should have only two, SPS and PPS
+        assert(len(nal_units) == 3 and len(nal_units[0]) == 0)
+        nal_units = nal_units[1:]
+        # Scan through all the NALs
+        for nal_unit in nal_units:
+            nal_unit_type = MP4Output._get_nal_unit_type(nal_unit[0])
+            if nal_unit_type == NAL_TYPE_SPS:
+                self._seq_parm_sets.append(nal_unit)
+            elif nal_unit_type == NAL_TYPE_PPS:
+                self._pic_parm_sets.append(nal_unit)
+            # Ok now write the size to the stream followed by the NAL
+            self._stream.write(struct.pack('>I', len(nal_unit))[-4:])
+            self._stream.write(nal_unit)
+
 
     def write(self, s):
         # Write the data
@@ -94,10 +120,15 @@ class MP4Output(object):
                 self._flush_sps_hdr(self._camera.frame.frame_size)
 
     def flush(self):
+        # Simplify the sps and pps sections
+        self._seq_parm_sets = list(set(self._seq_parm_sets))
+        self._pic_parm_sets = list(set(self._pic_parm_sets))
         # Write out the moov section
         self._assemble_moov()
         # And patch the mdat to have the right size
         self._patch_mdat()
+        # Patch as well all the frames
+        self._patch_nal_unit_sizes()
         # Done.
         self._stream.flush()
 
@@ -113,6 +144,11 @@ class MP4Output(object):
         # 8 is the length of the header, <size> + b'mdat'
         self._stream.write(struct.pack('>I', self._mdat_size + 8)[-4:])
 
+    def _patch_nal_unit_sizes(self);
+        for offset, size_to_write in self._nal_size_patches:
+            self.stream.seek(offset)
+            # Write the actual NAL unit size
+            self._stream.write(struct.pack('>I', size_to_write)[-4:])
 
     def _assemble_moov(self):
         # The mandatory hierarchy for a minimal MP4 file
@@ -204,8 +240,8 @@ class MP4Output(object):
                 compatibility=compatibility)(
                 level=level)(
                 nal_unit_length_field=3)(
-                sps=[])(
-                pps=[]))
+                sps=self._seq_parm_sets)(
+                pps=self._pic_parm_sets))
 
         STSD = Container(type=b'stsd')(
             version=0)(
