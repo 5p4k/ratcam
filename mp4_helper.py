@@ -69,10 +69,11 @@ class MP4Output(object):
             self._sample_sizes[-1] += frame_size
         else:
             self._sample_sizes.append(frame_size)
-        # At the current _mdat_size offset, we have the beginning of a frame of type
-        # frame_type and of size frame_size. That's a NAL unit for which we have to
-        # patch the size. The size of the NAL unit is frame size - the actual size field
-        self._nal_size_patches.append(self._mdat_size, frame_size - 4)
+        if frame_type != PiVideoFrameType.sps_header:
+            # At the current _mdat_size offset, we have the beginning of a frame of type
+            # frame_type and of size frame_size. That's a NAL unit for which we have to
+            # patch the size. The size of the NAL unit is frame size - the actual size field
+            self._nal_size_patches.append((self._mdat_size, frame_size - 4))
         self._mdat_size += frame_size
 
     @staticmethod
@@ -131,6 +132,7 @@ class MP4Output(object):
         self._patch_nal_unit_sizes()
         # Done.
         self._stream.flush()
+        self._debug_stream.close()
 
     def _write_header(self):
         # Assemble the ftyp header and place an empty mdat block.
@@ -144,9 +146,11 @@ class MP4Output(object):
         # 8 is the length of the header, <size> + b'mdat'
         self._stream.write(struct.pack('>I', self._mdat_size + 8)[-4:])
 
-    def _patch_nal_unit_sizes(self);
-        for offset, size_to_write in self._nal_size_patches:
-            self.stream.seek(offset)
+    def _patch_nal_unit_sizes(self):
+        # Compute the offset of the mdat block
+        mdat_payload_ofs = len(STATIC_FTYP) + 8 # size + b'mdat'
+        for mdat_offset, size_to_write in self._nal_size_patches:
+            self._stream.seek(mdat_offset + mdat_payload_ofs)
             # Write the actual NAL unit size
             self._stream.write(struct.pack('>I', size_to_write)[-4:])
 
