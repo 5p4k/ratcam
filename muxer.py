@@ -4,6 +4,7 @@
 from pymp4.parser import Box, UNITY_MATRIX
 from construct import Container
 from collections import namedtuple
+from io import BytesIO
 import struct
 
 
@@ -66,6 +67,8 @@ class OnlineMP4Muxer(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._output_mp4_footer()
+        self._patch_mdat_size()
+        self._patch_nal_sizes()
         self.stream.flush()
 
 
@@ -163,7 +166,7 @@ class OnlineMP4Muxer(object):
             self._sps_header_buffer.write(data)
             if frame_is_complete:
                 # Flush the SPS header and reset the buffer
-                self._process_sps_header(self._flush_sps_header_buffer())
+                self._process_sps_header(self._flush_sps_header_buffer(self.current_frame_size))
         else:
             # Direct to output
             self.stream.write(data)
@@ -185,7 +188,7 @@ class OnlineMP4Muxer(object):
         profile, compatibility, level = DEFAULT_SPS_INDICATIONS if self.indications is None else self.indications
         sample_sizes = self._sample_sizes
         sps = list(self.seq_parm_sets)
-        ppq = list(self.pic_parm_sets)
+        pps = list(self.pic_parm_sets)
 
         # Build all the boxes we need
         HDLR = Container(type=b'hdlr')
@@ -300,7 +303,7 @@ class OnlineMP4Muxer(object):
         TKHD(width=width << 16)
         TKHD(height=height << 16)
 
-        TRAK = Container(type=b'trak')(
+        TRAK = Container(type=b'trak')
         TRAK(children=[TKHD, MDIA])
 
         MVHD = Container(type=b'mvhd')

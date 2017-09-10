@@ -30,5 +30,5 @@ class PiMP4Output(object):
         self.muxer.append(buf, (self.camera.frame.frame_type == PiVideoFrameType.sps_header), self.camera.frame.complete)
 
     def flush(self):
-        self.muxer.__exit__()
+        self.muxer.__exit__(None, None, None)
 
