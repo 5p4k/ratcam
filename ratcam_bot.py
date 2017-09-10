@@ -19,6 +19,7 @@ from cam_manager import CameraManager, CameraMode
 from misc import log
 from telegram.ext import Updater, CommandHandler
 import io
+from mp4_helper import MP4Output
 
 class RatcamBot:
 
@@ -52,8 +53,9 @@ class RatcamBot:
 
         self._cam_mgr.mode = CameraMode.VIDEO
         with io.BytesIO() as stream:
-            self._cam_mgr.start_recording(stream, format='h264', quality=23)
-            self._cam_mgr.wait_recording(8)
+            self._cam_mgr.cam.start_recording(MP4Output(stream, self._cam_mgr.cam), format='h264', quality=23)
+            self._cam_mgr.cam.wait_recording(8)
+            self._cam_mgr.cam.stop_recording()
             stream.seek(0)
             bot.send_video(chat_id=update.message.chat_id, video=stream)
 
