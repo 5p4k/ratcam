@@ -16,3 +16,19 @@
 #
 
 from muxer import OnlineMP4Muxer
+from picamera import PiVideoFrameType
+
+class PiMP4Output(object):
+
+    def __init__(self, stream, camera):
+        super(PiMP4Output, self).__init__()
+        self.muxer = OnlineMP4Muxer(stream, camera.framerate, camera.resolution)
+        self.camera = camera
+        self.muxer.__enter__()
+
+    def write(self, buf):
+        self.muxer.append(buf, (self.camera.frame.frame_type == PiVideoFrameType.sps_header), self.camera.frame.complete)
+
+    def flush(self):
+        self.muxer.__exit__()
+
