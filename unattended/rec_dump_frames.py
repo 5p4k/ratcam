@@ -31,8 +31,8 @@ class MyOutput(object):
 
 if __name__ == '__main__':
     with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 15
+        camera.resolution = (1920, 1080)
+        camera.framerate = 30
         print('Warming up camera...')
         sleep(2)
         print('Recording...')
@@ -41,7 +41,7 @@ if __name__ == '__main__':
                 camera.start_recording(output, format='h264', motion_output=motion_stream)
                 camera.wait_recording(2)
                 camera.request_key_frame()
-                camera.wait_recording(2)
+                camera.wait_recording(4)
                 camera.stop_recording()
                 print('Flushed %d bytes' % output.size)
                 print('List of captured frames:')
