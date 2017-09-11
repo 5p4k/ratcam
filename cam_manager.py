@@ -19,7 +19,7 @@ from picamera import PiCamera
 from enum import Enum
 
 class CameraMode(Enum):
-    PHOTO = {'sensor_mode': 3, 'shutter_speed': 200000, 'resolution': '1640x1232'}
+    PHOTO = {'sensor_mode': 3, 'resolution': '1640x1232'}
     VIDEO = {'sensor_mode': 4, 'framerate': 15, 'resolution': '640x480'}
     DEFAULT = {'iso': 800, 'sensor_mode': 3, 'exposure_mode': 'night'}
 
