@@ -1,6 +1,5 @@
-construct==2.8.8
 numpy==1.13.1
-picamera==1.13
+git+https://github.com/LizardM4/picamera.git@mp4
 Pillow==4.2.1
 python-telegram-bot==8.0
 pymp4==1.1.0
