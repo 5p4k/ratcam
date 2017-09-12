@@ -3,4 +3,4 @@ numpy==1.13.1
 picamera==1.13
 Pillow==4.2.1
 python-telegram-bot==8.0
--e git+https://github.com/beardypig/pymp4.git@a7fb06260e3becfa312db4341bb04a90eafae091#egg=pymp4&subdirectory=../pymp4
+pymp4==1.1.0
