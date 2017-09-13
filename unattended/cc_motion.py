@@ -34,7 +34,7 @@ if __name__ == '__main__':
             camera.wait_recording(10)
             camera.stop_recording()
             for i in range(motion_stream.array.shape[0]):
-                img = Image.fromarray(median2d(sq_norm(motion_stream.array[i])))
-                filename = 'frame%03d.png' % frame
+                img = Image.fromarray(median2d(sq_norm(motion_stream.array[i])).astype(np.uint8))
+                filename = 'frame%03d.png' % i
                 print('Writing %s' % filename)
                 img.save(filename)
