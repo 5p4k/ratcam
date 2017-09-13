@@ -20,5 +20,8 @@ with picamera.PiCamera() as camera:
         camera.resolution = (640, 480)
         camera.start_recording(
               'video.mp4', format='mp4', motion_output=output)
-        camera.wait_recording(30)
+        try:
+            camera.wait_recording(30)
+        except KeyboardInterrupt:
+            pass
         camera.stop_recording()
