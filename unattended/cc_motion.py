@@ -4,7 +4,7 @@ from time import sleep
 import numpy as np
 import picamera
 import picamera.array
-from PIL import Image
+from PIL import Image, ImageFilter
 
 def median2d(a):
     med3x3 = np.vectorize(lambda i, j : np.median(
@@ -34,7 +34,8 @@ if __name__ == '__main__':
             camera.wait_recording(10)
             camera.stop_recording()
             for i in range(motion_stream.array.shape[0]):
-                img = Image.fromarray(median2d(sq_norm(motion_stream.array[i])).astype(np.uint8))
+                # img = Image.fromarray(median2d(sq_norm(motion_stream.array[i])).astype(np.uint8))
+                img = Image.fromarray(sq_norm(motion_stream.array[i])).filter(ImageFilter.MedianFilter(size=3))
                 filename = 'frame%03d.png' % i
                 print('Writing %s' % filename)
                 img.save(filename)
