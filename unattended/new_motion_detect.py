@@ -2,24 +2,24 @@
 import numpy as np
 from picamera import PiCamera
 from picamera.array import PiMotionAnalysis
-from PIL import Image, ImageFilter, ImageChops
+from PIL import Image, ImageFilter, ImageMath
 from collections import namedtuple
 from time import process_time
 
 TriggerOptions = namedtuple('TriggerOptions', ['threshold', 'area_fraction'])
 
-DEFAULT_TRIGGER_OPTIONS = TriggerOptions(threshold=(15000, 10000), area_fraction=(1e-3, 5e-4))
+DEFAULT_TRIGGER_OPTIONS = TriggerOptions(threshold=(200, 180), area_fraction=(0.001, 0.001))
 
 class RatcamMD(PiMotionAnalysis):
 
     @staticmethod
-    def compute_norm(a, max_output=255, dtype=np.uint8):
+    def compute_norm(a):
         # Need to use uint16 to avoid overflow. Also seems faster than float and uint32
+        # Multiply by 255/182~= sqrt(2) so that it saturates the output
         return np.interp(
-            np.sqrt(np.square(a['x']).astype(np.uint16) + np.square(a['y']).astype(np.uint16)),
-            (0, 182), # x and y are 8bit signed, that is, max norm is sqrt(2) * 128
-            (0, max_output)
-        ).astype(dtype)
+            np.sqrt(np.square(a['x'].astype(np.uint16)) + np.square(a['y'].astype(np.uint16))),
+            (0, 182), (0, 255)
+        ).astype(np.uint8)
 
     @staticmethod
     def norm_to_img(a, median_size=3):
@@ -72,19 +72,16 @@ class RatcamMD(PiMotionAnalysis):
 
     def _accum_new(self, new_image):
         self.history.append(new_image)
-        # First step
-        if self.state is None:
-            self.state = new_image
-            return
         if len(self.history) > self.n_frames:
-            # Remove the oldest and subtract
-            self.state = ImageChops.difference(self.state, self.history[0])
             del self.history[0]
-        # Add the new one
-        self.state = ImageChops.add(self.state, new_image)
+        parts = {'img' + str(i): self.history[i] for i in range(len(self.history))}
+        expr = '(' + ('+'.join(parts.keys())) + ') / n'
+        parts['n'] = len(self.history)
+        self.state = ImageMath.eval(expr, **parts)
 
     def _update_trigger_status(self):
-        area_above_threshold = count_above_threshold(self.state, self.trigger_threshold)
+        area_above_threshold = RatcamMD.count_above_threshold(self.state, self.trigger_threshold)
+        print(('%05d'% area_above_threshold), self._triggered)
         new_triggered = (area_above_threshold >= self.trigger_area)
         # * TRIGGERED *
         if new_triggered != self._triggered:
@@ -93,13 +90,11 @@ class RatcamMD(PiMotionAnalysis):
 
     def analyze(self, a):
         self.processed_frames += 1
-        # TODO: precision is too low. Find a different way of accumulating data
-        max_output = 255 // self.n_frames
         t = process_time()
         # Record a new image
-        self._accum_new(RatcamMD.norm_to_img(RatcamMD.compute_norm(a, max_output)))
+        self._accum_new(RatcamMD.norm_to_img(RatcamMD.compute_norm(a)))
         self._update_trigger_status()
-        self.processing_time += t - process_time()
+        self.processing_time += process_time() - t
 
 
 class LogDetector(RatcamMD):
@@ -113,9 +108,10 @@ class LogDetector(RatcamMD):
 with PiCamera() as camera:
     camera.resolution = (1920, 1080)
     camera.framerate = 30
-    with LogDetector(camera) as output:
+    with RatcamMD(camera) as output:
+        output.n_frames = 120
         print('Starting...')
-        camera.start_recording('video.mp4', format='mp4', motion_output=output)
+        camera.start_recording('/dev/null', format='mp4', motion_output=output)
         try:
             camera.wait_recording(30)
         except KeyboardInterrupt:
