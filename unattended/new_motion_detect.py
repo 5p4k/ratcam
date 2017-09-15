@@ -13,7 +13,7 @@ DEFAULT_TRIGGER_OPTIONS = TriggerOptions(threshold=(15000, 10000), area_fraction
 class RatcamMD(PiMotionAnalysis):
 
     @staticmethod
-    def compute_norm(a, max_output=65535, dtype=np.uint16):
+    def compute_norm(a, max_output=255, dtype=np.uint8):
         # Need to use uint16 to avoid overflow. Also seems faster than float and uint32
         return np.interp(
             np.sqrt(np.square(a['x']).astype(np.uint16) + np.square(a['y']).astype(np.uint16)),
@@ -29,7 +29,7 @@ class RatcamMD(PiMotionAnalysis):
         return retval
 
     def __init__(self, camera, size=None):
-        super(self, RatcamMD).__init__(camera, size)
+        super(RatcamMD, self).__init__(camera, size)
         self.n_frames = int(camera.framerate)
         self.trigger_options = DEFAULT_TRIGGER_OPTIONS
         self.history = []
@@ -93,10 +93,11 @@ class RatcamMD(PiMotionAnalysis):
 
     def analyze(self, a):
         self.processed_frames += 1
-        max_output = 65535 // self.n_frames
+        # TODO: precision is too low. Find a different way of accumulating data
+        max_output = 255 // self.n_frames
         t = process_time()
         # Record a new image
-        self._accum_new(norm_to_img(compute_norm(a, max_output)))
+        self._accum_new(RatcamMD.norm_to_img(RatcamMD.compute_norm(a, max_output)))
         self._update_trigger_status()
         self.processing_time += t - process_time()
 
