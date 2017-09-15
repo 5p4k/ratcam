@@ -5,6 +5,7 @@ from picamera.array import PiMotionAnalysis
 from PIL import Image, ImageFilter, ImageMath
 from collections import namedtuple
 from time import process_time
+from math import exp, log
 
 TriggerOptions = namedtuple('TriggerOptions', ['threshold', 'area_fraction'])
 
@@ -30,17 +31,33 @@ class RatcamMD(PiMotionAnalysis):
 
     def __init__(self, camera, size=None):
         super(RatcamMD, self).__init__(camera, size)
+        self._decay_factor = None
+        self._n_frames = None
+        self._triggered = False
         self.n_frames = int(camera.framerate)
         self.trigger_options = DEFAULT_TRIGGER_OPTIONS
         self.history = []
         self.state = None
-        self._triggered = False
+        self.processed_frames = 0
+        self.processing_time = 0.
         assert(len(self.trigger_options.threshold) == 2)
         assert(self.trigger_options.threshold[0] >= self.trigger_options.threshold[1])
         assert(len(self.trigger_options.area_fraction) == 2)
         assert(self.trigger_options.area_fraction[0] >= self.trigger_options.area_fraction[1])
-        self.processed_frames = 0
-        self.processing_time = 0.
+
+    @property
+    def decay_factor(self):
+        return self._decay_factor
+
+    @property
+    def n_frames(self):
+        return self._n_frames
+
+    @n_frames.setter
+    def n_frames(self, value):
+        self._n_frames = std::max(1, value)
+        # Magic number that makes after n steps 256 decay exponentially below 1
+        self._decay_factor = exp(8 * log(2) / self._n_frames)
 
     def _trigger_changed(self):
         pass
@@ -74,10 +91,7 @@ class RatcamMD(PiMotionAnalysis):
         self.history.append(new_image)
         if len(self.history) > self.n_frames:
             del self.history[0]
-        parts = {'img' + str(i): self.history[i] for i in range(len(self.history))}
-        expr = '(' + ('+'.join(parts.keys())) + ') / n'
-        parts['n'] = len(self.history)
-        self.state = ImageMath.eval(expr, **parts)
+        self.state = ImageMath.eval('a * state + new', a=self.decay_factor, state=self.state, new=new_image)
 
     def _update_trigger_status(self):
         area_above_threshold = RatcamMD.count_above_threshold(self.state, self.trigger_threshold)
