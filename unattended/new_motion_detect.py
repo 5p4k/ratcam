@@ -57,7 +57,7 @@ class RatcamMD(PiMotionAnalysis):
     def n_frames(self, value):
         self._n_frames = std::max(1, value)
         # Magic number that makes after n steps 256 decay exponentially below 1
-        self._decay_factor = exp(8 * log(2) / self._n_frames)
+        self._decay_factor = exp(-8 * log(2) / self._n_frames)
 
     def _trigger_changed(self):
         pass
