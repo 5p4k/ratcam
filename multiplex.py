@@ -48,10 +48,10 @@ class TempMP4Muxer:
         self.file.close()
         self.muxer = None
         if os.path.isfile(self.file.name):
-            log().info('Removing temporary file %s' % self.file.name)
+            log().info('Dropping MP4, temporary file %s' % self.file.name)
             os.remove(self.file.name)
         self.file = None
-        self.age_in_frames = None
+        self.age_in_frames = -1
 
     def reset(self):
         self.file.seek(0)
@@ -66,7 +66,9 @@ class TempMP4Muxer:
         """
         file_name = self.file.name
         # Output the MP4 footer and close the file
-        self.muxer.end(framerate, resolution) # TODO truncate!
+        self.file.flush()
+        self.file.truncate()
+        self.muxer.end(framerate, resolution)
         self.file.close()
         # Put in place another file
         self.file = NamedTemporaryFile(delete=False)
@@ -127,7 +129,7 @@ class DelayedMP4Recorder:
             return
         self._keep_recording = value
         if self._keep_recording:
-            log().info('Turning on persistend recording.')
+            log().info('Turning on persistent recording.')
             # Can destroy the second stream
             self._drop_youngest()
         else:
@@ -140,20 +142,17 @@ class DelayedMP4Recorder:
     def write(self, data):
         is_sps_header = (self._camera.frame.frame_type == PiVideoFrameType.sps_header)
         is_complete = self._camera.frame.complete
-        if self.keep_recording:
-            # Just pass data down
-            self.oldest.append(data, is_sps_header, is_complete)
-        elif self.last_frame.complete and is_sps_header:
+        if not self.keep_recording and self.last_frame.complete and is_sps_header:
             # Can do syncing only at sps headers. Start the second stream up
             if self.oldest.age_in_frames > self.age_limit and not self.youngest:
                 self._init_second_stream()
             elif self.oldest.age_in_frames > 2 * self.age_limit:
                 # Time for a reset
                 self.oldest.reset()
-            # Write data to all streams
-            self.oldest.append(data, is_sps_header, is_complete)
-            if self.youngest:
-                self.youngest.append(data, is_sps_header, is_complete)
+        # Write data to all streams
+        self.oldest.append(data, is_sps_header, is_complete)
+        if self.youngest:
+            self.youngest.append(data, is_sps_header, is_complete)
         # Store the frame
         self.last_frame = self._camera.frame
 
