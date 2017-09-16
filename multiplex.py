@@ -88,7 +88,10 @@ class DelayedMP4Recorder:
         self._keep_recording = False
         self._camera = camera
         self.age_limit = age_limit
-        self.recorded_files = []
+        self.age_of_last_keyframe = 0
+
+    def _mp4_ready(self, file_name):
+        pass
 
     @property
     def oldest(self):
@@ -135,8 +138,7 @@ class DelayedMP4Recorder:
         else:
             log().info('Finalizing recording at path %s' % self.oldest.file.name)
             # Can finalize the oldest stream
-            self.recorded_files.append(
-                self.oldest.finalize(self._camera.framerate, self._camera.resolution))
+            self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
 
 
     def write(self, data):
@@ -155,6 +157,11 @@ class DelayedMP4Recorder:
             self.youngest.append(data, is_sps_header, is_complete)
         # Store the frame
         self.last_frame = self._camera.frame
+        if self.last_frame.complete:
+            if is_sps_header:
+                self.age_of_last_keyframe = 0
+            else:
+                self.age_of_last_keyframe += 1
 
 
     def flush(self):
