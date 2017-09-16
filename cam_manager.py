@@ -21,12 +21,13 @@ from picamera.array import PiMotionAnalysis
 from detector import DecayMotionDetector
 from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
-import os
 
 
-class MediaType(Enum):
-    VIDEO = 'video'
-    PHOTO = 'photo'
+class EventType(Enum):
+    VIDEO_READY = 'video'
+    PHOTO_READY = 'photo'
+    MOTION_DETECTED = 'moving'
+    MOTION_STILL = 'still'
 
 
 class MotionDetector(DecayMotionDetector, PiMotionAnalysis):
@@ -47,7 +48,7 @@ class RecorderManager(DelayedMP4Recorder):
         super(RecorderManager, self).__init__(self, manager.camera, 2 * int(manager.camera.framerate))
 
     def _mp4_ready(self, file_name):
-        self.manager._report_media(file_name, MediaType.VIDEO)
+        self.manager._report_event(EventType.VIDEO_READY, file_name)
 
 
 class CameraManager:
@@ -73,10 +74,6 @@ class CameraManager:
         self.camera.resolution = (1920, 1080)
         self.camera.framerate = 30
 
-    def _report_media(self, file_name, media_type):
-        log().warning('Sending %s uninmplemented. Removing %s' % (media_type, file_name))
-        os.remove(file_name)
-
     @property
     def camera(self):
         return self._camera
@@ -98,18 +95,21 @@ class CameraManager:
     def moving(self, value):
         self._moving = value
         self._recorder.keep_recording = self._moving or self._manual_rec
+        self._report_event(EventType.MOTION_DETECTED if value else EventType.MOTION_STILL)
 
 
-    def take_pic(self):
+    def take_photo(self):
         tmp_file = NamedTemporaryFile(delete=False)
         self.camera.capture(tmp_file, format='jpeg', use_video_port=True)
         tmp_file.flush()
         tmp_file.close()
-        self._report_media(tmp_file.name, MediaType.PHOTO)
+        self._report_event(EventType.PHOTO_READY, tmp_file.name)
 
     def take_video(self):
         self.manual_rec = True
 
+    def _report_event(self, event_type, file_name = None):
+        pass
 
     def spin(self):
         if self._recorder.age_of_last_keyframe > self._recorder.age_limit:

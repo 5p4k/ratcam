@@ -19,14 +19,20 @@
 import argparse
 import os
 import sys
+from time import sleep
 
 TOKEN_FILE = 'token.txt'
 
 from ratcam_bot import RatcamBot
 
 def main(token):
-    bot = RatcamBot(token)
-    bot.work()
+    with RatcamBot(token) as bot:
+        try:
+            while True:
+                bot.spin()
+                sleep(1)
+        except KeyboardInterrupt:
+            pass
 
 
 if __name__ == '__main__':

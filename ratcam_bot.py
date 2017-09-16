@@ -15,57 +15,76 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from cam_manager import CameraManager, CameraMode
+from cam_manager import CameraManager, EventType
 from misc import log
 from telegram.ext import Updater, CommandHandler
 import io
+import os
 
-class RatcamBot:
+class RatcamBot(CameraManager):
 
     def _bot_start(self, bot, update):
+        if self.chat_id != None:
+            return
         log().info('Ratcam bot started by user %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
-
-        bot.send_message(chat_id=update.message.chat_id, text='Ratcam SimpleBot active.')
-
+        self.chat_id = update.message.chat_id
+        if self.bot:
+            self.bot.send_message(chat_id=self.chat_id, text='Ratcam SimpleBot active.')
 
     def _bot_photo(self, bot, update):
+        if update.message.chat_id != self.chat_id:
+            return
         log().info('A picture is going to be taken for user %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
-
-        self._cam_mgr.mode = CameraMode.PHOTO
-        with io.BytesIO() as stream:
-            self._cam_mgr.cam.capture(stream, 'jpeg')
-            stream.seek(0)
-            bot.send_photo(chat_id=update.message.chat_id, photo=stream)
-
+        self._cam_mgr.take_photo()
 
     def _bot_video(self, bot, update):
+        if update.message.chat_id != self.chat_id:
+            return
         log().info('A video is going to be recorder for user %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
+        self._cam_mgr.take_video()
 
-        self._cam_mgr.mode = CameraMode.VIDEO
-        with io.BytesIO() as stream:
-            self._cam_mgr.cam.start_recording(stream, format='mp4', quality=23)
-            self._cam_mgr.cam.wait_recording(8)
-            self._cam_mgr.cam.stop_recording()
-            stream.seek(0)
-            bot.send_video(chat_id=update.message.chat_id, video=stream)
+    @property
+    def bot(self):
+        return self._updater.bot if self.chat_id is not None else None
+
+    def __enter__(self):
+        super(RatcamBot, self).__enter__(self)
+        self._updater.start_polling(clean=True)
+        log().info('Starting up camera and polling.')
 
 
-    def work(self):
-        self._updater.start_polling()
-        self._updater.idle()
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        log().info('Stopping camera and polling.')
+        super(RatcamBot, self).__exit__(self, exc_type, exc_val, exc_tb)
 
+    def _report_event(self, event_type, file_name = None):
+        if event_type == EventType.MOTION_DETECTED:
+            if self.bot:
+                self.bot.send_message(chat_id=self.chat_id, text='Something is moving...')
+        elif event_type == EventType.MOTION_STILL:
+            if self.bot:
+                self.bot.send_message(chat_id=self.chat_id, text='Everything quiet.')
+        elif event_type == EventType.PHOTO_READY:
+            if self.bot:
+                self.bot.send_photo(chat_id=self.chat_id, photo=file_name)
+            os.remove(file_name)
+        elif event_type == EventType.VIDEO_READY:
+            if self.bot:
+                self.bot.send_video(chat_id=self.chat_id, video=file_name)
+            os.remove(file_name)
 
     def __init__(self, token):
-        self._cam_mgr = CameraManager()
+        super(RatcamBot, self).__init__(self)
+        self.chat_id = None
         self._updater = Updater(token=token)
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
         self._updater.dispatcher.add_handler(CommandHandler('photo', self._bot_photo))
