@@ -11,33 +11,36 @@ TriggerOptions = namedtuple('TriggerOptions', ['threshold', 'area_fraction'])
 
 DEFAULT_TRIGGER_OPTIONS = TriggerOptions(threshold=(200, 180), area_fraction=(0.001, 0.001))
 
-class RatcamMD(PiMotionAnalysis):
+def Pillow_median(a, size=3, reshape=False):
+    filt = ImageFilter.MedianFilter(size=size)
+    b = np.array(Image.fromarray(a).filter(filt).getdata())
+    if reshape:
+        b = b.reshape(a.shape)
+    return b
+
+
+class RatcamMD:
 
     @staticmethod
-    def compute_norm(a):
+    def compute_and_denoise_mv_norm(a, median_size=3, reshape=False, dtype=np.uint16):
         # Need to use uint16 to avoid overflow. Also seems faster than float and uint32
-        # Multiply by 255/182~= sqrt(2) so that it saturates the output
-        return np.interp(
-            np.sqrt(np.square(a['x'].astype(np.uint16)) + np.square(a['y'].astype(np.uint16))),
-            (0, 182), (0, 255)
-        ).astype(np.uint8)
-
-    @staticmethod
-    def norm_to_img(a, median_size=3):
-        retval = Image.fromarray(a)
+        norm = np.sqrt(np.square(a['x'].astype(np.uint16)) + np.square(a['y'].astype(np.uint16)))
+        # Scale to fill. Max norm value for 8bit signed vectors is ~182
+        norm = np.interp(norm, (0, 182), (0, 255)).astype(np.uint8)
+        # Apply median filter
         if median_size > 1:
-            retval = retval.filter(ImageFilter.MedianFilter(size=median_size))
-        return retval
+            norm = Pillow_median(norm, size=median_size, reshape=reshape)
+        # Convert to destination type
+        return norm.astype(dtype)
 
-    def __init__(self, camera, size=None):
-        super(RatcamMD, self).__init__(camera, size)
+    def __init__(self, resolution, n_frames):
         self._decay_factor = None
         self._n_frames = None
         self._triggered = False
-        self.n_frames = int(camera.framerate)
+        self._resolution_area = resolution[0] * resolution[1]
+        self.n_frames = n_frames
         self.trigger_options = DEFAULT_TRIGGER_OPTIONS
-        self.history = []
-        self.state = None
+        self.motion_accumulator = None
         self.processed_frames = 0
         self.processing_time = 0.
         assert(len(self.trigger_options.threshold) == 2)
@@ -62,23 +65,16 @@ class RatcamMD(PiMotionAnalysis):
     def _trigger_changed(self):
         pass
 
-    @staticmethod
-    def count_above_threshold(img, threshold):
-        return sum(img.histogram()[threshold:])
-
     @property
     def is_triggered(self):
         return self._triggered
 
     @property
     def trigger_area(self):
-        if self.state is None:
-            return float('inf')
-        img_area = self.state.width * self.state.height
         if self.is_triggered:
-            return img_area * self.trigger_options.area_fraction[1]
+            return self._resolution_area * self.trigger_options.area_fraction[1]
         else:
-            return img_area * self.trigger_options.area_fraction[0]
+            return self._resolution_area * self.trigger_options.area_fraction[0]
 
     @property
     def trigger_threshold(self):
@@ -87,36 +83,43 @@ class RatcamMD(PiMotionAnalysis):
         else:
             return self.trigger_options.threshold[0]
 
-    def _accum_new(self, new_image):
-        self.history.append(new_image)
-        if len(self.history) > self.n_frames:
-            del self.history[0]
-        self.state = ImageMath.eval('a * state + new', a=self.decay_factor, state=self.state, new=new_image)
+    def _accum_new(self, data):
+        if self.motion_accumulator is None:
+            self.motion_accumulator = data
+        else:
+            self.motion_accumulator *= self.decay_factor
+            self.motion_accumulator += data
 
     def _update_trigger_status(self):
-        area_above_threshold = RatcamMD.count_above_threshold(self.state, self.trigger_threshold)
-        print(('%05d'% area_above_threshold), self._triggered)
+        area_above_threshold = np.sum(self.motion_accumulator > self.trigger_threshold)
         new_triggered = (area_above_threshold >= self.trigger_area)
         # * TRIGGERED *
         if new_triggered != self._triggered:
             self._triggered = new_triggered
             self._trigger_changed()
 
-    def analyze(self, a):
+    def process_motion_vector(self, a):
         self.processed_frames += 1
         t = process_time()
         # Record a new image
-        self._accum_new(RatcamMD.norm_to_img(RatcamMD.compute_norm(a)))
+        self._accum_new(RatcamMD.compute_and_denoise_mv_norm(a))
         self._update_trigger_status()
         self.processing_time += process_time() - t
 
 
-class LogDetector(RatcamMD):
+class LogDetector(RatcamMD, PiMotionAnalysis):
+    def __init__(self, camera, size=None):
+        RatcamMD.__init__(camera.resolution, int(camera.framerate))
+        PiMotionAnalysis.__init(camera, size)
+
     def _trigger_changed(self):
         if self.is_triggered:
             print('Something is moving!')
         else:
             print('It stopped...')
+
+    def analyze(self, a):
+        self.process_motion_vector(a)
 
 
 with PiCamera() as camera:
