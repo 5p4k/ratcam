@@ -20,7 +20,7 @@ def Pillow_median(a, size=3, reshape=False):
 class RatcamMD:
 
     @staticmethod
-    def compute_and_denoise_mv_norm(a, median_size=3, reshape=False, dtype=np.uint16):
+    def compute_and_denoise_mv_norm(a, median_size=3, reshape=False, dtype=np.float):
         # Need to use uint16 to avoid overflow. Also seems faster than float and uint32
         norm = np.sqrt(np.square(a['x'].astype(np.uint16)) + np.square(a['y'].astype(np.uint16)))
         # Scale to fill. Max norm value for 8bit signed vectors is ~182
@@ -56,7 +56,7 @@ class RatcamMD:
 
     @n_frames.setter
     def n_frames(self, value):
-        self._n_frames = std::max(1, value)
+        self._n_frames = max(1, value)
         # Magic number that makes after n steps 256 decay exponentially below 1
         self._decay_factor = exp(-8 * log(2) / self._n_frames)
 
