@@ -17,7 +17,7 @@
 
 from tempfile import NamedTemporaryFile
 from picamera.mp4 import MP4Muxer
-from picamera.frames import PiVideoFrameType
+from picamera.frames import PiVideoFrameType, PiVideoFrame
 import os
 import os.path
 from misc import log
@@ -42,7 +42,7 @@ class TempMP4Muxer:
     """
     def __init__(self):
         self.file = NamedTemporaryFile(delete=False)
-        self.age_in_frames = 0
+        self.reset()
 
     def destroy(self):
         self.file.close()
@@ -69,7 +69,7 @@ class TempMP4Muxer:
         self.muxer.end(framerate, resolution) # TODO truncate!
         self.file.close()
         # Put in place another file
-        self.file  NamedTemporaryFile(delete=False)
+        self.file = NamedTemporaryFile(delete=False)
         self.reset()
         return file_name
 
@@ -80,7 +80,7 @@ class TempMP4Muxer:
 
 class DelayedMP4Recorder:
     def __init__(self, camera, age_limit):
-        self.frame = PiVideoFrame(index=0, frame_type=None, frame_size=0, video_size=0,
+        self.last_frame = PiVideoFrame(index=0, frame_type=None, frame_size=0, video_size=0,
             split_size=0, timestamp=0, complete=True)
         self._streams = [TempMP4Muxer()]
         self._keep_recording = False

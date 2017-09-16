@@ -16,8 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from multiplexer import DelayedMP4Recorder
-from picamera import Picamera
+from multiplex import DelayedMP4Recorder
+import picamera
 
 if __name__ == '__main__':
     with picamera.PiCamera() as camera:
