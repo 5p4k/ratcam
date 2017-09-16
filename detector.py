@@ -23,7 +23,8 @@ from math import exp, log
 
 TriggerOptions = namedtuple('TriggerOptions', ['threshold', 'area_fraction'])
 
-DEFAULT_TRIGGER_OPTIONS = TriggerOptions(threshold=(200, 180), area_fraction=(0.001, 0.001))
+LOW_SENSITIVITY = TriggerOptions(threshold=(200, 180), area_fraction=(0.001, 0.001))
+HIGH_SENSITIVITY = TriggerOptions(threshold=(80, 20), area_fraction=(0.0001, 0.00002))
 
 def Pillow_median(a, size=3, reshape=False):
     filt = ImageFilter.MedianFilter(size=size)
@@ -53,7 +54,7 @@ class RatcamMD:
         self._triggered = False
         self._resolution_area = resolution[0] * resolution[1]
         self.n_frames = n_frames
-        self.trigger_options = DEFAULT_TRIGGER_OPTIONS
+        self.trigger_options = HIGH_SENSITIVITY
         self.motion_accumulator = None
         self.processed_frames = 0
         self.processing_time = 0.
