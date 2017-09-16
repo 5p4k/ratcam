@@ -45,7 +45,7 @@ class MotionDetector(DecayMotionDetector, PiMotionAnalysis):
 
 class RecorderManager(DelayedMP4Recorder):
     def __init__(self, manager):
-        super(RecorderManager, self).__init__(self, manager.camera, 2 * int(manager.camera.framerate))
+        super(RecorderManager, self).__init__(manager.camera, 2 * int(manager.camera.framerate))
 
     def _mp4_ready(self, file_name):
         self.manager._report_event(EventType.VIDEO_READY, file_name)

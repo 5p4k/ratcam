@@ -57,14 +57,14 @@ class RatcamBot(CameraManager):
         return self._updater.bot if self.chat_id is not None else None
 
     def __enter__(self):
-        super(RatcamBot, self).__enter__(self)
+        super(RatcamBot, self).__enter__()
         self._updater.start_polling(clean=True)
         log().info('Starting up camera and polling.')
 
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         log().info('Stopping camera and polling.')
-        super(RatcamBot, self).__exit__(self, exc_type, exc_val, exc_tb)
+        super(RatcamBot, self).__exit__(exc_type, exc_val, exc_tb)
 
     def _report_event(self, event_type, file_name = None):
         if event_type == EventType.MOTION_DETECTED:
@@ -83,7 +83,7 @@ class RatcamBot(CameraManager):
             os.remove(file_name)
 
     def __init__(self, token):
-        super(RatcamBot, self).__init__(self)
+        super(RatcamBot, self).__init__()
         self.chat_id = None
         self._updater = Updater(token=token)
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
