@@ -34,7 +34,7 @@ def Pillow_median(a, size=3, reshape=False):
     return b
 
 
-class RatcamMD:
+class DecayMotionDetector:
 
     @staticmethod
     def compute_and_denoise_mv_norm(a, median_size=3, reshape=False, dtype=np.float):
@@ -117,6 +117,6 @@ class RatcamMD:
         self.processed_frames += 1
         t = process_time()
         # Record a new image
-        self._accum_new(RatcamMD.compute_and_denoise_mv_norm(a))
+        self._accum_new(DecayMotionDetector.compute_and_denoise_mv_norm(a))
         self._update_trigger_status()
         self.processing_time += process_time() - t

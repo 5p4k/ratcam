@@ -17,11 +17,11 @@
 #
 from PIL import Image
 import numpy as np
-from detector import RatcamMD
+from detector import DecayMotionDetector
 from glob import glob
 from time import process_time
 
-class DummyDetector(RatcamMD):
+class DummyDetector(DecayMotionDetector):
     def __init__(self, size, *args, **kwargs):
         super(DummyDetector, self).__init__(size, *args, **kwargs)
         self.size = size

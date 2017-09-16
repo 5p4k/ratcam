@@ -17,11 +17,11 @@
 #
 from picamera import PiCamera
 from picamera.array import PiMotionAnalysis
-from detector import RatcamMD
+from detector import DecayMotionDetector
 
-class LogDetector(RatcamMD, PiMotionAnalysis):
+class LogDetector(DecayMotionDetector, PiMotionAnalysis):
     def __init__(self, camera, size=None):
-        RatcamMD.__init__(self, camera.resolution, int(camera.framerate))
+        DecayMotionDetector.__init__(self, camera.resolution, int(camera.framerate))
         PiMotionAnalysis.__init__(self, camera, size)
 
     def _trigger_changed(self):
