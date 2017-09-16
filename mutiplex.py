@@ -4,21 +4,6 @@ from picamera.frames import PiVideoFrameType
 import os
 import os.path
 
-class PiFrameDataOutput:
-    """
-    Transfers also frame information to another output
-    """
-    def __init__(self, camera, target):
-        self.camera = camera
-        self.target = target
-
-    def write(self, data):
-        self.target.write(data, self.camera.frame)
-
-    def flush(self):
-        self.target.flush()
-
-
 class MP4StreamMuxer(MP4Muxer):
     """
     Simple MP4 muxer wrapper that writes and seeks on a stream.
@@ -62,7 +47,7 @@ class TempMP4Muxer:
         Continues recording on another temporary file
         """
         file_name = self.file.name
-        # Complete the MP4 and close the file
+        # Output the MP4 footer and close the file
         self.muxer.end(framerate, resolution) # TODO truncate!
         self.file.close()
         # Put in place another file
@@ -76,8 +61,84 @@ class TempMP4Muxer:
             self.age_in_frames += 1
 
 class DelayedMP4Recorder:
-    def foo(self):
-        if next_frame_is_key:
-            if self.oldest.age_in_frames > self.age_limit and not self.keep_recording:
+    def __init__(self, camera, age_limit):
+        self.frame = PiVideoFrame(index=0, frame_type=None, frame_size=0, video_size=0,
+            split_size=0, timestamp=0, complete=True)
+        self._streams = [TempMP4Muxer()]
+        self._keep_recording = False
+        self._camera = camera
+        self.age_limit = age_limit
+        self.recorded_files = []
+
+    @property
+    def oldest(self):
+        if len(self._streams) == 1 or self._streams[0].age_in_frames >= self._streams[1].age_in_frames:
+            return self._streams[0]
+        else:
+            return self._streams[1]
+
+    @property
+    def youngest(self):
+        if len(self._streams) == 1:
+            return None
+        if self._streams[0].age_in_frames < self._streams[1].age_in_frames:
+            return self._streams[0]
+        else:
+            return self._streams[1]
+
+    def _init_second_stream(self):
+        assert(len(self._streams) == 1)
+        self._streams.append(TempMP4Muxer())
+
+    def _drop_youngest(self):
+        if self.youngest:
+            self.youngest.destroy()
+            if self._streams[0] == self.youngest:
+                del self._streams[0]
+            else:
+                del self._streams[1]
+
+
+    @property
+    def keep_recording(self):
+        return self._keep_recording
+
+    @keep_recording.setter
+    def keep_recording(self, value):
+        if value == self._keep_recording:
+            return
+        self._keep_recording = value
+        if self._keep_recording:
+            # Can destroy the second stream
+            self._drop_youngest()
+        else:
+            # Can finalize the oldest stream
+            self.recorded_files.append(
+                self.oldest.finalize(self._camera.framerate, self._camera.resolution))
+
+
+    def write(self, data):
+        is_sps_header = (self._camera.frame.frame_type == PiVideoFrameType.sps_header)
+        is_complete = self._camera.frame.complete
+        if self.keep_recording:
+            # Just pass data down
+            self.oldest.append(data, is_sps_header, is_complete)
+        elif self.last_frame.complete and is_sps_header:
+            # Can do syncing only at sps headers. Start the second stream up
+            if self.oldest.age_in_frames > self.age_limit and not self.youngest:
+                self._init_second_stream()
+            elif self.oldest.age_in_frames > 2 * self.age_limit:
+                # Time for a reset
                 self.oldest.reset()
-                # blabla
+            # Write data to all streams
+            self.oldest.append(data, is_sps_header, is_complete)
+            if self.youngest:
+                self.youngest.append(data, is_sps_header, is_complete)
+        # Store the frame
+        self.last_frame = self._camera.frame
+
+
+    def flush(self):
+        self.oldest.destroy()
+        if self.youngest:
+            self.youngest.destroy()
