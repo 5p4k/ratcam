@@ -26,7 +26,8 @@ TOKEN_FILE = 'token.txt'
 from ratcam_bot import RatcamBot
 
 def main(token):
-    with RatcamBot(token) as bot:
+    bot = RatcamBot(token)
+    with bot:
         try:
             while True:
                 bot.spin()

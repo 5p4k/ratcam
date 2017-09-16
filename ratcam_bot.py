@@ -41,7 +41,7 @@ class RatcamBot(CameraManager):
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
-        self._cam_mgr.take_photo()
+        self.take_photo()
 
     def _bot_video(self, bot, update):
         if update.message.chat_id != self.chat_id:
@@ -50,7 +50,7 @@ class RatcamBot(CameraManager):
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
-        self._cam_mgr.take_video()
+        self.take_video()
 
     @property
     def bot(self):

@@ -136,7 +136,7 @@ class DelayedMP4Recorder:
             # Can destroy the second stream
             self._drop_youngest()
         else:
-            log().info('Finalizing recording at path %s' % self.oldest.file.name)
+            log().info('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
             # Can finalize the oldest stream
             self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
 
