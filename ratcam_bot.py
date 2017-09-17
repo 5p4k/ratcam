@@ -15,13 +15,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from cam_manager import CameraManager, EventType
 from misc import log
 from telegram.ext import Updater, CommandHandler
 import io
 import os
 
-class RatcamBot(CameraManager):
+class RatcamBot: # TODO Bot process?
 
     def _bot_start(self, bot, update):
         if self.chat_id != None:
@@ -31,30 +30,28 @@ class RatcamBot(CameraManager):
             update.message.from_user.last_name,
             update.message.from_user.username)
         self.chat_id = update.message.chat_id
-        if self.bot:
-            self.bot.send_message(chat_id=self.chat_id, text='Ratcam SimpleBot active.')
+        if self.chat_id:
+            bot.send_message(chat_id=self.chat_id, text='Ratcam SimpleBot active.')
 
     def _bot_photo(self, bot, update):
-        if update.message.chat_id != self.chat_id:
+        if update.message.chat_id != self.chat_id or not self.chat_id:
             return
         log().info('A picture is going to be taken for user %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
-        self.take_photo()
+        # Signal
+        self.state.photo_request = True
 
     def _bot_video(self, bot, update):
-        if update.message.chat_id != self.chat_id:
+        if update.message.chat_id != self.chat_id or not self.chat_id:
             return
         log().info('A video is going to be recorder for user %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
-        self.take_video()
-
-    @property
-    def bot(self):
-        return self._updater.bot if self.chat_id is not None else None
+        # Signal
+        self.state.video_request = True
 
     def __enter__(self):
         super(RatcamBot, self).__enter__()
@@ -64,27 +61,26 @@ class RatcamBot(CameraManager):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         log().info('Stopping camera and polling.')
-        super(RatcamBot, self).__exit__(exc_type, exc_val, exc_tb)
 
-    def _report_event(self, event_type, file_name = None):
-        if event_type == EventType.MOTION_DETECTED:
-            if self.bot:
-                self.bot.send_message(chat_id=self.chat_id, text='Something is moving...')
-        elif event_type == EventType.MOTION_STILL:
-            if self.bot:
-                self.bot.send_message(chat_id=self.chat_id, text='Everything quiet.')
-        elif event_type == EventType.PHOTO_READY:
-            if self.bot:
-                self.bot.send_photo(chat_id=self.chat_id, photo=file_name)
-            os.remove(file_name)
-        elif event_type == EventType.VIDEO_READY:
-            if self.bot:
-                self.bot.send_video(chat_id=self.chat_id, video=file_name)
+    def spin(self):
+        if self.state.motion_began and self.chat_id:
+            self._updater.bot.send_message(chat_id=self.chat_id, text='Something is moving...')
+        if self.state.motion_stopped and self.chat_id:
+            self._updater.bot.send_message(chat_id=self.chat_id, text='Everything quiet.')
+        # Pop one media
+        file_name, media_type = self.state.pop_media()
+        if file_name:
+            if media_type == 'video':
+                self._updater.bot.send_video(chat_id=self.chat_id, video=file_name)
+            elif media_type == 'photo':
+                self._updater.bot.send_photo(chat_id=self.chat_id, photo=file_name)
+            # Remove
             os.remove(file_name)
 
-    def __init__(self, token):
-        super(RatcamBot, self).__init__()
+
+    def __init__(self, state, token):
         self.chat_id = None
+        self.state = state
         self._updater = Updater(token=token)
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
         self._updater.dispatcher.add_handler(CommandHandler('photo', self._bot_photo))
