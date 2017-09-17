@@ -17,52 +17,41 @@
 #
 
 import argparse
+from time import sleep
+from ratcam_bot import BotProcess
+from cam_manager import CameraProcess
+from state import SharedState
+from multiprocessing import Process, Manager
 import os
 import sys
-from time import sleep
 
 TOKEN_FILE = 'token.txt'
 
-from ratcam_bot import RatcamBot
-from cam_manager import CameraManager, EventType
-from state import SharedState
 
-# TODO splitting between two processes
 
-class CameraProcess(CameraManager): # TODO move to cam_manager?
-    def __init__(self, state):
-        super(CameraProcess, self).__init__()
-        self.state = state
+def bot_process(state, token):
+    bot = BotProcess(state, token)
+    with bot:
+        while True:
+            bot.spin()
+            sleep(1)
 
-    def _report_event(self, event_type, file_name = None):
-        if event_type == EventType.VIDEO_READY:
-            self.state.push_media(file_name, 'video')
-        elif event_type == EventType.PHOTO_READY:
-            self.state.push_media(file_name, 'photo')
-        elif event_type == EventType.MOTION_DETECTED:
-            self.state.motion_began = True
-        elif event_type == EventType.MOTION_STILL:
-            self.state.motion_stopped = True
-
-    def spin(self):
-        super(CameraProcess, self).spin()
-        if self.state.photo_request:
-            self.take_photo()
-        if self.state.video_request:
-            self.take_video()
-
-class BotProcess()
-
+def cam_process(state):
+    cam = CameraProcess(state)
+    with cam:
+        while True:
+            cam.spin()
+            sleep(1)
 
 def main(token):
-    bot = RatcamBot(token)
-    with bot:
-        try:
-            while True:
-                bot.spin()
-                sleep(1)
-        except KeyboardInterrupt:
-            pass
+    with Manager() as manager:
+        state = SharedState(manager)
+        cam = Process(target=cam_process, args=(state,))
+        bot = Process(target=bot_process, args=(state, token))
+        cam.start()
+        bot.start()
+        bot.join()
+        cam.join()
 
 
 if __name__ == '__main__':

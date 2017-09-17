@@ -20,7 +20,7 @@ from telegram.ext import Updater, CommandHandler
 import io
 import os
 
-class RatcamBot: # TODO Bot process?
+class BotProcess:
 
     def _bot_start(self, bot, update):
         if self.chat_id != None:
@@ -36,7 +36,7 @@ class RatcamBot: # TODO Bot process?
     def _bot_photo(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        log().info('A picture is going to be taken for user %s, %s (%s)',
+        log().info('Taking photo for %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -46,7 +46,7 @@ class RatcamBot: # TODO Bot process?
     def _bot_video(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        log().info('A video is going to be recorder for user %s, %s (%s)',
+        log().info('Taking video for %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -54,13 +54,12 @@ class RatcamBot: # TODO Bot process?
         self.state.video_request = True
 
     def __enter__(self):
-        super(RatcamBot, self).__enter__()
         self._updater.start_polling(clean=True)
-        log().info('Starting up camera and polling.')
+        log().info('BotProcess: enter.')
 
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        log().info('Stopping camera and polling.')
+        log().info('BotProcess: exit.')
 
     def spin(self):
         if self.state.motion_began and self.chat_id:
@@ -70,10 +69,13 @@ class RatcamBot: # TODO Bot process?
         # Pop one media
         file_name, media_type = self.state.pop_media()
         if file_name:
-            if media_type == 'video':
-                self._updater.bot.send_video(chat_id=self.chat_id, video=file_name)
-            elif media_type == 'photo':
-                self._updater.bot.send_photo(chat_id=self.chat_id, photo=file_name)
+            if self.chat_id:
+                if media_type == 'video':
+                    with open(file_name, 'rb') as file:
+                        self._updater.bot.send_video(chat_id=self.chat_id, video=file)
+                elif media_type == 'photo':
+                    with open(file_name, 'rb') as file:
+                        self._updater.bot.send_photo(chat_id=self.chat_id, photo=file)
             # Remove
             os.remove(file_name)
 

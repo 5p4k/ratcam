@@ -21,6 +21,7 @@ from picamera.array import PiMotionAnalysis
 from detector import DecayMotionDetector
 from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
+from misc import log
 
 
 class EventType(Enum):
@@ -94,7 +95,8 @@ class CameraManager:
 
     @moving.setter
     def moving(self, value):
-        self._moving = value
+        # FIX
+        self._moving = False
         self._recorder.keep_recording = self._moving or self._manual_rec
         self._report_event(EventType.MOTION_DETECTED if value else EventType.MOTION_STILL)
 
@@ -119,3 +121,36 @@ class CameraManager:
         if self.manual_rec and self._recorder.oldest.age_in_frames > 30 * 8:
             # Manual recording has expired
             self.manual_rec = False
+
+
+class CameraProcess(CameraManager):
+    def __init__(self, state):
+        super(CameraProcess, self).__init__()
+        self.state = state
+
+    def __enter__(self):
+        super(CameraProcess, self).__enter__()
+        log().info('CameraProcess: enter.')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        log().info('CameraProcess: exit.')
+        super(CameraProcess, self).__exit__(exc_type, exc_val, exc_tb)
+
+    def _report_event(self, event_type, file_name = None):
+        if event_type == EventType.VIDEO_READY:
+            self.state.push_media(file_name, 'video')
+            log().info('Video ready at %s' % file_name)
+        elif event_type == EventType.PHOTO_READY:
+            self.state.push_media(file_name, 'photo')
+            log().info('Photo ready at %s' % file_name)
+        elif event_type == EventType.MOTION_DETECTED:
+            self.state.motion_began = True
+        elif event_type == EventType.MOTION_STILL:
+            self.state.motion_stopped = True
+
+    def spin(self):
+        super(CameraProcess, self).spin()
+        if self.state.photo_request:
+            self.take_photo()
+        if self.state.video_request:
+            self.take_video()
