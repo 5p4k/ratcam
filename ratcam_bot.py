@@ -25,7 +25,7 @@ class BotProcess:
     def _bot_start(self, bot, update):
         if self.chat_id != None:
             return
-        log().info('Ratcam bot started by user %s, %s (%s)',
+        log().info('BotProcess: started by user %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -36,7 +36,7 @@ class BotProcess:
     def _bot_photo(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        log().info('Taking photo for %s, %s (%s)',
+        log().info('BotProcess: taking photo for %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -46,7 +46,7 @@ class BotProcess:
     def _bot_video(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        log().info('Taking video for %s, %s (%s)',
+        log().info('BotProcess: taking video for %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -70,12 +70,16 @@ class BotProcess:
         file_name, media_type = self.state.pop_media()
         if file_name:
             if self.chat_id:
-                if media_type == 'video':
-                    with open(file_name, 'rb') as file:
-                        self._updater.bot.send_video(chat_id=self.chat_id, video=file)
-                elif media_type == 'photo':
-                    with open(file_name, 'rb') as file:
-                        self._updater.bot.send_photo(chat_id=self.chat_id, photo=file)
+                try:
+                    log().info('BotProcess: sending media %s' % file_name)
+                    if media_type == 'video':
+                        with open(file_name, 'rb') as file:
+                            self._updater.bot.send_video(chat_id=self.chat_id, video=file)
+                    elif media_type == 'photo':
+                        with open(file_name, 'rb') as file:
+                            self._updater.bot.send_photo(chat_id=self.chat_id, photo=file)
+                except Exception as e:
+                    log().error(str(e))
             # Remove
             os.remove(file_name)
 

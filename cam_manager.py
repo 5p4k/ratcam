@@ -139,13 +139,15 @@ class CameraProcess(CameraManager):
     def _report_event(self, event_type, file_name = None):
         if event_type == EventType.VIDEO_READY:
             self.state.push_media(file_name, 'video')
-            log().info('Video ready at %s' % file_name)
+            log().info('CameraProcess: video ready at %s' % file_name)
         elif event_type == EventType.PHOTO_READY:
             self.state.push_media(file_name, 'photo')
-            log().info('Photo ready at %s' % file_name)
+            log().info('CameraProcess: photo ready at %s' % file_name)
         elif event_type == EventType.MOTION_DETECTED:
+            log().info('CameraProcess: motion detected.')
             self.state.motion_began = True
         elif event_type == EventType.MOTION_STILL:
+            log().info('CameraProcess: motion still.')
             self.state.motion_stopped = True
 
     def spin(self):
