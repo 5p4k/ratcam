@@ -24,10 +24,12 @@ from state import SharedState
 from multiprocessing import Process, Manager
 import os
 import sys
-from misc import log
+import logging
 
 TOKEN_FILE = 'token.txt'
+LOG_FILE = 'ratcam.log'
 
+_log = None
 
 
 def bot_process(state, token):
@@ -38,10 +40,10 @@ def bot_process(state, token):
                 bot.spin()
                 sleep(1)
             except KeyboardInterrupt:
-                log().info('BotProcess: shutting down...')
+                _log.info('BotProcess: shutting down...')
                 break
             except Exception as ex:
-                log().error('Error during polling: %s' % str(ex))
+                _log.error('Error during polling: %s' % str(ex))
 
 def cam_process(state):
     cam = CameraProcess(state)
@@ -51,10 +53,21 @@ def cam_process(state):
                 cam.spin()
                 sleep(1)
             except KeyboardInterrupt:
-                log().info('CameraProcess: shutting down...')
+                _log.info('CameraProcess: shutting down...')
                 break
             except Exception as ex:
-                log().error('Error during camera spin: %s' % str(ex))
+                _log.error('Error during camera spin: %s' % str(ex))
+
+
+def setup_log(debug=False):
+    global _log
+    fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    lvl = logging.DEBUG if debug else logging.INFO
+    logging.basicConfig(format=fmt, level=lvl)
+    _log = logging.getLogger()
+    if debug:
+        _log.addHandler(logging.FileHandler(LOG_FILE))
+
 
 def main(token):
     with Manager() as manager:
@@ -76,6 +89,8 @@ def main(token):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Control your Pi camera using Telegram.')
     parser.add_argument('--token', '-t', required=False, help='Telegram API token.')
+    parser.add_argument('--debug', '-d', required=False, action='store_true',
+         help='Turn on verbose logging and saves it to %s' % LOG_FILE)
     args = parser.parse_args()
     token = args.token
     if token is None:
@@ -91,4 +106,5 @@ if __name__ == '__main__':
         print('Specify the token as argument or provide it in a file named %s.' % TOKEN_FILE, file=sys.stderr)
         sys.exit(1)
     else:
+        setup_log(args.debug)
         main(token)

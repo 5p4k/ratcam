@@ -1,7 +1,10 @@
 from multiprocessing import Event
-from misc import log
 import os
 import queue
+
+import logging
+
+_log = logging.getLogger()
 
 class SharedState:
     def __init__(self, manager):
@@ -67,7 +70,7 @@ class SharedState:
         try:
             self._media_queue.put((file_name, type), block=False)
         except queue.Full:
-            log.warning('Media queue is full, deleting %s %s.' % (type, file_name))
+            _log.warning('Media queue is full, deleting %s %s.' % (type, file_name))
             os.remove(file_name)
 
     def pop_media(self):

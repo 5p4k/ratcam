@@ -20,7 +20,9 @@ from picamera.mp4 import MP4Muxer
 from picamera.frames import PiVideoFrameType, PiVideoFrame
 import os
 import os.path
-from misc import log
+import logging
+
+_log = logging.getLogger()
 
 class MP4StreamMuxer(MP4Muxer):
     """
@@ -48,7 +50,7 @@ class TempMP4Muxer:
         self.file.close()
         self.muxer = None
         if os.path.isfile(self.file.name):
-            log().info('Dropping MP4, temporary file %s' % self.file.name)
+            _log.debug('Dropping temporary MP4 %s' % self.file.name)
             os.remove(self.file.name)
         self.file = None
         self.age_in_frames = -1
@@ -132,11 +134,11 @@ class DelayedMP4Recorder:
             return
         self._keep_recording = value
         if self._keep_recording:
-            log().info('Turning on persistent recording.')
+            _log.debug('Turning on persistent recording.')
             # Can destroy the second stream
             self._drop_youngest()
         else:
-            log().info('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
+            _log.debug('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
             # Can finalize the oldest stream
             self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
 

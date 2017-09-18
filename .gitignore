@@ -3,3 +3,4 @@ token.txt
 venv
 __pycache__
 *.pyc
+ratcam.log

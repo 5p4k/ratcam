@@ -15,17 +15,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from misc import log
 from telegram.ext import Updater, CommandHandler
 import io
 import os
+import logging
+
+_log = logging.getLogger()
 
 class BotProcess:
 
     def _bot_start(self, bot, update):
         if self.chat_id != None:
             return
-        log().info('BotProcess: started by user %s, %s (%s)',
+        _log.info('BotProcess: started by user %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -36,7 +38,7 @@ class BotProcess:
     def _bot_photo(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        log().info('BotProcess: taking photo for %s, %s (%s)',
+        _log.info('BotProcess: taking photo for %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -46,7 +48,7 @@ class BotProcess:
     def _bot_video(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        log().info('BotProcess: taking video for %s, %s (%s)',
+        _log.info('BotProcess: taking video for %s, %s (%s)',
             update.message.from_user.first_name,
             update.message.from_user.last_name,
             update.message.from_user.username)
@@ -55,11 +57,11 @@ class BotProcess:
 
     def __enter__(self):
         self._updater.start_polling(clean=True)
-        log().info('BotProcess: enter.')
+        _log.info('BotProcess: enter.')
 
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        log().info('BotProcess: exit.')
+        _log.info('BotProcess: exit.')
 
     def spin(self):
         if self.state.motion_began and self.chat_id:
@@ -71,7 +73,7 @@ class BotProcess:
         if file_name:
             if self.chat_id:
                 try:
-                    log().info('BotProcess: sending media %s' % file_name)
+                    _log.info('BotProcess: sending media %s' % file_name)
                     if media_type == 'video':
                         with open(file_name, 'rb') as file:
                             self._updater.bot.send_video(chat_id=self.chat_id, video=file)
@@ -79,8 +81,9 @@ class BotProcess:
                         with open(file_name, 'rb') as file:
                             self._updater.bot.send_photo(chat_id=self.chat_id, photo=file)
                 except Exception as e:
-                    log().error(str(e))
+                    _log.error(str(e))
             # Remove
+            _log.debug('BotProcess: removing media %s' % file_name)
             os.remove(file_name)
 
 

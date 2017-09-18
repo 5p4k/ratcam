@@ -21,7 +21,9 @@ from picamera.array import PiMotionAnalysis
 from detector import DecayMotionDetector
 from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
-from misc import log
+import logging
+
+_log = logging.getLogger()
 
 
 class EventType(Enum):
@@ -130,24 +132,24 @@ class CameraProcess(CameraManager):
 
     def __enter__(self):
         super(CameraProcess, self).__enter__()
-        log().info('CameraProcess: enter.')
+        _log.info('CameraProcess: enter.')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        log().info('CameraProcess: exit.')
+        _log.info('CameraProcess: exit.')
         super(CameraProcess, self).__exit__(exc_type, exc_val, exc_tb)
 
     def _report_event(self, event_type, file_name = None):
         if event_type == EventType.VIDEO_READY:
             self.state.push_media(file_name, 'video')
-            log().info('CameraProcess: video ready at %s' % file_name)
+            _log.info('CameraProcess: video ready at %s' % file_name)
         elif event_type == EventType.PHOTO_READY:
             self.state.push_media(file_name, 'photo')
-            log().info('CameraProcess: photo ready at %s' % file_name)
+            _log.info('CameraProcess: photo ready at %s' % file_name)
         elif event_type == EventType.MOTION_DETECTED:
-            log().info('CameraProcess: motion detected.')
+            _log.info('CameraProcess: motion detected.')
             self.state.motion_began = True
         elif event_type == EventType.MOTION_STILL:
-            log().info('CameraProcess: motion still.')
+            _log.info('CameraProcess: motion still.')
             self.state.motion_stopped = True
 
     def spin(self):
