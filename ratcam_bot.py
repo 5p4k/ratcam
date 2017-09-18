@@ -20,7 +20,7 @@ import io
 import os
 import logging
 
-_log = logging.getLogger()
+_log = logging.getLogger('ratcam')
 
 class BotProcess:
 
@@ -76,12 +76,14 @@ class BotProcess:
                     _log.info('BotProcess: sending media %s' % file_name)
                     if media_type == 'video':
                         with open(file_name, 'rb') as file:
-                            self._updater.bot.send_video(chat_id=self.chat_id, video=file)
+                            self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=20)
                     elif media_type == 'photo':
                         with open(file_name, 'rb') as file:
-                            self._updater.bot.send_photo(chat_id=self.chat_id, photo=file)
+                            self._updater.bot.send_photo(chat_id=self.chat_id, photo=file, timeout=20)
                 except Exception as e:
                     _log.error(str(e))
+                    self._updater.bot.send_message(chat=self.chat_id,
+                        text='Could not send %s; exception: %s.' % (media_type, type(e).__name__))
             # Remove
             _log.debug('BotProcess: removing media %s' % file_name)
             os.remove(file_name)

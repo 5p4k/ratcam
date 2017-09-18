@@ -23,7 +23,7 @@ from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
 import logging
 
-_log = logging.getLogger()
+_log = logging.getLogger('ratcam')
 
 
 class EventType(Enum):

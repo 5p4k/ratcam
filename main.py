@@ -64,9 +64,11 @@ def setup_log(debug=False):
     fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     lvl = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(format=fmt, level=lvl)
-    _log = logging.getLogger()
+    _log = logging.getLogger('ratcam')
     if debug:
-        _log.addHandler(logging.FileHandler(LOG_FILE))
+        handler = logging.FileHandler(LOG_FILE)
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        _log.addHandler(handler)
 
 
 def main(token):

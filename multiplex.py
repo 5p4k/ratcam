@@ -22,7 +22,7 @@ import os
 import os.path
 import logging
 
-_log = logging.getLogger()
+_log = logging.getLogger('ratcam')
 
 class MP4StreamMuxer(MP4Muxer):
     """
@@ -156,6 +156,7 @@ class DelayedMP4Recorder:
         # Write data to all streams
         self.oldest.append(data, is_sps_header, is_complete)
         if self.youngest:
+            # TODO it seems that we either get a deadlock here or this gets called when manual_recording is on
             self.youngest.append(data, is_sps_header, is_complete)
         # Store the frame
         self.last_frame = self._camera.frame

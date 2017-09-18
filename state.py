@@ -4,7 +4,7 @@ import queue
 
 import logging
 
-_log = logging.getLogger()
+_log = logging.getLogger('ratcam')
 
 class SharedState:
     def __init__(self, manager):
