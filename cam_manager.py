@@ -103,7 +103,7 @@ class CameraManager:
 
     def take_photo(self):
         tmp_file = NamedTemporaryFile(delete=False)
-        self.camera.capture(tmp_file, format='jpeg', use_video_port=True)
+        self.camera.capture(tmp_file, format='jpeg', use_video_port=True, quality=60)
         tmp_file.flush()
         tmp_file.close()
         self._report_event(EventType.PHOTO_READY, tmp_file.name)
