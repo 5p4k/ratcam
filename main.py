@@ -36,9 +36,12 @@ def bot_process(state, token):
         while True:
             try:
                 bot.spin()
+                sleep(1)
+            except KeyboardInterrupt:
+                log().info('BotProcess: shutting down...')
+                break
             except Exception as ex:
-                log().warning('Error during polling: %s' % str(ex))
-            sleep(1)
+                log().error('Error during polling: %s' % str(ex))
 
 def cam_process(state):
     cam = CameraProcess(state)
@@ -46,19 +49,28 @@ def cam_process(state):
         while True:
             try:
                 cam.spin()
+                sleep(1)
+            except KeyboardInterrupt:
+                log().info('CameraProcess: shutting down...')
+                break
             except Exception as ex:
-                log().warning('Error during camera spin: %s' % str(ex))
-            sleep(1)
+                log().error('Error during camera spin: %s' % str(ex))
 
 def main(token):
     with Manager() as manager:
-        state = SharedState(manager)
-        cam = Process(target=cam_process, args=(state,))
-        bot = Process(target=bot_process, args=(state, token))
-        cam.start()
-        bot.start()
-        bot.join()
-        cam.join()
+        try:
+            state = SharedState(manager)
+            cam = Process(target=cam_process, args=(state,))
+            bot = Process(target=bot_process, args=(state, token))
+            cam.start()
+            bot.start()
+            bot.join()
+            cam.join()
+        except KeyboardInterrupt:
+            pass
+        except:
+            raise
+
 
 
 if __name__ == '__main__':
