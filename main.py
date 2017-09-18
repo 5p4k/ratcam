@@ -24,6 +24,7 @@ from state import SharedState
 from multiprocessing import Process, Manager
 import os
 import sys
+from misc import log
 
 TOKEN_FILE = 'token.txt'
 
@@ -33,14 +34,20 @@ def bot_process(state, token):
     bot = BotProcess(state, token)
     with bot:
         while True:
-            bot.spin()
+            try:
+                bot.spin()
+            except Exception as ex:
+                log().warning('Error during polling: %s' % str(ex))
             sleep(1)
 
 def cam_process(state):
     cam = CameraProcess(state)
     with cam:
         while True:
-            cam.spin()
+            try:
+                cam.spin()
+            except Exception as ex:
+                log().warning('Error during camera spin: %s' % str(ex))
             sleep(1)
 
 def main(token):
