@@ -22,6 +22,15 @@ import logging
 
 _log = logging.getLogger('ratcam')
 
+def human_file_size(file_name, suffix='B'):
+    sz = os.path.getsize(file_name)
+    for unit in ['','K','M','G','T','P','E','Z']:
+        if abs(sz) < 1000.0:
+            return "%3.1f%s%s" % (sz, unit, suffix)
+        sz /= 1000.0
+    return "%.1f%s%s" % (sz, 'Y', suffix)
+
+
 class BotProcess:
 
     def _bot_start(self, bot, update):
@@ -73,20 +82,23 @@ class BotProcess:
         if file_name:
             if self.chat_id:
                 try:
-                    _log.info('BotProcess: sending media %s' % file_name)
+                    _log.info('BotProcess: sending media %s (%s)' % (file_name, human_file_size(file_name)))
                     if media_type == 'video':
                         with open(file_name, 'rb') as file:
-                            self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=20)
+                            self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=60)
                     elif media_type == 'photo':
                         with open(file_name, 'rb') as file:
                             self._updater.bot.send_photo(chat_id=self.chat_id, photo=file, timeout=20)
                 except Exception as e:
                     _log.error(str(e))
-                    self._updater.bot.send_message(chat=self.chat_id,
-                        text='Could not send %s; exception: %s.' % (media_type, type(e).__name__))
-            # Remove
-            _log.debug('BotProcess: removing media %s' % file_name)
-            os.remove(file_name)
+                    # Can't do any better logging,  because everything is hidden behind Telegram
+                    # exceptions [1]
+                    self._updater.bot.send_message(chat_id=self.chat_id,
+                        text='Could not send %s (%s); exception: "%s".' % (media_type, human_file_size(file_name), str(e)))
+                finally:
+                    # Remove
+                    _log.debug('BotProcess: removing media %s' % file_name)
+                    os.remove(file_name)
 
 
     def __init__(self, state, token):
@@ -96,3 +108,6 @@ class BotProcess:
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
         self._updater.dispatcher.add_handler(CommandHandler('photo', self._bot_photo))
         self._updater.dispatcher.add_handler(CommandHandler('video', self._bot_video))
+
+
+# [1] https://github.com/python-telegram-bot/python-telegram-bot/blob/5614af18474b1ec975192aea6ce440231866be60/telegram/utils/request.py#L195
