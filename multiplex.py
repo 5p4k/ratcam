@@ -21,6 +21,7 @@ from picamera.frames import PiVideoFrameType, PiVideoFrame
 import os
 import os.path
 import logging
+from threading import Lock
 
 _log = logging.getLogger('ratcam')
 
@@ -91,6 +92,7 @@ class DelayedMP4Recorder:
         self._camera = camera
         self.age_limit = age_limit
         self.age_of_last_keyframe = 0
+        self._stream_lock = Lock()
 
     def _mp4_ready(self, file_name):
         pass
@@ -130,41 +132,43 @@ class DelayedMP4Recorder:
 
     @keep_recording.setter
     def keep_recording(self, value):
-        if value == self._keep_recording:
-            return
-        self._keep_recording = value
-        if self._keep_recording:
-            _log.debug('Turning on persistent recording.')
-            # Can destroy the second stream
-            self._drop_youngest()
-        else:
-            _log.debug('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
-            # Can finalize the oldest stream
-            self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
+        with self._stream_lock:
+            if value == self._keep_recording:
+                return
+            self._keep_recording = value
+            if self._keep_recording:
+                _log.debug('Turning on persistent recording.')
+                # Can destroy the second stream
+                self._drop_youngest()
+            else:
+                _log.debug('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
+                # Can finalize the oldest stream
+                self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
 
 
     def write(self, data):
         is_sps_header = (self._camera.frame.frame_type == PiVideoFrameType.sps_header)
         is_complete = self._camera.frame.complete
-        if not self.keep_recording and self.last_frame.complete and is_sps_header:
-            # Can do syncing only at sps headers. Start the second stream up
-            if self.oldest.age_in_frames > self.age_limit and not self.youngest:
-                self._init_second_stream()
-            elif self.oldest.age_in_frames > 2 * self.age_limit:
-                # Time for a reset
-                self.oldest.reset()
-        # Write data to all streams
-        self.oldest.append(data, is_sps_header, is_complete)
-        if self.youngest:
-            # TODO it seems that we either get a deadlock here or this gets called when manual_recording is on
-            self.youngest.append(data, is_sps_header, is_complete)
-        # Store the frame
-        self.last_frame = self._camera.frame
-        if self.last_frame.complete:
-            if is_sps_header:
-                self.age_of_last_keyframe = 0
-            else:
-                self.age_of_last_keyframe += 1
+        with self._stream_lock:
+            if not self.keep_recording and self.last_frame.complete and is_sps_header:
+                # Can do syncing only at sps headers. Start the second stream up
+                if self.oldest.age_in_frames > self.age_limit and not self.youngest:
+                    self._init_second_stream()
+                elif self.oldest.age_in_frames > 2 * self.age_limit:
+                    # Time for a reset
+                    self.oldest.reset()
+            # Write data to all streams
+            self.oldest.append(data, is_sps_header, is_complete)
+            if self.youngest:
+                # TODO it seems that we either get a deadlock here or this gets called when manual_recording is on
+                self.youngest.append(data, is_sps_header, is_complete)
+            # Store the frame
+            self.last_frame = self._camera.frame
+            if self.last_frame.complete:
+                if is_sps_header:
+                    self.age_of_last_keyframe = 0
+                else:
+                    self.age_of_last_keyframe += 1
 
 
     def flush(self):
