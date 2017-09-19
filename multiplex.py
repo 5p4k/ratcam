@@ -22,6 +22,7 @@ import os
 import os.path
 import logging
 from threading import Lock
+from datetime import datetime
 
 _log = logging.getLogger('ratcam')
 
@@ -93,6 +94,7 @@ class DelayedMP4Recorder:
         self.age_limit = age_limit
         self.age_of_last_keyframe = 0
         self._stream_lock = Lock()
+        self._last_date = datetime.now()
 
     def _mp4_ready(self, file_name):
         pass
@@ -147,6 +149,10 @@ class DelayedMP4Recorder:
 
 
     def write(self, data):
+        # Update time as well
+        if (datetime.now() - self._last_date).total_seconds() >= 1.:
+            self._last_date = datetime.now()
+            self._camera.annotate_text = self._last_date.strftime('%Y-%m-%d %H:%M:%S')
         is_sps_header = (self._camera.frame.frame_type == PiVideoFrameType.sps_header)
         is_complete = self._camera.frame.complete
         with self._stream_lock:
@@ -160,7 +166,6 @@ class DelayedMP4Recorder:
             # Write data to all streams
             self.oldest.append(data, is_sps_header, is_complete)
             if self.youngest:
-                # TODO it seems that we either get a deadlock here or this gets called when manual_recording is on
                 self.youngest.append(data, is_sps_header, is_complete)
             # Store the frame
             self.last_frame = self._camera.frame
