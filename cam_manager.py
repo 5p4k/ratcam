@@ -66,7 +66,7 @@ class CameraManager:
         self._moving = False
 
     def __enter__(self):
-        self._camera.start_recording(self._recorder, format='h264', motion_output=self._detector)
+        self._camera.start_recording(self._recorder, format='h264', motion_output=self._detector, quality=None, bitrate=1500000)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.camera.stop_recording()
@@ -97,15 +97,14 @@ class CameraManager:
 
     @moving.setter
     def moving(self, value):
-        # FIX
-        self._moving = False
+        self._moving = value
         self._recorder.keep_recording = self._moving or self._manual_rec
         self._report_event(EventType.MOTION_DETECTED if value else EventType.MOTION_STILL)
 
 
     def take_photo(self):
         tmp_file = NamedTemporaryFile(delete=False)
-        self.camera.capture(tmp_file, format='jpeg', use_video_port=True, quality=60)
+        self.camera.capture(tmp_file, format='jpeg', use_video_port=True, quality=15)
         tmp_file.flush()
         tmp_file.close()
         self._report_event(EventType.PHOTO_READY, tmp_file.name)
