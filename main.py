@@ -18,7 +18,7 @@
 
 import argparse
 from time import sleep
-from ratcam_bot import BotManager
+from bot_manager import BotManager
 from cam_manager import CameraManager
 from state import SharedState
 from multiprocessing import Process, Manager
