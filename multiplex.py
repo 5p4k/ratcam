@@ -97,6 +97,7 @@ class DelayedMP4Recorder:
                                        split_size=0, timestamp=0, complete=True)
         self._streams = [TempMP4Muxer()]
         self._keep_recording = False
+        self._stopping_recording = False
         self._camera = camera
         self.age_limit = age_limit
         self.age_of_last_keyframe = 0
@@ -136,22 +137,31 @@ class DelayedMP4Recorder:
 
     @property
     def keep_recording(self):
-        return self._keep_recording
+        return self._keep_recording and not self._stopping_recording
 
     @keep_recording.setter
     def keep_recording(self, value):
         with self._stream_lock:
             if value == self._keep_recording:
                 return
-            self._keep_recording = value
             if self._keep_recording:
                 _log.debug('Turning on persistent recording.')
+                self._keep_recording = value
                 # Can destroy the second stream
                 self._drop_youngest()
             else:
-                _log.debug('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
-                # Can finalize the oldest stream
-                self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
+                if self.last_frame.complete:
+                    self._stop_recording()
+                else:
+                    # Postpone until the frame is completed
+                    self._stopping_recording = True
+
+    def _stop_recording(self):
+        _log.debug('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
+        self._stopping_recording = False
+        self._keep_recording = False
+        # Can finalize the oldest stream
+        self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
 
     def write(self, data):
         # Update time as well
@@ -161,6 +171,8 @@ class DelayedMP4Recorder:
         is_sps_header = (self._camera.frame.frame_type == PiVideoFrameType.sps_header)
         is_complete = self._camera.frame.complete
         with self._stream_lock:
+            if self._stopping_recording and is_complete:
+                self._stop_recording()
             if not self.keep_recording and self.last_frame.complete and is_sps_header:
                 # Can do syncing only at sps headers. Start the second stream up
                 if self.oldest.age_in_frames > self.age_limit and not self.youngest:
