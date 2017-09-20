@@ -18,8 +18,8 @@
 
 import argparse
 from time import sleep
-from ratcam_bot import BotProcess
-from cam_manager import CameraProcess
+from ratcam_bot import BotManager
+from cam_manager import CameraManager
 from state import SharedState
 from multiprocessing import Process, Manager
 import os
@@ -33,7 +33,7 @@ _log = None
 
 
 def bot_process(state, token):
-    bot = BotProcess(state, token)
+    bot = BotManager(state, token)
     with bot:
         while True:
             try:
@@ -46,7 +46,7 @@ def bot_process(state, token):
                 _log.error('Error during polling: %s' % str(ex))
 
 def cam_process(state):
-    cam = CameraProcess(state)
+    cam = CameraManager(state)
     with cam:
         while True:
             try:

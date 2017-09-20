@@ -22,6 +22,9 @@ import logging
 
 _log = logging.getLogger('ratcam')
 
+YES = ['y', 'yes', '1', 'on', 't', 'true']
+NO = ['n', 'no', '0', 'off', 'f', 'false']
+
 def human_file_size(file_name, suffix='B'):
     sz = os.path.getsize(file_name)
     for unit in ['','K','M','G','T','P','E','Z']:
@@ -31,7 +34,7 @@ def human_file_size(file_name, suffix='B'):
     return "%.1f%s%s" % (sz, 'Y', suffix)
 
 
-class BotProcess:
+class BotManager:
 
     def _bot_start(self, bot, update):
         if self.chat_id != None:
@@ -44,6 +47,19 @@ class BotProcess:
         if self.chat_id:
             bot.send_message(chat_id=self.chat_id, text='Ratcam SimpleBot active.')
 
+    def _bot_detect(self, bot, update, args):
+        if update.message.chat_id != self.chat_id or not self.chat_id:
+            return
+        switch = args[0].strip().lower()
+        if switch not in YES and switch not in NO:
+            bot.send_message(chat_id=self.chat_id, text='I did not understand.', reply_to_message_id=update.message.message_id)
+            return
+        if switch in YES:
+            self.state.detection_enabled = True
+        elif switch in NO:
+            self.state.detection_enabled = False
+
+
     def _bot_photo(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
@@ -52,7 +68,7 @@ class BotProcess:
             update.message.from_user.last_name,
             update.message.from_user.username)
         # Signal
-        self.state.photo_request = True
+        self.state.photo.request()
 
     def _bot_video(self, bot, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
@@ -62,7 +78,7 @@ class BotProcess:
             update.message.from_user.last_name,
             update.message.from_user.username)
         # Signal
-        self.state.video_request = True
+        self.state.video.request()
 
     def __enter__(self):
         self._updater.start_polling(clean=True)
@@ -73,21 +89,24 @@ class BotProcess:
         _log.info('BotProcess: exit.')
 
     def spin(self):
-        if self.state.motion_began and self.chat_id:
-            self._updater.bot.send_message(chat_id=self.chat_id, text='Something is moving...')
-        if self.state.motion_stopped and self.chat_id:
-            self._updater.bot.send_message(chat_id=self.chat_id, text='Everything quiet.')
-        # Pop one media
+        # Process motion signals
+        motion_change = self.state.motion_detected_change
+        if motion_change is not None:
+            if self.chat_id:
+                self._updater.bot.send_message(
+                    chat_id=self.chat_id,
+                    text=('Something is moving...' if motion_change else 'Everything quiet.')
+                )
+        # Process media
         file_name, media_type = self.state.pop_media()
         if file_name:
             if self.chat_id:
                 try:
                     _log.info('BotProcess: sending media %s (%s)' % (file_name, human_file_size(file_name)))
-                    if media_type == 'video':
-                        with open(file_name, 'rb') as file:
+                    with open(file_name, 'rb') as file:
+                        if media_type == 'video':
                             self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=60)
-                    elif media_type == 'photo':
-                        with open(file_name, 'rb') as file:
+                        elif media_type == 'photo':
                             self._updater.bot.send_photo(chat_id=self.chat_id, photo=file, timeout=20)
                 except Exception as e:
                     _log.error(str(e))
@@ -95,10 +114,9 @@ class BotProcess:
                     # exceptions [1]
                     self._updater.bot.send_message(chat_id=self.chat_id,
                         text='Could not send %s (%s); exception: "%s".' % (media_type, human_file_size(file_name), str(e)))
-                finally:
-                    # Remove
-                    _log.debug('BotProcess: removing media %s' % file_name)
-                    os.remove(file_name)
+            # Remove
+            _log.debug('BotProcess: removing media %s' % file_name)
+            os.remove(file_name)
 
 
     def __init__(self, state, token):
@@ -108,6 +126,7 @@ class BotProcess:
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
         self._updater.dispatcher.add_handler(CommandHandler('photo', self._bot_photo))
         self._updater.dispatcher.add_handler(CommandHandler('video', self._bot_video))
+        self._updater.dispatcher.add_handler(CommandHandler('detect', self._bot_detect, pass_args=True))
 
 
 # [1] https://github.com/python-telegram-bot/python-telegram-bot/blob/5614af18474b1ec975192aea6ce440231866be60/telegram/utils/request.py#L195
