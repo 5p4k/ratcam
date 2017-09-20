@@ -1,6 +1,8 @@
 *.sublime-workspace
+*.sublime-project
 token.txt
 venv
 __pycache__
 *.pyc
 ratcam.log
+.idea
