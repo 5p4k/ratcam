@@ -16,7 +16,6 @@
 #
 
 from telegram.ext import Updater, CommandHandler
-import io
 import os
 import logging
 
@@ -25,9 +24,10 @@ _log = logging.getLogger('ratcam')
 YES = ['y', 'yes', '1', 'on', 't', 'true']
 NO = ['n', 'no', '0', 'off', 'f', 'false']
 
+
 def human_file_size(file_name, suffix='B'):
     sz = os.path.getsize(file_name)
-    for unit in ['','K','M','G','T','P','E','Z']:
+    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
         if abs(sz) < 1000.0:
             return "%3.1f%s%s" % (sz, unit, suffix)
         sz /= 1000.0
@@ -35,14 +35,13 @@ def human_file_size(file_name, suffix='B'):
 
 
 class BotManager:
-
     def _bot_start(self, bot, update):
-        if self.chat_id != None:
+        if self.chat_id is not None:
             return
         _log.info('BotProcess: started by user %s, %s (%s)',
-            update.message.from_user.first_name,
-            update.message.from_user.last_name,
-            update.message.from_user.username)
+                  update.message.from_user.first_name,
+                  update.message.from_user.last_name,
+                  update.message.from_user.username)
         self.chat_id = update.message.chat_id
         if self.chat_id:
             bot.send_message(chat_id=self.chat_id, text='Ratcam SimpleBot active.')
@@ -52,38 +51,37 @@ class BotManager:
             return
         switch = args[0].strip().lower()
         if switch not in YES and switch not in NO:
-            bot.send_message(chat_id=self.chat_id, text='I did not understand.', reply_to_message_id=update.message.message_id)
+            bot.send_message(chat_id=self.chat_id, text='I did not understand.',
+                             reply_to_message_id=update.message.message_id)
             return
         if switch in YES:
             self.state.detection_enabled = True
         elif switch in NO:
             self.state.detection_enabled = False
 
-
-    def _bot_photo(self, bot, update):
+    def _bot_photo(self, _, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
         _log.info('BotProcess: taking photo for %s, %s (%s)',
-            update.message.from_user.first_name,
-            update.message.from_user.last_name,
-            update.message.from_user.username)
+                  update.message.from_user.first_name,
+                  update.message.from_user.last_name,
+                  update.message.from_user.username)
         # Signal
         self.state.photo.request()
 
-    def _bot_video(self, bot, update):
+    def _bot_video(self, _, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
         _log.info('BotProcess: taking video for %s, %s (%s)',
-            update.message.from_user.first_name,
-            update.message.from_user.last_name,
-            update.message.from_user.username)
+                  update.message.from_user.first_name,
+                  update.message.from_user.last_name,
+                  update.message.from_user.username)
         # Signal
         self.state.video.request()
 
     def __enter__(self):
         self._updater.start_polling(clean=True)
         _log.info('BotProcess: enter.')
-
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         _log.info('BotProcess: exit.')
@@ -112,12 +110,12 @@ class BotManager:
                     _log.error(str(e))
                     # Can't do any better logging,  because everything is hidden behind Telegram
                     # exceptions [1]
-                    self._updater.bot.send_message(chat_id=self.chat_id,
-                        text='Could not send %s (%s); exception: "%s".' % (media_type, human_file_size(file_name), str(e)))
+                    xcp_text = 'Could not send %s (%s); exception: "%s".' % (media_type,
+                                                                             human_file_size(file_name), str(e))
+                    self._updater.bot.send_message(chat_id=self.chat_id, text=xcp_text)
             # Remove
             _log.debug('BotProcess: removing media %s' % file_name)
             os.remove(file_name)
-
 
     def __init__(self, state, token):
         self.chat_id = None
@@ -128,5 +126,4 @@ class BotManager:
         self._updater.dispatcher.add_handler(CommandHandler('video', self._bot_video))
         self._updater.dispatcher.add_handler(CommandHandler('detect', self._bot_detect, pass_args=True))
 
-
-# [1] https://github.com/python-telegram-bot/python-telegram-bot/blob/5614af18474b1ec975192aea6ce440231866be60/telegram/utils/request.py#L195
+        # [1] https://github.com/python-telegram-bot/python-telegram-bot/blob/5614af1/telegram/utils/request.py#L195

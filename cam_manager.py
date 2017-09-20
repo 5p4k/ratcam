@@ -25,7 +25,6 @@ import logging
 
 _log = logging.getLogger('ratcam')
 
-
 CAM_BITRATE = 1500000
 CAM_RESOLUTION = '720p'
 CAM_FRAMERATE = 30
@@ -49,11 +48,12 @@ class CookedMotionDetector(DecayMotionDetector, PiMotionAnalysis):
 
 class CookedDelayedMP4Recorder(DelayedMP4Recorder):
     def __init__(self, camera_mgr):
-        super(CookedDelayedMP4Recorder, self).__init__(camera_mgr.camera, CAM_MOTION_WINDOW * int(camera_mgr.camera.framerate))
+        super(CookedDelayedMP4Recorder, self).__init__(camera_mgr.camera,
+                                                       CAM_MOTION_WINDOW * int(camera_mgr.camera.framerate))
         self.camera_mgr = camera_mgr
 
     def _mp4_ready(self, file_name):
-        self.camera_mgr.state.push_media(tmp_file.name, 'video')
+        self.camera_mgr.state.push_media(file_name, 'video')
 
 
 class CameraManager:
@@ -70,9 +70,8 @@ class CameraManager:
 
     def __enter__(self):
         self._camera.start_recording(self._recorder,
-            format='h264', motion_output=self._detector, quality=None, bitrate=CAM_BITRATE)
+                                     format='h264', motion_output=self._detector, quality=None, bitrate=CAM_BITRATE)
         _log.info('CameraProcess: enter.')
-
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         _log.info('CameraProcess: exit.')
@@ -117,13 +116,12 @@ class CameraManager:
         self._manual_rec = value
         self._set_keep_recording()
 
-    @moving.setter
+    @motion_rec.setter
     def motion_rec(self, value):
         if self.detection_enabled:
             self._motion_rec = value
             self._set_keep_recording()
             self.state.motion_detected = value
-
 
     def take_photo(self):
         tmp_file = NamedTemporaryFile(delete=False)
@@ -131,9 +129,8 @@ class CameraManager:
         tmp_file.flush()
         tmp_file.close()
         self.state.push_media(tmp_file.name, 'photo')
-        self._report_event(EventType.PHOTO_READY, tmp_file.name)
 
-    def _report_event(self, event_type, file_name = None): # FIX: why two classes
+    def _report_event(self, event_type, file_name=None):  # FIX: why two classes
         pass
 
     def spin(self):
@@ -147,4 +144,3 @@ class CameraManager:
         if self.manual_rec and self._recorder.oldest.age_in_frames > int(self.camera.framerate) * CAM_VIDEO_DURATION:
             # Manual recording has expired
             self.manual_rec = False
-

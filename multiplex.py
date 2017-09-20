@@ -26,10 +26,12 @@ from datetime import datetime
 
 _log = logging.getLogger('ratcam')
 
+
 class MP4StreamMuxer(MP4Muxer):
     """
     Simple MP4 muxer wrapper that writes and seeks on a stream.
     """
+
     def __init__(self, stream):
         super(MP4StreamMuxer, self).__init__()
         self.stream = stream
@@ -40,12 +42,16 @@ class MP4StreamMuxer(MP4Muxer):
     def _seek(self, offset):
         self.stream.seek(offset)
 
+
 class TempMP4Muxer:
     """
     A MP4 muxer that writes to a temporary file, that can be reset to zero if needed.
     """
+
     def __init__(self):
         self.file = NamedTemporaryFile(delete=False)
+        self.muxer = None
+        self.age_in_frames = -1
         self.reset()
 
     def destroy(self):
@@ -84,10 +90,11 @@ class TempMP4Muxer:
         if frame_is_complete:
             self.age_in_frames += 1
 
+
 class DelayedMP4Recorder:
     def __init__(self, camera, age_limit):
         self.last_frame = PiVideoFrame(index=0, frame_type=None, frame_size=0, video_size=0,
-            split_size=0, timestamp=0, complete=True)
+                                       split_size=0, timestamp=0, complete=True)
         self._streams = [TempMP4Muxer()]
         self._keep_recording = False
         self._camera = camera
@@ -116,7 +123,7 @@ class DelayedMP4Recorder:
             return self._streams[1]
 
     def _init_second_stream(self):
-        assert(len(self._streams) == 1)
+        assert (len(self._streams) == 1)
         self._streams.append(TempMP4Muxer())
 
     def _drop_youngest(self):
@@ -126,7 +133,6 @@ class DelayedMP4Recorder:
                 del self._streams[0]
             else:
                 del self._streams[1]
-
 
     @property
     def keep_recording(self):
@@ -146,7 +152,6 @@ class DelayedMP4Recorder:
                 _log.debug('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
                 # Can finalize the oldest stream
                 self._mp4_ready(self.oldest.finalize(self._camera.framerate, self._camera.resolution))
-
 
     def write(self, data):
         # Update time as well
@@ -174,7 +179,6 @@ class DelayedMP4Recorder:
                     self.age_of_last_keyframe = 0
                 else:
                     self.age_of_last_keyframe += 1
-
 
     def flush(self):
         self.oldest.destroy()

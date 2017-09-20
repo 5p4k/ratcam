@@ -1,8 +1,22 @@
-from multiprocessing import Event, Value
+#
+# Copyright (C) 2017  Pietro Saccardi
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import os
 import queue
-from collections import namedtuple
-
 import logging
 
 _log = logging.getLogger('ratcam')
@@ -34,6 +48,7 @@ class Switch:
                 return self.value
             return None
 
+
 class Request:
     def __init__(self, manager):
         self._event = manager.Event()
@@ -55,7 +70,6 @@ class SharedState:
         self.video = Request(manager)
         self.photo = Request(manager)
         self._media_queue = manager.Queue(10)
-
 
     @property
     def motion_detected(self):
@@ -81,26 +95,15 @@ class SharedState:
     def detection_enabled_change(self):
         return self._detection_enabled.get_last_change()
 
-    @property
-    def detection_switch(self):
-        return self._detection_switch.is_set()
-
-    @detection_switch.setter
-    def detection_switch(self, value):
-        if value:
-            self._detection_switch.set()
-        else:
-            self._detection_switch.clear()
-
-    def push_media(self, file_name, type):
+    def push_media(self, file_name, media_type):
         try:
-            self._media_queue.put((file_name, type), block=False)
+            self._media_queue.put((file_name, media_type), block=False)
         except queue.Full:
-            _log.warning('Media queue is full, deleting %s %s.' % (type, file_name))
+            _log.warning('Media queue is full, deleting %s %s.' % (media_type, file_name))
             os.remove(file_name)
 
     def pop_media(self):
         try:
             return self._media_queue.get(block=False)
         except queue.Empty:
-            return (None, None)
+            return None, None

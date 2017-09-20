@@ -16,7 +16,7 @@
 #
 
 import numpy as np
-from PIL import Image, ImageFilter, ImageMath
+from PIL import Image, ImageFilter
 from collections import namedtuple
 from time import process_time
 from math import exp, log
@@ -26,7 +26,8 @@ TriggerOptions = namedtuple('TriggerOptions', ['threshold', 'area_fraction'])
 LOW_SENSITIVITY = TriggerOptions(threshold=(200, 180), area_fraction=(0.001, 0.001))
 HIGH_SENSITIVITY = TriggerOptions(threshold=(80, 20), area_fraction=(0.0001, 0.00002))
 
-def Pillow_median(a, size=3, reshape=False):
+
+def pillow_median(a, size=3, reshape=False):
     filt = ImageFilter.MedianFilter(size=size)
     b = np.array(Image.fromarray(a).filter(filt).getdata())
     if reshape:
@@ -35,7 +36,6 @@ def Pillow_median(a, size=3, reshape=False):
 
 
 class DecayMotionDetector:
-
     @staticmethod
     def compute_and_denoise_mv_norm(a, median_size=3, reshape=False, dtype=np.float):
         # Need to use uint16 to avoid overflow. Also seems faster than float and uint32
@@ -44,7 +44,7 @@ class DecayMotionDetector:
         norm = np.interp(norm, (0, 182), (0, 255)).astype(np.uint8)
         # Apply median filter
         if median_size > 1:
-            norm = Pillow_median(norm, size=median_size, reshape=reshape)
+            norm = pillow_median(norm, size=median_size, reshape=reshape)
         # Convert to destination type
         return norm.astype(dtype)
 
@@ -58,10 +58,10 @@ class DecayMotionDetector:
         self.motion_accumulator = None
         self.processed_frames = 0
         self.processing_time = 0.
-        assert(len(self.trigger_options.threshold) == 2)
-        assert(self.trigger_options.threshold[0] >= self.trigger_options.threshold[1])
-        assert(len(self.trigger_options.area_fraction) == 2)
-        assert(self.trigger_options.area_fraction[0] >= self.trigger_options.area_fraction[1])
+        assert (len(self.trigger_options.threshold) == 2)
+        assert (self.trigger_options.threshold[0] >= self.trigger_options.threshold[1])
+        assert (len(self.trigger_options.area_fraction) == 2)
+        assert (self.trigger_options.area_fraction[0] >= self.trigger_options.area_fraction[1])
 
     @property
     def decay_factor(self):

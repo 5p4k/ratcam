@@ -42,8 +42,9 @@ def bot_process(state, token):
             except KeyboardInterrupt:
                 _log.info('BotProcess: shutting down...')
                 break
-            except Exception as ex:
-                _log.error('Error during polling: %s' % str(ex))
+            except Exception as e:
+                _log.error('Error during polling: %s' % str(e))
+
 
 def cam_process(state):
     cam = CameraManager(state)
@@ -55,8 +56,8 @@ def cam_process(state):
             except KeyboardInterrupt:
                 _log.info('CameraProcess: shutting down...')
                 break
-            except Exception as ex:
-                _log.error('Error during camera spin: %s' % str(ex))
+            except Exception as e:
+                _log.error('Error during camera spin: %s' % str(e))
 
 
 def setup_log(debug=False):
@@ -71,28 +72,27 @@ def setup_log(debug=False):
         _log.addHandler(handler)
 
 
-def main(token):
+def main(telegram_token):
     with Manager() as manager:
         try:
             state = SharedState(manager)
             cam = Process(target=cam_process, args=(state,))
-            bot = Process(target=bot_process, args=(state, token))
+            bot = Process(target=bot_process, args=(state, telegram_token))
             cam.start()
             bot.start()
             bot.join()
             cam.join()
         except KeyboardInterrupt:
             pass
-        except:
-            raise
-
+        except Exception as e:
+            raise e
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Control your Pi camera using Telegram.')
     parser.add_argument('--token', '-t', required=False, help='Telegram API token.')
     parser.add_argument('--debug', '-d', required=False, action='store_true',
-         help='Turn on verbose logging and saves it to %s' % LOG_FILE)
+                        help='Turn on verbose logging and saves it to %s' % LOG_FILE)
     args = parser.parse_args()
     token = args.token
     if token is None:
