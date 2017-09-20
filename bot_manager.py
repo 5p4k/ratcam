@@ -18,6 +18,8 @@
 from telegram.ext import Updater, CommandHandler
 import os
 import logging
+from time import sleep
+from threading import Thread, Event
 
 _log = logging.getLogger('ratcam')
 
@@ -81,45 +83,57 @@ class BotManager:
 
     def __enter__(self):
         self._updater.start_polling(clean=True)
+        self._media_loop.start()
         _log.info('BotProcess: enter.')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._media_loop_stop.set()
+        self._media_loop.join()
         _log.info('BotProcess: exit.')
+
+    def _upload_one_media(self):
+        # Process media
+        file_name, media_type = self.state.pop_media()
+        if file_name is None:
+            return
+        if self.chat_id:
+            try:
+                _log.info('BotProcess: sending media %s (%s)' % (file_name, human_file_size(file_name)))
+                with open(file_name, 'rb') as file:
+                    if media_type == 'video':
+                        self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=60)
+                    elif media_type == 'photo':
+                        self._updater.bot.send_photo(chat_id=self.chat_id, photo=file, timeout=20)
+            except Exception as e:
+                _log.error(str(e))
+                # Can't do any better logging,  because everything is hidden behind Telegram
+                # exceptions [1]
+                xcp_text = 'Could not send %s (%s); exception: "%s".' % (media_type,
+                                                                         human_file_size(file_name), str(e))
+                self._updater.bot.send_message(chat_id=self.chat_id, text=xcp_text)
+        # Remove
+        _log.debug('BotProcess: removing media %s' % file_name)
+        os.remove(file_name)
+
+    def _upload_media_loop(self):
+        while not self._media_loop_stop.is_set():
+            self._upload_one_media()
+            sleep(10)
+        self._media_loop_stop.clear()
 
     def spin(self):
         # Process motion signals
         motion_change = self.state.motion_detected_change
         if motion_change is not None:
             if self.chat_id:
-                self._updater.bot.send_message(
-                    chat_id=self.chat_id,
-                    text=('Something is moving...' if motion_change else 'Everything quiet.')
-                )
-        # Process media
-        file_name, media_type = self.state.pop_media()
-        if file_name:
-            if self.chat_id:
-                try:
-                    _log.info('BotProcess: sending media %s (%s)' % (file_name, human_file_size(file_name)))
-                    with open(file_name, 'rb') as file:
-                        if media_type == 'video':
-                            self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=60)
-                        elif media_type == 'photo':
-                            self._updater.bot.send_photo(chat_id=self.chat_id, photo=file, timeout=20)
-                except Exception as e:
-                    _log.error(str(e))
-                    # Can't do any better logging,  because everything is hidden behind Telegram
-                    # exceptions [1]
-                    xcp_text = 'Could not send %s (%s); exception: "%s".' % (media_type,
-                                                                             human_file_size(file_name), str(e))
-                    self._updater.bot.send_message(chat_id=self.chat_id, text=xcp_text)
-            # Remove
-            _log.debug('BotProcess: removing media %s' % file_name)
-            os.remove(file_name)
+                msg_txt = 'Something is moving...' if motion_change else 'Everything quiet.'
+                self._updater.bot.send_message(chat_id=self.chat_id, text=msg_txt)
 
     def __init__(self, state, token):
         self.chat_id = None
         self.state = state
+        self._media_loop_stop = Event()
+        self._media_loop = Thread(target=self._upload_media_loop, name='upload_media_loop')
         self._updater = Updater(token=token)
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
         self._updater.dispatcher.add_handler(CommandHandler('photo', self._bot_photo))
