@@ -171,8 +171,6 @@ class DelayedMP4Recorder:
         is_sps_header = (self._camera.frame.frame_type == PiVideoFrameType.sps_header)
         is_complete = self._camera.frame.complete
         with self._stream_lock:
-            if self._stopping_recording and is_complete:
-                self._stop_recording()
             if not self.keep_recording and self.last_frame.complete and is_sps_header:
                 # Can do syncing only at sps headers. Start the second stream up
                 if self.oldest.age_in_frames > self.age_limit and not self.youngest:
@@ -191,6 +189,8 @@ class DelayedMP4Recorder:
                     self.age_of_last_keyframe = 0
                 else:
                     self.age_of_last_keyframe += 1
+            if self._stopping_recording and is_complete:
+                self._stop_recording()
 
     def flush(self):
         self.oldest.destroy()
