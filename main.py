@@ -18,9 +18,9 @@
 
 import argparse
 from time import sleep
-from bot_manager import BotManager
-from cam_manager import CameraManager
-from state import SharedState
+from bot_process import BotProcess
+from cam_process import CameraProcess
+from comm import CamInterface, BotInterface
 from multiprocessing import Process, Manager
 import os
 import sys
@@ -32,32 +32,32 @@ LOG_FILE = 'ratcam.log'
 _log = None
 
 
-def bot_process(state, token):
-    bot = BotManager(state, token)
-    with bot:
+def bot_process_main(bot_interface, cam_interface, token):
+    bot_process = BotProcess(bot_interface, cam_interface, token)
+    with bot_process:
         while True:
             try:
-                bot.spin()
+                # TODO not exactly the right way of doing it
                 sleep(1)
             except KeyboardInterrupt:
-                _log.info('BotProcess: shutting down...')
+                _log.info('Bot: caught ctrl-C...')
                 break
             except Exception as e:
-                _log.error('Error during polling: %s' % str(e))
+                _log.error('Bot: %s' % str(e))
 
 
-def cam_process(state):
-    cam = CameraManager(state)
-    with cam:
+def cam_process_main(bot_interface, cam_interface):
+    cam_process = CameraProcess(bot_interface, cam_interface)
+    with cam_process:
         while True:
             try:
-                cam.spin()
+                # TODO not exactly the right way of doing it
                 sleep(1)
             except KeyboardInterrupt:
-                _log.info('CameraProcess: shutting down...')
+                _log.info('Cam: caught ctrl-C...')
                 break
             except Exception as e:
-                _log.error('Error during camera spin: %s' % str(e))
+                _log.error('Cam: %s' % str(e))
 
 
 def setup_log(debug=False):
@@ -75,9 +75,10 @@ def setup_log(debug=False):
 def main(telegram_token):
     with Manager() as manager:
         try:
-            state = SharedState(manager)
-            cam = Process(target=cam_process, args=(state,))
-            bot = Process(target=bot_process, args=(state, telegram_token))
+            cam_interface = CamInterface(manager)
+            bot_interface = BotInterface(manager)
+            cam = Process(target=cam_process_main, args=(bot_interface, cam_interface))
+            bot = Process(target=bot_process_main, args=(bot_interface, cam_interface, telegram_token))
             cam.start()
             bot.start()
             bot.join()

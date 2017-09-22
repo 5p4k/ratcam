@@ -55,7 +55,7 @@ class CookedDelayedMP4Recorder(DelayedMP4Recorder):
         self.cam_mgr._report_mp4_ready(file_name)
 
 
-class NewCameraManager:
+class CameraManager:
     def __init__(self, bot_interface):
         self._camera = PiCamera()
         self._moving = False
@@ -64,6 +64,7 @@ class NewCameraManager:
         self._bot_interface = bot_interface
         self._detector = CookedMotionDetector(self)
         self._recorder = CookedDelayedMP4Recorder(self)
+        self._setup_camera()
 
     def __enter__(self):
         self.camera.start_recording(
