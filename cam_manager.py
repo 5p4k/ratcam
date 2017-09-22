@@ -15,12 +15,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from picamera import PiCamera
-from enum import Enum
 from picamera.array import PiMotionAnalysis
 from detector import DecayMotionDetector
 from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
+from picamera import PiCamera
 import logging
 
 _log = logging.getLogger('ratcam')
@@ -34,47 +33,46 @@ CAM_MOTION_WINDOW = 2
 
 
 class CookedMotionDetector(DecayMotionDetector, PiMotionAnalysis):
-    def __init__(self, camera_mgr):
-        DecayMotionDetector.__init__(self, camera_mgr.camera.resolution, int(camera_mgr.camera.framerate))
-        PiMotionAnalysis.__init__(self, camera_mgr.camera)
-        self.camera_mgr = camera_mgr
+    def __init__(self, cam_mgr):
+        DecayMotionDetector.__init__(self, cam_mgr.camera.resolution, int(cam_mgr.camera.framerate))
+        PiMotionAnalysis.__init__(self, cam_mgr.camera)
+        self.cam_mgr = cam_mgr
 
     def analyze(self, a):
         self.process_motion_vector(a)
 
     def _trigger_changed(self):
-        self.camera_mgr.motion_rec = self.is_triggered
+        self.cam_mgr._report_motion(self.is_triggered)
 
 
 class CookedDelayedMP4Recorder(DelayedMP4Recorder):
-    def __init__(self, camera_mgr):
-        super(CookedDelayedMP4Recorder, self).__init__(camera_mgr.camera,
-                                                       CAM_MOTION_WINDOW * int(camera_mgr.camera.framerate))
-        self.camera_mgr = camera_mgr
+    def __init__(self, cam_mgr):
+        super(CookedDelayedMP4Recorder, self).__init__(
+            cam_mgr.camera, CAM_MOTION_WINDOW * int(cam_mgr.camera.framerate))
+        self.cam_mgr = cam_mgr
 
     def _mp4_ready(self, file_name):
-        self.camera_mgr.state.push_media(file_name, 'video')
+        self.cam_mgr._report_mp4_ready(file_name)
 
 
-class CameraManager:
-    def __init__(self, state):
+class NewCameraManager:
+    def __init__(self, bot_interface):
         self._camera = PiCamera()
-        # Initialize default settings
-        self._setup_camera()
+        self._moving = False
+        self._manual_rec = False
+        self._detection_enabled = False
+        self._bot_interface = bot_interface
         self._detector = CookedMotionDetector(self)
         self._recorder = CookedDelayedMP4Recorder(self)
-        self._manual_rec = False
-        self._motion_rec = False
-        self._detection_enabled = False
-        self.state = state
 
     def __enter__(self):
-        self._camera.start_recording(self._recorder,
-                                     format='h264', motion_output=self._detector, quality=None, bitrate=CAM_BITRATE)
-        _log.info('CameraProcess: enter.')
+        self.camera.start_recording(
+            self._recorder, format='h264', motion_output=self._detector,
+            quality=None, bitrate=CAM_BITRATE)
+        _log.info('Cam: enter.')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        _log.info('CameraProcess: exit.')
+        _log.info('Cam: exit.')
         self.camera.stop_recording()
 
     def _setup_camera(self):
@@ -84,63 +82,57 @@ class CameraManager:
         self.camera.resolution = CAM_RESOLUTION
         self.camera.framerate = CAM_FRAMERATE
 
-    def _set_keep_recording(self):
-        self._recorder.keep_recording = self._motion_rec or self._manual_rec
-
-    @property
-    def detection_enabled(self):
-        return self._detection_enabled
-
     @property
     def camera(self):
         return self._camera
 
     @property
-    def manual_rec(self):
-        return self._manual_rec
-
-    @property
-    def motion_rec(self):
-        return self._motion_rec
+    def detection_enabled(self):
+        return self._detection_enabled
 
     @detection_enabled.setter
     def detection_enabled(self, value):
         if value != self._detection_enabled:
+            _log.info('Cam: detection is now %s' % ('ON' if value else 'OFF'))
             self._detection_enabled = value
-            if not value:
-                self._motion_rec = False
-                self._set_keep_recording()
+            self._toggle_recording()
 
-    @manual_rec.setter
-    def manual_rec(self, value):
-        self._manual_rec = value
-        self._set_keep_recording()
-
-    @motion_rec.setter
-    def motion_rec(self, value):
+    def _report_motion(self, value):
         if self.detection_enabled:
-            self._motion_rec = value
-            self._set_keep_recording()
-            self.state.motion_detected = value
+            self._bot_interface.push_motion_event(value)
+            self._moving = value
+            self._toggle_recording()
+
+    def _report_mp4_ready(self, file_name):
+        _log.info('Cam: video ready at %s' % file_name)
+        self._bot_interface.push_media(file_name, 'mp4')
+
+    def take_video(self):
+        self._manual_rec = True
+        self._toggle_recording()
 
     def take_photo(self):
         tmp_file = NamedTemporaryFile(delete=False)
         self.camera.capture(tmp_file, format='jpeg', use_video_port=True, quality=CAM_JPEG_QUALITY)
         tmp_file.flush()
         tmp_file.close()
-        self.state.push_media(tmp_file.name, 'photo')
-
-    def _report_event(self, event_type, file_name=None):  # FIX: why two classes
-        pass
+        _log.info('Cam: photo ready at %s' % tmp_file.name)
+        self._bot_interface.push_media(tmp_file.name, 'jpeg')
 
     def spin(self):
-        if self._recorder.age_of_last_keyframe > int(self.camera.framerate):
+        """
+        Run this at least once a second
+        """
+        keyframe_age_limit = int(self.camera.framerate)
+        video_age_limit = int(self.camera.framerate) * CAM_VIDEO_DURATION
+        if self._recorder.age_of_last_keyframe > keyframe_age_limit:
             # Request a keyframe to allow hotswapping
             self.camera.request_key_frame()
-        if self.state.video.get_and_clear_request():
-            self.manual_rec = True
-        if self.state.photo.get_and_clear_request():
-            self.take_photo()
-        if self.manual_rec and self._recorder.oldest.age_in_frames > int(self.camera.framerate) * CAM_VIDEO_DURATION:
-            # Manual recording has expired
-            self.manual_rec = False
+        if self._manual_rec:
+            if self._recorder.oldest.age_in_frames > video_age_limit:
+                # Manual recording has expired
+                self._manual_rec = False
+                self._toggle_recording()
+
+    def _toggle_recording(self):
+        self._recorder.keep_recording = self._manual_rec or (self.detection_enabled and self._moving)

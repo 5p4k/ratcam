@@ -18,13 +18,14 @@
 from telegram.ext import Updater, CommandHandler
 import os
 import logging
-from time import sleep
-from threading import Thread, Event
 
 _log = logging.getLogger('ratcam')
 
 YES = ['y', 'yes', '1', 'on', 't', 'true']
 NO = ['n', 'no', '0', 'off', 'f', 'false']
+
+BOT_PHOTO_TIMEOUT = 20
+BOT_VIDEO_TIMEOUT = 60
 
 
 def human_file_size(file_name, suffix='B'):
@@ -40,7 +41,7 @@ class BotManager:
     def _bot_start(self, bot, update):
         if self.chat_id is not None:
             return
-        _log.info('BotProcess: started by user %s, %s (%s)',
+        _log.info('Bot: started by user %s, %s (%s)',
                   update.message.from_user.first_name,
                   update.message.from_user.last_name,
                   update.message.from_user.username)
@@ -57,83 +58,63 @@ class BotManager:
                              reply_to_message_id=update.message.message_id)
             return
         if switch in YES:
-            self.state.detection_enabled = True
+            self._cam_interface.toggle_detection(True)
         elif switch in NO:
-            self.state.detection_enabled = False
+            self._cam_interface.toggle_detection(False)
 
     def _bot_photo(self, _, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        _log.info('BotProcess: taking photo for %s, %s (%s)',
+        _log.info('Bot: taking photo for %s, %s (%s)',
                   update.message.from_user.first_name,
                   update.message.from_user.last_name,
                   update.message.from_user.username)
-        # Signal
-        self.state.photo.request()
+        self._cam_interface.request_photo()
 
     def _bot_video(self, _, update):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
-        _log.info('BotProcess: taking video for %s, %s (%s)',
+        _log.info('Bot: taking video for %s, %s (%s)',
                   update.message.from_user.first_name,
                   update.message.from_user.last_name,
                   update.message.from_user.username)
-        # Signal
-        self.state.video.request()
+        self._cam_interface.request_video()
 
     def __enter__(self):
         self._updater.start_polling(clean=True)
-        self._media_loop.start()
-        _log.info('BotProcess: enter.')
+        _log.info('Bot: enter.')
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._media_loop_stop.set()
-        self._media_loop.join()
-        _log.info('BotProcess: exit.')
+        _log.info('Bot: exit.')
 
-    def _upload_one_media(self):
-        # Process media
-        file_name, media_type = self.state.pop_media()
-        if file_name is None:
-            return
+    def send_media(self, file_name, media_type):
         if self.chat_id:
             try:
-                _log.info('BotProcess: sending media %s (%s)' % (file_name, human_file_size(file_name)))
+                _log.info('Bot: sending media %s (%s)' % (file_name, human_file_size(file_name)))
                 with open(file_name, 'rb') as file:
-                    if media_type == 'video':
-                        self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=60)
-                    elif media_type == 'photo':
-                        self._updater.bot.send_photo(chat_id=self.chat_id, photo=file, timeout=20)
+                    if media_type == 'mp4':
+                        self._updater.bot.send_video(chat_id=self.chat_id, video=file, timeout=BOT_VIDEO_TIMEOUT)
+                    elif media_type == 'jpeg':
+                        self._updater.bot.send_photo(chat_id=self.chat_id, photo=file, timeout=BOT_PHOTO_TIMEOUT)
             except Exception as e:
                 _log.error(str(e))
                 # Can't do any better logging,  because everything is hidden behind Telegram
                 # exceptions [1]
-                xcp_text = 'Could not send %s (%s); exception: "%s".' % (media_type,
-                                                                         human_file_size(file_name), str(e))
+                xcp_text = 'Could not send %s (%s); exception: "%s".' % \
+                           (media_type, human_file_size(file_name), str(e))
                 self._updater.bot.send_message(chat_id=self.chat_id, text=xcp_text)
         # Remove
-        _log.debug('BotProcess: removing media %s' % file_name)
+        _log.debug('Bot: removing media %s' % file_name)
         os.remove(file_name)
 
-    def _upload_media_loop(self):
-        while not self._media_loop_stop.is_set():
-            self._upload_one_media()
-            sleep(10)
-        self._media_loop_stop.clear()
+    def report_motion_detected(self, detected):
+        if self.chat_id:
+            msg_txt = 'Something is moving...' if detected else 'Everything quiet.'
+            self._updater.bot.send_message(chat_id=self.chat_id, text=msg_txt)
 
-    def spin(self):
-        # Process motion signals
-        motion_change = self.state.motion_detected_change
-        if motion_change is not None:
-            if self.chat_id:
-                msg_txt = 'Something is moving...' if motion_change else 'Everything quiet.'
-                self._updater.bot.send_message(chat_id=self.chat_id, text=msg_txt)
-
-    def __init__(self, state, token):
+    def __init__(self, cam_interface, token):
         self.chat_id = None
-        self.state = state
-        self._media_loop_stop = Event()
-        self._media_loop = Thread(target=self._upload_media_loop, name='upload_media_loop')
+        self._cam_interface = cam_interface
         self._updater = Updater(token=token)
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
         self._updater.dispatcher.add_handler(CommandHandler('photo', self._bot_photo))
