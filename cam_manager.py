@@ -134,9 +134,16 @@ class CameraManager:
             self.camera.request_key_frame()
         if self._manual_rec:
             if self._recorder.oldest.age_in_frames > video_age_limit:
+                _log.info('Recording video is %d frames old (limit: %d). Turning off manual rec.' %(
+                    self._recorder.oldest.age_in_frames, video_age_limit
+                ))
                 # Manual recording has expired
                 self._manual_rec = False
                 self._toggle_recording()
 
     def _toggle_recording(self):
-        self._recorder.keep_recording = self._manual_rec or (self.detection_enabled and self._moving)
+        keep_recording = self._manual_rec or (self.detection_enabled and self._moving)
+        if keep_recording != self._recorder.keep_recording:
+            _log.info('Changing keep recording; manual rec: {}, detection enabled: {}, moving: {}'.format(
+                self._manual_rec, self.detection_enabled, self._moving))
+            self._recorder.keep_recording = keep_recording

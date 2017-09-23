@@ -50,7 +50,7 @@ class BotProcess:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._shutdown.set()
-        self._bot.__exit__(exc_type, exc_val, exc_tb)
         self._poll_media_thread.join()
         self._poll_motion_thread.join()
         _log.info('Bot: polling threads joined.')
+        self._bot.__exit__(exc_type, exc_val, exc_tb)

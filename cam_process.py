@@ -53,6 +53,6 @@ class CameraProcess:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._shutdown.set()
-        self._cam.__exit__(exc_type, exc_val, exc_tb)
         self._poll_commands_thread.join()
         _log.info('Cam: polling threads joined.')
+        self._cam.__exit__(exc_type, exc_val, exc_tb)
