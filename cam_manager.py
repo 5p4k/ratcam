@@ -100,6 +100,7 @@ class CameraManager:
 
     def _report_motion(self, value):
         if self.detection_enabled:
+            _log.info('Cam: motion detected.' if value else 'Cam: motion still.')
             self._bot_interface.push_motion_event(value)
             self._moving = value
             self._toggle_recording()
@@ -109,10 +110,12 @@ class CameraManager:
         self._bot_interface.push_media(file_name, 'mp4')
 
     def take_video(self):
+        _log.info('Cam: manual recording is ON.')
         self._manual_rec = True
         self._toggle_recording()
 
     def take_photo(self):
+        _log.info('Cam: taking photo.')
         tmp_file = NamedTemporaryFile(delete=False)
         self.camera.capture(tmp_file, format='jpeg', use_video_port=True, quality=CAM_JPEG_QUALITY)
         tmp_file.flush()

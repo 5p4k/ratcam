@@ -59,10 +59,10 @@ class CamInterface:
                       toggle_detection=b_to_bool(self._toggle_detection.value))
 
     def _reset(self):
+        self._changed_event.clear()
         self._video_request.value = B_FALSE
         self._photo_request.value = B_FALSE
         self._toggle_detection.value = B_NONE
-        self._changed_event.clear()
 
     def pop_cmd_if_changed(self, timeout):
         if self._changed_event.wait(timeout=timeout):
