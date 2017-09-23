@@ -31,7 +31,8 @@ B_TRUE = 1
 B_FALSE = 0
 B_NONE = 2
 
-def b_val_to_bool(b):
+
+def b_to_bool(b):
     if b == B_TRUE:
         return True
     elif b == B_FALSE:
@@ -53,14 +54,14 @@ class CamInterface:
         self._changed_event = proc_mgr.Event()
 
     def _as_cmd(self):
-        return CamCmd(video_request=b_val_to_bool(self._video_request),
-                      photo_request=b_val_to_bool(self._photo_request),
-                      toggle_detection=b_val_to_bool(self._toggle_detection))
+        return CamCmd(video_request=b_to_bool(self._video_request.value),
+                      photo_request=b_to_bool(self._photo_request.value),
+                      toggle_detection=b_to_bool(self._toggle_detection.value))
 
     def _reset(self):
-        self._video_request = B_FALSE
-        self._photo_request = B_FALSE
-        self._toggle_detection = B_NONE
+        self._video_request.value = B_FALSE
+        self._photo_request.value = B_FALSE
+        self._toggle_detection.value = B_NONE
         self._changed_event.clear()
 
     def pop_cmd_if_changed(self, timeout):
@@ -71,15 +72,15 @@ class CamInterface:
         return None
 
     def request_video(self):
-        self._video_request = B_TRUE
+        self._video_request.value = B_TRUE
         self._changed_event.set()
 
     def request_photo(self):
-        self._photo_request = B_TRUE
+        self._photo_request.value = B_TRUE
         self._changed_event.set()
 
     def toggle_detection(self, value):
-        self._toggle_detection = B_TRUE if value else B_FALSE
+        self._toggle_detection.value = B_TRUE if value else B_FALSE
         self._changed_event.set()
 
 
