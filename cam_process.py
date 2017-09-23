@@ -34,14 +34,12 @@ class CameraProcess:
         while not self._shutdown.is_set():
             cmd = self._cam_interface.pop_cmd_if_changed(0.5)
             if cmd is not None:
+                _log.info('Got command set %s' % str(cmd))
                 if cmd.video_request:
-                    _log.info('Cam: got video request.')
                     self._cam.take_video()
                 if cmd.photo_request:
-                    _log.info('Cam: got photo request.')
                     self._cam.take_photo()
                 if cmd.toggle_detection is not None:
-                    _log.info('Cam: got request to toggle detection to %s.' % ('ON' if cmd.toggle_detection else 'OFF'))
                     self._cam.detection_enabled = cmd.toggle_detection
             # Process time dependent events
             self._cam.spin()

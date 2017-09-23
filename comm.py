@@ -36,7 +36,7 @@ def b_to_bool(b):
     if b == B_TRUE:
         return True
     elif b == B_FALSE:
-        return True
+        return False
     elif b == B_NONE:
         return None
     else:
