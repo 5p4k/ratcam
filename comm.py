@@ -27,25 +27,40 @@ _log = logging.getLogger('ratcam')
 CamCmd = namedtuple('CamCmd', ['video_request', 'photo_request', 'toggle_detection'])
 
 
+B_TRUE = 1
+B_FALSE = 0
+B_NONE = 2
+
+def b_val_to_bool(b):
+    if b == B_TRUE:
+        return True
+    elif b == B_FALSE:
+        return True
+    elif b == B_NONE:
+        return None
+    else:
+        assert(b in [B_TRUE, B_FALSE, B_NONE])
+
+
 class CamInterface:
     """
     The camera can only poll a certain number of commands per unit of time.
     """
     def __init__(self, proc_mgr):
-        self._video_request = False
-        self._photo_request = False
-        self._toggle_detection = None
+        self._video_request = proc_mgr.Value('b', B_FALSE)
+        self._photo_request = proc_mgr.Value('b', B_FALSE)
+        self._toggle_detection = proc_mgr.Value('b', B_NONE)
         self._changed_event = proc_mgr.Event()
 
     def _as_cmd(self):
-        return CamCmd(video_request=self._video_request,
-                      photo_request=self._photo_request,
-                      toggle_detection=self._toggle_detection)
+        return CamCmd(video_request=b_val_to_bool(self._video_request),
+                      photo_request=b_val_to_bool(self._photo_request),
+                      toggle_detection=b_val_to_bool(self._toggle_detection))
 
     def _reset(self):
-        self._video_request = False
-        self._photo_request = False
-        self._toggle_detection = None
+        self._video_request = B_FALSE
+        self._photo_request = B_FALSE
+        self._toggle_detection = B_NONE
         self._changed_event.clear()
 
     def pop_cmd_if_changed(self, timeout):
@@ -56,15 +71,15 @@ class CamInterface:
         return None
 
     def request_video(self):
-        self._video_request = True
+        self._video_request = B_TRUE
         self._changed_event.set()
 
     def request_photo(self):
-        self._photo_request = True
+        self._photo_request = B_TRUE
         self._changed_event.set()
 
     def toggle_detection(self, value):
-        self._toggle_detection = value
+        self._toggle_detection = B_TRUE if value else B_FALSE
         self._changed_event.set()
 
 
@@ -77,13 +92,19 @@ class BotInterface:
         try:
             return self._notifications_queue.get(True, timeout=timeout)
         except queue.Empty:
-            return None, None
+            pass
+        except Exception as e:
+            _log.warning('Cannot pop from motion events: %s' % str(e))
+        return None, None
 
     def pop_media(self, timeout):
         try:
             return self._media_queue.get(True, timeout=timeout)
         except queue.Empty:
-            return None, None
+            pass
+        except Exception as e:
+            _log.warning('Cannot pop from media: %s' % str(e))
+        return None, None
 
     def push_motion_event(self, motion_detected):
         try:

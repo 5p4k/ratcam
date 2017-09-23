@@ -57,6 +57,11 @@ class BotManager:
             bot.send_message(chat_id=self.chat_id, text='I did not understand.',
                              reply_to_message_id=update.message.message_id)
             return
+        _log.info('Bot: turning detection %s for user %s, %s (%s)',
+                  'ON' if switch in YES else 'OFF',
+                  update.message.from_user.first_name,
+                  update.message.from_user.last_name,
+                  update.message.from_user.username)
         if switch in YES:
             self._cam_interface.toggle_detection(True)
         elif switch in NO:
