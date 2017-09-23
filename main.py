@@ -35,29 +35,25 @@ _log = None
 def bot_process_main(bot_interface, cam_interface, token):
     bot_process = BotProcess(bot_interface, cam_interface, token)
     with bot_process:
-        while True:
-            try:
-                # TODO not exactly the right way of doing it
+        try:
+            while True:
                 sleep(1)
-            except KeyboardInterrupt:
-                _log.info('Bot: caught ctrl-C...')
-                break
-            except Exception as e:
-                _log.error('Bot: %s' % str(e))
+        except KeyboardInterrupt:
+            _log.info('Bot: caught ctrl-C...')
+        except Exception as e:
+            _log.error('Bot: %s' % str(e))
 
 
 def cam_process_main(bot_interface, cam_interface):
     cam_process = CameraProcess(bot_interface, cam_interface)
     with cam_process:
-        while True:
-            try:
-                # TODO not exactly the right way of doing it
+        try:
+            while True:
                 sleep(1)
-            except KeyboardInterrupt:
-                _log.info('Cam: caught ctrl-C...')
-                break
-            except Exception as e:
-                _log.error('Cam: %s' % str(e))
+        except KeyboardInterrupt:
+            _log.info('Cam: caught ctrl-C...')
+        except Exception as e:
+            _log.error('Cam: %s' % str(e))
 
 
 def setup_log(debug=False):
