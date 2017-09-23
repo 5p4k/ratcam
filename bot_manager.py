@@ -52,10 +52,16 @@ class BotManager:
     def _bot_detect(self, bot, update, args):
         if update.message.chat_id != self.chat_id or not self.chat_id:
             return
+        if len(args) == 0:
+            txt = 'Detection is currently %s. Type /detect on or /detect off to change it.' % \
+                  ('ON' if self._detection_enabled_cached else 'OFF')
+            bot.send_message(chat_id=self.chat_id, reply_to_message_id=update.message.message_id,
+                             text=txt)
+            return
         switch = args[0].strip().lower()
         if switch not in YES and switch not in NO:
-            bot.send_message(chat_id=self.chat_id, text='I did not understand.',
-                             reply_to_message_id=update.message.message_id)
+            bot.send_message(chat_id=self.chat_id, reply_to_message_id=update.message.message_id,
+                             text='I did not understand.')
             return
         _log.info('Bot: turning detection %s for user %s, %s (%s)',
                   'ON' if switch in YES else 'OFF',
@@ -63,8 +69,10 @@ class BotManager:
                   update.message.from_user.last_name,
                   update.message.from_user.username)
         if switch in YES:
+            self._detection_enabled_cached = True
             self._cam_interface.toggle_detection(True)
         elif switch in NO:
+            self._detection_enabled_cached = False
             self._cam_interface.toggle_detection(False)
 
     def _bot_photo(self, _, update):
@@ -120,6 +128,7 @@ class BotManager:
     def __init__(self, cam_interface, token):
         self.chat_id = None
         self._cam_interface = cam_interface
+        self._detection_enabled_cached = False
         self._updater = Updater(token=token)
         self._updater.dispatcher.add_handler(CommandHandler('start', self._bot_start))
         self._updater.dispatcher.add_handler(CommandHandler('photo', self._bot_photo))
