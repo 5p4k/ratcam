@@ -106,7 +106,7 @@ class CameraManager:
             self._toggle_recording()
 
     def _report_mp4_ready(self, file_name):
-        _log.info('Cam: video ready at %s' % file_name)
+        _log.debug('Cam: video ready at %s' % file_name)
         self._bot_interface.push_media(file_name, 'mp4')
 
     def take_video(self):
@@ -120,7 +120,7 @@ class CameraManager:
         self.camera.capture(tmp_file, format='jpeg', use_video_port=True, quality=CAM_JPEG_QUALITY)
         tmp_file.flush()
         tmp_file.close()
-        _log.info('Cam: photo ready at %s' % tmp_file.name)
+        _log.debug('Cam: photo ready at %s' % tmp_file.name)
         self._bot_interface.push_media(tmp_file.name, 'jpeg')
 
     def spin(self):
@@ -130,11 +130,14 @@ class CameraManager:
         keyframe_age_limit = int(self.camera.framerate)
         video_age_limit = int(self.camera.framerate) * CAM_VIDEO_DURATION
         if self._recorder.age_of_last_keyframe > keyframe_age_limit:
+            _log.debug('Last keframe age is %d, limit is %d. Requesting keyframe.' % (
+                self._recorder.age_of_last_keyframe, keyframe_age_limit
+            ))
             # Request a keyframe to allow hotswapping
             self.camera.request_key_frame()
         if self._manual_rec:
             if self._recorder.oldest.age_in_frames > video_age_limit:
-                _log.info('Recording video is %d frames old (limit: %d). Turning off manual rec.' %(
+                _log.debug('Recording video is %d frames old (limit: %d). Turning off manual rec.' %(
                     self._recorder.oldest.age_in_frames, video_age_limit
                 ))
                 # Manual recording has expired
@@ -144,6 +147,6 @@ class CameraManager:
     def _toggle_recording(self):
         keep_recording = self._manual_rec or (self.detection_enabled and self._moving)
         if keep_recording != self._recorder.keep_recording:
-            _log.info('Changing keep recording; manual rec: {}, detection enabled: {}, moving: {}'.format(
+            _log.debug('Changing keep recording; manual rec: {}, detection enabled: {}, moving: {}'.format(
                 self._manual_rec, self.detection_enabled, self._moving))
             self._recorder.keep_recording = keep_recording

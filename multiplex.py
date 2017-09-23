@@ -87,7 +87,7 @@ class TempMP4Muxer:
 
     def append(self, data, frame_is_sps_header, frame_is_complete):
         self.muxer.append(data, frame_is_sps_header, frame_is_complete)
-        if frame_is_complete:
+        if frame_is_complete and not frame_is_sps_header:
             self.age_in_frames += 1
 
 
@@ -144,7 +144,7 @@ class DelayedMP4Recorder:
         with self._stream_lock:
             if value == self._keep_recording:
                 return
-            if self._keep_recording:
+            if not self._keep_recording:
                 _log.debug('Turning on persistent recording.')
                 self._keep_recording = value
                 # Can destroy the second stream

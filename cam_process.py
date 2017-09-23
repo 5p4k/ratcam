@@ -34,7 +34,7 @@ class CameraProcess:
         while not self._shutdown.is_set():
             cmd = self._cam_interface.pop_cmd_if_changed(0.5)
             if cmd is not None:
-                _log.info('Got command set %s' % str(cmd))
+                _log.debug('Got command set %s' % str(cmd))
                 if cmd.video_request:
                     self._cam.take_video()
                 if cmd.photo_request:
