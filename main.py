@@ -32,34 +32,31 @@ LOG_FILE = 'ratcam.log'
 _log = None
 
 
+def noop():
+    while True:
+        sleep(1)
+
+
 def bot_process_main(bot_interface, cam_interface, token):
     bot_process = BotProcess(bot_interface, cam_interface, token)
     with bot_process:
         try:
-            while True:
-                sleep(1)
+            noop()
         except KeyboardInterrupt:
             _log.info('Bot: caught ctrl-C...')
         except Exception as e:
             _log.error('Bot: %s' % str(e))
-    # Otherwise EOFError happen because the interface objects are prematurely destroyed.
-    _log.info('Bot: waiting 2 seconds to allow timeouts to expires...')
-    sleep(2)
 
 
 def cam_process_main(bot_interface, cam_interface):
     cam_process = CameraProcess(bot_interface, cam_interface)
     with cam_process:
         try:
-            while True:
-                sleep(1)
+            noop()
         except KeyboardInterrupt:
             _log.info('Cam: caught ctrl-C...')
         except Exception as e:
             _log.error('Cam: %s' % str(e))
-    # Otherwise EOFError happen because the interface objects are prematurely destroyed.
-    _log.info('Cam: waiting 2 seconds to allow timeouts to expires...')
-    sleep(2)
 
 
 def setup_log(debug=False):
@@ -76,19 +73,21 @@ def setup_log(debug=False):
 
 def main(telegram_token):
     with Manager() as manager:
+        cam_interface = CamInterface(manager)
+        bot_interface = BotInterface(manager)
+        cam = Process(target=cam_process_main, args=(bot_interface, cam_interface))
+        bot = Process(target=bot_process_main, args=(bot_interface, cam_interface, telegram_token))
+        cam.start()
+        bot.start()
         try:
-            cam_interface = CamInterface(manager)
-            bot_interface = BotInterface(manager)
-            cam = Process(target=cam_process_main, args=(bot_interface, cam_interface))
-            bot = Process(target=bot_process_main, args=(bot_interface, cam_interface, telegram_token))
-            cam.start()
-            bot.start()
-            bot.join()
-            cam.join()
+            noop()
         except KeyboardInterrupt:
-            pass
+            _log.info('Waiting for camera and bot process.')
         except Exception as e:
             raise e
+        bot.join()
+        cam.join()
+        _log.info('Finished.')
 
 
 if __name__ == '__main__':

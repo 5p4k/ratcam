@@ -24,7 +24,7 @@ import logging
 
 _log = logging.getLogger('ratcam')
 
-CAM_BITRATE = 1500000
+CAM_BITRATE = 1000000
 CAM_RESOLUTION = '720p'
 CAM_FRAMERATE = 30
 CAM_JPEG_QUALITY = 10
