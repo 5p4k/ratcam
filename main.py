@@ -45,7 +45,7 @@ def bot_process_main(bot_interface, cam_interface, token):
         except KeyboardInterrupt:
             _log.info('Bot: caught ctrl-C...')
         except Exception as e:
-            _log.error('Bot: %s' % str(e))
+            _log.error('Bot: %s', str(e))
 
 
 def cam_process_main(bot_interface, cam_interface):
@@ -56,7 +56,7 @@ def cam_process_main(bot_interface, cam_interface):
         except KeyboardInterrupt:
             _log.info('Cam: caught ctrl-C...')
         except Exception as e:
-            _log.error('Cam: %s' % str(e))
+            _log.error('Cam: %s', str(e))
 
 
 def setup_log(debug=False):

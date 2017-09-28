@@ -24,10 +24,10 @@ import logging
 
 _log = logging.getLogger('ratcam')
 
-CAM_BITRATE = 1000000
+CAM_BITRATE = 750000
 CAM_RESOLUTION = '720p'
 CAM_FRAMERATE = 30
-CAM_JPEG_QUALITY = 10
+CAM_JPEG_QUALITY = 7
 CAM_VIDEO_DURATION = 8
 CAM_MOTION_WINDOW = 2
 
@@ -94,7 +94,7 @@ class CameraManager:
     @detection_enabled.setter
     def detection_enabled(self, value):
         if value != self._detection_enabled:
-            _log.info('Cam: detection is now %s' % ('ON' if value else 'OFF'))
+            _log.info('Cam: detection is now %s', 'ON' if value else 'OFF')
             self._detection_enabled = value
             self._toggle_recording()
 
@@ -106,7 +106,7 @@ class CameraManager:
             self._toggle_recording()
 
     def _report_mp4_ready(self, file_name):
-        _log.debug('Cam: video ready at %s' % file_name)
+        _log.debug('Cam: video ready at %s', file_name)
         self._bot_interface.push_media(file_name, 'mp4')
 
     def take_video(self):
@@ -120,7 +120,7 @@ class CameraManager:
         self.camera.capture(tmp_file, format='jpeg', use_video_port=True, quality=CAM_JPEG_QUALITY)
         tmp_file.flush()
         tmp_file.close()
-        _log.debug('Cam: photo ready at %s' % tmp_file.name)
+        _log.debug('Cam: photo ready at %s', tmp_file.name)
         self._bot_interface.push_media(tmp_file.name, 'jpeg')
 
     def spin(self):
@@ -130,9 +130,8 @@ class CameraManager:
         keyframe_age_limit = int(self.camera.framerate)
         video_age_limit = int(self.camera.framerate) * CAM_VIDEO_DURATION
         if self._recorder.age_of_last_keyframe > keyframe_age_limit:
-            _log.debug('Last keframe age is %d, limit is %d. Requesting keyframe.' % (
-                self._recorder.age_of_last_keyframe, keyframe_age_limit
-            ))
+            _log.debug('Last keframe age is %d, limit is %d. Requesting keyframe.', self._recorder.age_of_last_keyframe,
+                       keyframe_age_limit)
             # Request a keyframe to allow hotswapping
             self.camera.request_key_frame()
         if self._manual_rec:

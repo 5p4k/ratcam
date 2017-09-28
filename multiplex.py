@@ -58,7 +58,7 @@ class TempMP4Muxer:
         self.file.close()
         self.muxer = None
         if os.path.isfile(self.file.name):
-            _log.debug('Dropping temporary MP4 %s' % self.file.name)
+            _log.debug('Dropping temporary MP4 %s', self.file.name)
             os.remove(self.file.name)
         self.file = None
         self.age_in_frames = -1
@@ -157,7 +157,7 @@ class DelayedMP4Recorder:
                     self._stopping_recording = True
 
     def _stop_recording(self):
-        _log.debug('Turning off persistent recording, finalizing mp4 at path %s' % self.oldest.file.name)
+        _log.debug('Turning off persistent recording, finalizing mp4 at path %s', self.oldest.file.name)
         self._stopping_recording = False
         self._keep_recording = False
         # Can finalize the oldest stream
