@@ -54,23 +54,47 @@ class AuthStatus(Enum):
     UNKNOWN = 4
 
 
+class CommonChatBase:
+    def __init__(self, auth_user=None, auth_datetime=None):
+        self.auth_user = auth_user
+        self.auth_datetime = auth_datetime
+
+    def as_json_obj(self):
+        # Convert keys to string
+        return {'auth_user': self.auth_user, 'auth_datetime': self.auth_datetime}
+
+    @classmethod
+    def from_json_obj(cls, d):
+        return cls(auth_user=d['auth_user'], auth_datetime=d['auth_datetime'])
+
+
+class AuthorizedChat(CommonChatBase):
+    pass
+
+
+class DeniedChat(CommonChatBase):
+    pass
+
+
 class ChatAuth:
     def __init__(self):
         self._d = dict()
 
     @property
     def authorized_chat_ids(self):
-        yield from filter(lambda chat_id: isinstance(self._d[chat_id], bool) and self._d[chat_id], self._d.keys())
+        yield from filter(lambda chat_id: self.status(chat_id) == AuthStatus.OK, self._d.keys())
 
     def status(self, chat_id):
         status = self._d.get(chat_id, None)
         if status is None:
             return AuthStatus.UNKNOWN
-        elif isinstance(status, bool):
-            return AuthStatus.OK if status else AuthStatus.DENIED
-        else:
-            assert(isinstance(status, ChatAuthProcess))
+        elif isinstance(status, AuthorizedChat):
+            return AuthStatus.OK
+        elif isinstance(status, DeniedChat):
+            return AuthStatus.DENIED
+        elif isinstance(status, ChatAuthProcess):
             return AuthStatus.ONGOING
+        return None
 
     def start_auth(self, chat_id, user):
         assert(self.status(chat_id) == AuthStatus.UNKNOWN)
@@ -82,9 +106,9 @@ class ChatAuth:
         process = self._d[chat_id]
         result = process.authenticate(pwd)
         if result == AuthAttemptResult.AUTHENTICATED:
-            self._d[chat_id] = True
+            self._d[chat_id] = AuthorizedChat(process.requested_by, process.request_time)
         elif result in [AuthAttemptResult.TOO_MANY_RETRIES, AuthAttemptResult.EXPIRED]:
-            self._d[chat_id] = False
+            self._d[chat_id] = DeniedChat(process.requested_by, process.request_time)
         return result
 
     def revoke_auth(self, chat_id):
@@ -162,7 +186,7 @@ class ChatAuthProcess:
 
 
 class ChatAuthJSONCodec(json.JSONEncoder):
-    VALID_CLASSES = [ChatAuthProcess.__name__, ChatAuth.__name__]
+    VALID_CLASSES = [ChatAuthProcess.__name__, ChatAuth.__name__, AuthorizedChat.__name__, DeniedChat.__name__]
 
     def default(self, obj):
         if callable(getattr(obj, 'as_json_obj', None)):
