@@ -70,7 +70,7 @@ class CamInterface:
                 retval = self._as_cmd()
                 self._reset()
                 return retval
-        except EOFError:
+        except (EOFError, OSError):
             pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
             _log.warning('Cannot receive command event: %s', str(e))
@@ -99,7 +99,7 @@ class BotInterface:
             return self._notifications_queue.get(True, timeout=timeout)
         except queue.Empty:
             pass
-        except EOFError:
+        except (EOFError, OSError):
             pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
             _log.warning('Cannot pop from motion events: %s', str(e))
@@ -110,7 +110,7 @@ class BotInterface:
             return self._media_queue.get(True, timeout=timeout)
         except queue.Empty:
             pass
-        except EOFError:
+        except (EOFError, OSError):
             pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
             _log.warning('Cannot pop from media: %s', str(e))
@@ -121,7 +121,7 @@ class BotInterface:
             self._notifications_queue.put((datetime.now(), motion_detected), False)
         except queue.Full:
             _log.error('Cannot push motion event: queue full.')
-        except EOFError:
+        except (EOFError, OSError):
             pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
             _log.error('Cannot push motion event: %s', str(e))
@@ -132,7 +132,7 @@ class BotInterface:
             return
         except queue.Full:
             _log.error('Cannot push motion event: queue full.')
-        except EOFError:
+        except (EOFError, OSError):
             pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
             _log.error('Cannot push motion event: %s', str(e))
