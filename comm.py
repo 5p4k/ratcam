@@ -65,10 +65,15 @@ class CamInterface:
         self._toggle_detection.value = B_NONE
 
     def pop_cmd_if_changed(self, timeout):
-        if self._changed_event.wait(timeout=timeout):
-            retval = self._as_cmd()
-            self._reset()
-            return retval
+        try:
+            if self._changed_event.wait(timeout=timeout):
+                retval = self._as_cmd()
+                self._reset()
+                return retval
+        except EOFError:
+            pass  # Just means that the synchronization primitive was terminated alongside with the process
+        except Exception as e:
+            _log.warning('Cannot receive command event: %s', str(e))
         return None
 
     def request_video(self):
@@ -94,8 +99,10 @@ class BotInterface:
             return self._notifications_queue.get(True, timeout=timeout)
         except queue.Empty:
             pass
+        except EOFError:
+            pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
-            _log.warning('Cannot pop from motion events: %s' % str(e))
+            _log.warning('Cannot pop from motion events: %s', str(e))
         return None, None
 
     def pop_media(self, timeout):
@@ -103,8 +110,10 @@ class BotInterface:
             return self._media_queue.get(True, timeout=timeout)
         except queue.Empty:
             pass
+        except EOFError:
+            pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
-            _log.warning('Cannot pop from media: %s' % str(e))
+            _log.warning('Cannot pop from media: %s', str(e))
         return None, None
 
     def push_motion_event(self, motion_detected):
@@ -112,8 +121,10 @@ class BotInterface:
             self._notifications_queue.put((datetime.now(), motion_detected), False)
         except queue.Full:
             _log.error('Cannot push motion event: queue full.')
+        except EOFError:
+            pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
-            _log.error('Cannot push motion event: %s' % str(e))
+            _log.error('Cannot push motion event: %s', str(e))
 
     def push_media(self, media_file, media_type):
         try:
@@ -121,7 +132,9 @@ class BotInterface:
             return
         except queue.Full:
             _log.error('Cannot push motion event: queue full.')
+        except EOFError:
+            pass  # Just means that the synchronization primitive was terminated alongside with the process
         except Exception as e:
-            _log.error('Cannot push motion event: %s' % str(e))
-        _log.warning('Removing media file %s' % media_file)
+            _log.error('Cannot push motion event: %s', str(e))
+        _log.warning('Removing media file %s', media_file)
         os.remove(media_file)
