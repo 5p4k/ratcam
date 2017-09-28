@@ -87,6 +87,10 @@ class ChatAuth:
             self._d[chat_id] = False
         return result
 
+    def revoke_auth(self, chat_id):
+        if chat_id in self._d:
+            del self._d[chat_id]
+
     def as_json_obj(self):
         # Convert keys to string
         return {str(k): self._d[k] for k in self._d}

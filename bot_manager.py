@@ -62,13 +62,13 @@ class BotManager:
         usr_str = usr_to_str(upd.message.from_user)
         pwd = self._auth.start_auth(upd.message.chat_id, usr_str)
         print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.message.chat_id, usr_str, pwd))
-        bot.send_message(chat_id=upd.message.chat_id, text='Insert the pass that you can read on the Pi\'s console.')
+        bot.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
 
     @staticmethod  # Silent PyCharm warning
     def _bot_start_auth(self, bot, upd):
         _log.info('Bot: authentication resumed for chat %d, user %s.', upd.message.chat_id,
                   usr_to_str(upd.message.from_user))
-        bot.send_message(chat_id=upd.message.chat_id, text='Insert the pass that you can read on the Pi\'s console.')
+        bot.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
 
     def _bot_try_auth(self, bot, upd):
         pwd = upd.message.text
@@ -111,6 +111,15 @@ class BotManager:
     def _bot_video(self, _, upd):
         _log.info('Bot: taking video for %s.', usr_to_str(upd.message.from_user))
         self._cam_interface.request_video()
+
+    def _bot_logout(self, _, upd):
+        _log.info('Bot: requested logout from chat %d (%s).', upd.message.chat_id, str(upd.message.chat.title))
+        self._auth.revoke_auth(upd.message.chat_id)
+
+    def _bot_user_left(self, _, upd):
+        if upd.message.chat.get_members_count() <= 1:
+            _log.info('Bot: exiting chat %d (%s).', upd.message.chat_id, str(upd.message.chat.title))
+            self._auth.revoke_auth(upd.message.chat_id)
 
     def __enter__(self):
         self._updater.start_polling(clean=True)
@@ -203,6 +212,10 @@ class BotManager:
         disp.add_handler(CommandHandler('photo', self._bot_photo, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('video', self._bot_video, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('detect', self._bot_detect, pass_args=True, filters=filters[AuthStatus.OK]))
+        disp.add_handler(CommandHandler('logout', self._bot_logout, filters=filters[AuthStatus.OK]))
+
+        # Detect when users leave and close the chat.
+        disp.add_handler(MessageHandler(Filters.status_update.left_chat_member, self._bot_user_left))
 
     def __init__(self, cam_interface, token):
         self._cam_interface = cam_interface
@@ -212,5 +225,10 @@ class BotManager:
         # Try to load a pre-existent authorization
         self._try_load_auth()
         self._setup_handlers()
+        for chat_id in list(self._auth.authorized_chat_ids):
+            chat = self._updater.bot.get_chat(chat_id)
+            if chat.get_members_count() <= 1:
+                print('Exiting chat %d %s'% (chat_id, str(chat.title)))
+                self._auth.revoke_auth(chat_id)
 
         # [1] https://github.com/python-telegram-bot/python-telegram-bot/blob/5614af1/telegram/utils/request.py#L195
