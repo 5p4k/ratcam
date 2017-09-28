@@ -88,12 +88,14 @@ class ChatAuth:
         return result
 
     def as_json_obj(self):
-        return self._d
+        # Convert keys to string
+        return {str(k): self._d[k] for k in self._d}
 
     @classmethod
     def from_json_obj(cls, d):
         retval = ChatAuth()
-        retval._d = d
+        # Convert the keys back from string
+        retval._d = {int(k): d[k] for k in d}
         return retval
 
 
@@ -121,6 +123,7 @@ class ChatAuthProcess:
         self.request_time = datetime.now()
         self.password = bcrypt.hashpw(pwd.encode(), bcrypt.gensalt())
         self.retries = 0
+        return pwd
 
     def authenticate(self, pwd):
         assert(self.retries >= 0)
