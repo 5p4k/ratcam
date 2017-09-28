@@ -32,6 +32,10 @@ BOT_VIDEO_TIMEOUT = 60
 AUTH_FILE = 'auth.json'
 
 
+def highest_resolution_photo(photo_sizes):
+    return max(photo_sizes, key=lambda photo_size: photo_size.width * photo_size.height)
+
+
 def usr_to_str(usr):
     return '%s, %s (%s)' % (usr.first_name, usr.last_name, usr.username)
 
@@ -121,16 +125,20 @@ class BotManager:
         for chat_id in self._auth.authorized_chat_ids:
             self._updater.bot.send_message(chat_id=chat_id, *args, **kwargs)
 
-    def _upload_and_return_media(self, chat_id, file_name, media_type):
+    def _upload_and_return_media_id(self, chat_id, file_name, media_type):
         file_size = human_file_size(file_name)
         try:
             # Send the media and extract the video
-            _log.info('Bot: sending media %s (%s)' % (file_name, file_size))
+            _log.info('Bot: sending media %s (%s)', file_name, file_size)
             with open(file_name, 'rb') as file:
                 if media_type == 'mp4':
-                    return self._updater.bot.send_video(chat_id=chat_id, video=file, timeout=BOT_VIDEO_TIMEOUT).video
+                    msg = self._updater.bot.send_video(chat_id=chat_id, video=file, timeout=BOT_VIDEO_TIMEOUT)
+                    # Videos with no audio are sent as gifs (doesn't matter using effective_attachment)
+                    return msg.effective_attachment.file_id
                 elif media_type == 'jpeg':
-                    return self._updater.bot.send_photo(chat_id=chat_id, photo=file, timeout=BOT_PHOTO_TIMEOUT).photo
+                    msg =  self._updater.bot.send_photo(chat_id=chat_id, photo=file, timeout=BOT_PHOTO_TIMEOUT)
+                    # Send highest resolution media
+                    return highest_resolution_photo(msg.photo).file_id
         except Exception as e:
             _log.error('Unable to send video, error: %s', str(e))
             # Can't do any better logging,  because everything is hidden behind Telegram exceptions [1]
@@ -139,18 +147,21 @@ class BotManager:
         return None
 
     def send_media(self, file_name, media_type):
-        telegram_media = None
+        file_id = None
         for chat_id in self._auth.authorized_chat_ids:
-            if telegram_media is None:
-                telegram_media = self._upload_and_return_media(chat_id, file_name, media_type)
-                if not telegram_media:
+            if file_id is None:
+                file_id = self._upload_and_return_media_id(chat_id, file_name, media_type)
+                if not file_id:
                     break
             else:
                 if media_type == 'mp4':
-                    self._updater.bot.send_video(chat_id, video=telegram_media, timeout=BOT_VIDEO_TIMEOUT)
+                    # NOTE Videos with no audio are sent as gif, so when sending them again we should just send them
+                    # along as document
+                    # self._updater.bot.send_video(chat_id=chat_id, video=file_id, timeout=BOT_VIDEO_TIMEOUT)
+                    self._updater.bot.send_document(chat_id=chat_id, document=file_id, timeout=BOT_VIDEO_TIMEOUT)
                 elif media_type == 'jpeg':
-                    self._updater.bot.send_photo(chat_id, video=telegram_media, timeout=BOT_PHOTO_TIMEOUT)
-        _log.debug('Bot: removing media %s' % file_name)
+                    self._updater.bot.send_photo(chat_id, photo=file_id, timeout=BOT_PHOTO_TIMEOUT)
+        _log.debug('Bot: removing media %s', file_name)
         os.remove(file_name)
 
     def report_motion_detected(self, detected):
@@ -170,7 +181,7 @@ class BotManager:
     def _dump_auth(self):
         try:
             with open(AUTH_FILE, 'w') as stream:
-                json.dump(self._auth, stream, cls=ChatAuthJSONCodec)
+                json.dump(self._auth, stream, cls=ChatAuthJSONCodec, sort_keys=True, indent=4)
         except Exception as e:
             _log.warning('Unable to save auth file %s. Error: %s', AUTH_FILE, str(e))
 
