@@ -27,7 +27,7 @@ LOW_SENSITIVITY = TriggerOptions(threshold=(200, 180), area_fraction=(0.001, 0.0
 HIGH_SENSITIVITY = TriggerOptions(threshold=(80, 20), area_fraction=(0.0001, 0.00002))
 
 
-def pillow_median(a, size=3, reshape=False):
+def pillow_median(a, size=3, reshape=True):
     filt = ImageFilter.MedianFilter(size=size)
     b = np.array(Image.fromarray(a).filter(filt).getdata())
     if reshape:
@@ -37,7 +37,7 @@ def pillow_median(a, size=3, reshape=False):
 
 class DecayMotionDetector:
     @staticmethod
-    def compute_and_denoise_mv_norm(a, median_size=3, reshape=False, dtype=np.float):
+    def compute_and_denoise_mv_norm(a, median_size=3, reshape=True, dtype=np.float):
         # Need to use uint16 to avoid overflow. Also seems faster than float and uint32
         norm = np.sqrt(np.square(a['x'].astype(np.uint16)) + np.square(a['y'].astype(np.uint16)))
         # Scale to fill. Max norm value for 8bit signed vectors is ~182
