@@ -15,11 +15,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import numpy as np
+from PIL import Image
 from picamera.array import PiMotionAnalysis
 from detector import DecayMotionDetector
 from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
 from picamera import PiCamera
+from threading import Event
 import logging
 
 _log = logging.getLogger('ratcam')
@@ -30,6 +33,22 @@ CAM_FRAMERATE = 30
 CAM_JPEG_QUALITY = 7
 CAM_VIDEO_DURATION = 8
 CAM_MOTION_WINDOW = 2
+
+
+def _sat_fn(x):
+    return 4 * x if x < 50 else max(200, x)
+
+
+def _hue_fn(x):
+    if x < 50:
+        return 138
+    elif x > 200:
+        return 204
+    return int(138 + (x - 50) * 66 / 150)
+
+
+SAT_LUT = [_sat_fn(x) for x in range(256)]
+HUE_LUT = [_hue_fn(x) for x in range(256)]
 
 
 class CookedMotionDetector(DecayMotionDetector, PiMotionAnalysis):
@@ -64,6 +83,8 @@ class CameraManager:
         self._bot_interface = bot_interface
         self._detector = CookedMotionDetector(self)
         self._recorder = CookedDelayedMP4Recorder(self)
+        self._rgb_capture_array = None
+        self._take_motion_image_evt = Event()
         self._setup_camera()
 
     def __enter__(self):
@@ -82,6 +103,7 @@ class CameraManager:
         # self.camera.exposure_mode = 'night'
         self.camera.resolution = CAM_RESOLUTION
         self.camera.framerate = CAM_FRAMERATE
+        self._rgb_capture_array = np.empty((self.camera.resolution[1], self.camera.resolution[0], 3), dtype=np.uint8)
 
     @property
     def camera(self):
@@ -104,10 +126,35 @@ class CameraManager:
             self._bot_interface.push_motion_event(value)
             self._moving = value
             self._toggle_recording()
+            if value:
+                self._take_motion_image_evt.set()
 
     def _report_mp4_ready(self, file_name):
         _log.debug('Cam: video ready at %s', file_name)
         self._bot_interface.push_media(file_name, 'mp4')
+
+    def _take_motion_image(self):
+        # TODO scale up the accum img, 1280x720 // 16 = 80x45, too small
+        # Get an image representing the current motion accumulator
+        accum_img = Image.fromarray(self._detector.motion_accumulator).convert(mode='L')
+        # Remove the last extra column in the motion vector
+        w, h = accum_img.size
+        w -= 1
+        accum_img = accum_img.crop((0, 0, w, h))
+        # Get a rgb image of a size matching the motion vector
+        self.camera.capture(self._rgb_capture_array, format='rgb', use_video_port=True, resize=(w, h))
+        # Convert to HSV and extract the right channel
+        capture_value = Image.fromarray(self._rgb_capture_array, mode='RGB').convert(mode='HSV').getchannel('V')
+        # Remap the current motion accumulator into two images to use as H and S channels. Take V from captured img
+        bands = (accum_img.point(HUE_LUT), accum_img.point(SAT_LUT), capture_value)
+        # Make a temporary file where to save the data
+        tmp_file = NamedTemporaryFile(delete=False)
+        # Merge the bands, convert to RGB and save
+        Image.merge('HSV', bands).convert('RGB').save(tmp_file, format='jpeg')
+        tmp_file.flush()
+        tmp_file.close()
+        _log.debug('Cam: motion image ready at %s', tmp_file.name)
+        return tmp_file.name
 
     def take_video(self):
         _log.info('Cam: manual recording is ON.')
@@ -142,6 +189,10 @@ class CameraManager:
                 # Manual recording has expired
                 self._manual_rec = False
                 self._toggle_recording()
+        if self._take_motion_image_evt.is_set():
+            self._take_motion_image_evt.clear()
+            # Take and deliver a motion image
+            self._bot_interface.push_media(self._take_motion_image(), 'jpeg')
 
     def _toggle_recording(self):
         keep_recording = self._manual_rec or (self.detection_enabled and self._moving)
