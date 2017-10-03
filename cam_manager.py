@@ -16,13 +16,13 @@
 #
 
 import numpy as np
-from PIL import Image
 from picamera.array import PiMotionAnalysis
 from detector import DecayMotionDetector
 from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
 from picamera import PiCamera
 from threading import Event
+from colorize_motion import overlay_motionv
 import logging
 
 _log = logging.getLogger('ratcam')
@@ -134,23 +134,14 @@ class CameraManager:
         self._bot_interface.push_media(file_name, 'mp4')
 
     def _take_motion_image(self):
-        # TODO scale up the accum img, 1280x720 // 16 = 80x45, too small
-        # Get an image representing the current motion accumulator
-        accum_img = Image.fromarray(self._detector.motion_accumulator).convert(mode='L')
-        # Remove the last extra column in the motion vector
-        w, h = accum_img.size
-        w -= 1
-        accum_img = accum_img.crop((0, 0, w, h))
         # Get a rgb image of a size matching the motion vector
-        self.camera.capture(self._rgb_capture_array, format='rgb', use_video_port=True, resize=(w, h))
-        # Convert to HSV and extract the right channel
-        capture_value = Image.fromarray(self._rgb_capture_array, mode='RGB').convert(mode='HSV').getchannel('V')
-        # Remap the current motion accumulator into two images to use as H and S channels. Take V from captured img
-        bands = (accum_img.point(HUE_LUT), accum_img.point(SAT_LUT), capture_value)
+        self.camera.capture(self._rgb_capture_array, format='rgb', use_video_port=True)
+        # Blend it to the motion vector using another routine
+        img = overlay_motionv(self._rgb_capture_array, self._detector.motion_accumulator)
         # Make a temporary file where to save the data
         tmp_file = NamedTemporaryFile(delete=False)
         # Merge the bands, convert to RGB and save
-        Image.merge('HSV', bands).convert('RGB').save(tmp_file, format='jpeg')
+        img.save(tmp_file, format='jpeg')
         tmp_file.flush()
         tmp_file.close()
         _log.debug('Cam: motion image ready at %s', tmp_file.name)
