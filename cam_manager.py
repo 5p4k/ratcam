@@ -98,9 +98,9 @@ class CameraManager:
         self.camera.stop_recording()
 
     def _setup_camera(self):
-        # self.camera.iso = 800
-        # self.camera.sensor_mode = 3
-        # self.camera.exposure_mode = 'night'
+        self.camera.iso = 800
+        self.camera.sensor_mode = 3
+        self.camera.exposure_mode = 'night'
         self.camera.resolution = CAM_RESOLUTION
         self.camera.framerate = CAM_FRAMERATE
         self._rgb_capture_array = np.empty((self.camera.resolution[1], self.camera.resolution[0], 3), dtype=np.uint8)
