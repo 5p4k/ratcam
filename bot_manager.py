@@ -32,6 +32,27 @@ BOT_VIDEO_TIMEOUT = 60
 
 AUTH_FILE = 'auth.json'
 
+HELP_TXT = '''List of commands:
+
+/start - shows current status or logs in to a new chat
+
+/logout - logs out current chat, stop receiving updates
+
+/help - display this help
+
+/photo - take a photo now
+
+/video - take a video now
+
+/detect - display current motion detection status and schedule
+
+/detect on|off- turn on/off motion detection now
+
+/detect on|off at HH:MM - schedule to turn on/off detection at HH:MM
+
+/detect on|off never - delete a preexisting schedule
+'''
+
 
 def highest_resolution_photo(photo_sizes):
     return max(photo_sizes, key=lambda photo_size: photo_size.width * photo_size.height)
@@ -173,6 +194,9 @@ class BotManager:
             _log.info('Bot: exiting chat %d (%s).', upd.message.chat_id, str(upd.message.chat.title))
             self._auth.revoke_auth(upd.message.chat_id)
 
+    def _bot_help(self, bot, upd):
+        bot.send_message(text=HELP_TXT, reply_to_message_id=upd.message.message_id)
+
     @property
     def detection_enabled(self):
         return self._detection_enabled_cached
@@ -276,6 +300,7 @@ class BotManager:
         disp.add_handler(CommandHandler('video', self._bot_video, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('detect', self._bot_detect, pass_args=True, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('logout', self._bot_logout, filters=filters[AuthStatus.OK]))
+        disp.add_handler(CommandHandler('help', self._bot_help, filters=filters[AuthStatus.OK]))
 
         # Detect when users leave and close the chat.
         disp.add_handler(MessageHandler(Filters.status_update.left_chat_member, self._bot_user_left))
