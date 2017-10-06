@@ -59,13 +59,13 @@ def cam_process_main(bot_interface, cam_interface):
             _log.error('Cam: %s', str(e))
 
 
-def setup_log(debug=False):
+def setup_log(log=False, debug=False):
     global _log
     fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     lvl = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(format=fmt, level=lvl)
     _log = logging.getLogger('ratcam')
-    if debug:
+    if log:
         handler = logging.FileHandler(LOG_FILE)
         handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         _log.addHandler(handler)
@@ -94,7 +94,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Control your Pi camera using Telegram.')
     parser.add_argument('--token', '-t', required=False, help='Telegram API token.')
     parser.add_argument('--debug', '-d', required=False, action='store_true',
-                        help='Turn on verbose logging and saves it to %s' % LOG_FILE)
+                        help='Turn on verbose logging.')
+    parser.add_argument('--log', '-l', required=False, action='store_true',
+                        help='Saves the log to %s' % LOG_FILE)
     args = parser.parse_args()
     token = args.token
     if token is None:
@@ -110,5 +112,5 @@ if __name__ == '__main__':
         print('Specify the token as argument or provide it in a file named %s.' % TOKEN_FILE, file=sys.stderr)
         sys.exit(1)
     else:
-        setup_log(args.debug)
+        setup_log(args.log, args.debug)
         main(token)
