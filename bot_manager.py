@@ -20,6 +20,7 @@ import os
 import logging
 from auth import ChatAuth, ChatAuthJSONCodec, AuthStatusFilter, AuthStatus, AuthAttemptResult
 import json
+from datetime import time, datetime
 
 _log = logging.getLogger('ratcam')
 
@@ -49,13 +50,37 @@ def human_file_size(file_name, suffix='B'):
     return "%.1f%s%s" % (sz, 'Y', suffix)
 
 
+def parse_time(txt):
+    pieces = txt.split(':')
+    if len(pieces) in [2, 3]:
+        try:
+            h = int(pieces[0])
+            m = int(pieces[1])
+            s = 0
+            if len(pieces) == 3:
+                s = int(pieces[2])
+            return time(hour=h, minute=m, second=s)
+        finally:
+            pass
+    return None
+
+
 class BotManager:
     @property
-    def _detection_str(self):
-        return 'ON' if self._detection_enabled_cached else 'OFF'
+    def detection_desc(self):
+        retval = 'Detection is '
+        retval += 'ON.' if self.detection_enabled else 'OFF.'
+        if self._detection_on_time is not None and self._detection_off_time is not None:
+            retval += ' Detection was scheduled between %s and %s.' %\
+                      (self._detection_on_time.isoformat(), self._detection_off_time.isoformat())
+        elif self._detection_on_time is not None:
+            retval += ' Detection was scheduled to be turned ON at ' % self._detection_on_time.isoformat()
+        elif self._detection_off_time is not None:
+            retval += ' Detection was scheduled to be turned OFF at ' % self._detection_off_time.isoformat()
+        return retval
 
     def _bot_start(self, bot, upd):
-        bot.send_message(chat_id=upd.message.chat_id, text='Ratcam is active. Detection is %s.' % self._detection_str)
+        bot.send_message(chat_id=upd.message.chat_id, text='Ratcam is active. %s' % self.detection_desc)
 
     def _bot_start_new_chat(self, bot, upd):
         _log.info('Bot: %s requested access', usr_to_str(upd.message.from_user))
@@ -64,7 +89,6 @@ class BotManager:
         print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.message.chat_id, usr_str, pwd))
         bot.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
 
-    @staticmethod  # Silent PyCharm warning
     def _bot_start_auth(self, bot, upd):
         _log.info('Bot: authentication resumed for chat %d, user %s.', upd.message.chat_id,
                   usr_to_str(upd.message.from_user))
@@ -86,23 +110,51 @@ class BotManager:
 
     def _bot_detect(self, bot, upd, args):
         if len(args) == 0:
-            txt = 'Detection is currently %s. Type /detect on or /detect off to change it.' % self._detection_str
+            txt = self.detection_desc
             bot.send_message(chat_id=upd.message.chat_id, reply_to_message_id=upd.message.message_id, text=txt)
             return
         # Check if it's a valid command
-        switch = args[0].strip().lower()
-        if switch not in YES and switch not in NO:
-            bot.send_message(chat_id=upd.message.chat_id, reply_to_message_id=upd.message.message_id,
-                             text='I did not understand.')
-            return
-        # Actually toggle detection
-        if switch in YES:
-            self._detection_enabled_cached = True
-            self._cam_interface.toggle_detection(True)
-        elif switch in NO:
-            self._detection_enabled_cached = False
-            self._cam_interface.toggle_detection(False)
-        _log.info('Bot: %s turned %s detection.', usr_to_str(upd.message.from_user), self._detection_str)
+        if len(args) in [1, 2, 3]:
+            switch = args[0].strip().lower()
+            if switch in YES or switch in NO:
+                on_off = switch in YES
+                desc = 'ON' if on_off else 'OFF'
+                if len(args) == 1:
+                    # Actually toggle detection
+                    self.detection_enabled = on_off
+                    self._broadcast(text='User %s turned %s detection.' % (usr_to_str(upd.message.from_user), desc))
+                    _log.info('Bot: %s turned %s detection.', usr_to_str(upd.message.from_user), desc)
+                    return
+                elif len(args) == 2 and args[1].strip().lower() == 'never':
+                    if on_off:
+                        self._detection_on_time = None
+                        desc = 'User %s deleted detection %s schedule.' % (usr_to_str(upd.message.from_user), desc)
+                        self._broadcast(text=desc)
+                        _log.info('Bot: %s' % desc)
+                    else:
+                        self._detection_on_time = None
+                        desc = 'User %s deleted detection %s schedule.' % (usr_to_str(upd.message.from_user), desc)
+                        self._broadcast(text=desc)
+                        _log.info('Bot: %s' % desc)
+                    return
+                elif len(args) == 3 and args[1].strip().lower() == 'at':
+                    toggle_time = parse_time(args[2].strip())
+                    if toggle_time:
+                        if on_off:
+                            self._detection_on_time = toggle_time
+                            desc = 'User %s scheduled to turn detection %s at %s.' % \
+                                   (usr_to_str(upd.message.from_user), desc, toggle_time.isoformat())
+                            self._broadcast(text=desc)
+                            _log.info('Bot: %s' % desc)
+                        else:
+                            self._detection_on_time = toggle_time
+                            desc = 'User %s scheduled to turn detection %s at %s.' % \
+                                   (usr_to_str(upd.message.from_user), desc, toggle_time.isoformat())
+                            self._broadcast(text=desc)
+                            _log.info('Bot: %s' % desc)
+                        return
+        bot.send_message(chat_id=upd.message.chat_id, reply_to_message_id=upd.message.message_id,
+                         text='I did not understand.')
 
     def _bot_photo(self, _, upd):
         _log.info('Bot: taking photo for %s.', usr_to_str(upd.message.from_user))
@@ -120,6 +172,17 @@ class BotManager:
         if upd.message.chat.get_members_count() <= 1:
             _log.info('Bot: exiting chat %d (%s).', upd.message.chat_id, str(upd.message.chat.title))
             self._auth.revoke_auth(upd.message.chat_id)
+
+    @property
+    def detection_enabled(self):
+        return self._detection_enabled_cached
+
+    @detection_enabled.setter
+    def detection_enabled(self, value):
+        if self._detection_enabled_cached == value:
+            return
+        self._detection_enabled_cached = value
+        self._cam_interface.toggle_detection(value)
 
     def __enter__(self):
         self._updater.start_polling(clean=True)
@@ -145,7 +208,7 @@ class BotManager:
                     # Videos with no audio are sent as gifs (doesn't matter using effective_attachment)
                     return msg.effective_attachment.file_id
                 elif media_type == 'jpeg':
-                    msg =  self._updater.bot.send_photo(chat_id=chat_id, photo=file, timeout=BOT_PHOTO_TIMEOUT)
+                    msg = self._updater.bot.send_photo(chat_id=chat_id, photo=file, timeout=BOT_PHOTO_TIMEOUT)
                     # Send highest resolution media
                     return highest_resolution_photo(msg.photo).file_id
         except Exception as e:
@@ -217,8 +280,18 @@ class BotManager:
         # Detect when users leave and close the chat.
         disp.add_handler(MessageHandler(Filters.status_update.left_chat_member, self._bot_user_left))
 
+    def spin(self):
+        if datetime.now().time() > self._detection_on_time:
+            self.detection_enabled = True
+            self._broadcast(text='Turning on detection (scheduled).')
+        elif datetime.now().time() > self._detection_off_time:
+            self.detection_enabled = False
+            self._broadcast(text='Turning off detection (scheduled).')
+
     def __init__(self, cam_interface, token):
         self._cam_interface = cam_interface
+        self._detection_on_time = None
+        self._detection_off_time = None
         self._detection_enabled_cached = False
         self._updater = Updater(token=token)
         self._auth = ChatAuth()
@@ -228,7 +301,7 @@ class BotManager:
         for chat_id in list(self._auth.authorized_chat_ids):
             chat = self._updater.bot.get_chat(chat_id)
             if chat.get_members_count() <= 1:
-                print('Exiting chat %d %s'% (chat_id, str(chat.title)))
+                print('Exiting chat %d %s' % (chat_id, str(chat.title)))
                 self._auth.revoke_auth(chat_id)
 
         # [1] https://github.com/python-telegram-bot/python-telegram-bot/blob/5614af1/telegram/utils/request.py#L195

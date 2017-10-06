@@ -35,6 +35,7 @@ class BotProcess:
             _, motion_detected = self._bot_interface.pop_motion_event(0.5)
             if motion_detected is not None:
                 self._bot.report_motion_detected(motion_detected)
+            self._bot.spin()
 
     def _poll_media(self):
         while not self._shutdown.is_set():
