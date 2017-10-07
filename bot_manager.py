@@ -195,7 +195,7 @@ class BotManager:
             self._auth.revoke_auth(upd.message.chat_id)
 
     def _bot_help(self, bot, upd):
-        bot.send_message(text=HELP_TXT, reply_to_message_id=upd.message.message_id)
+        bot.send_message(chat_id=upd.message.chat_id, text=HELP_TXT, reply_to_message_id=upd.message.message_id)
 
     @property
     def detection_enabled(self):
@@ -306,12 +306,16 @@ class BotManager:
         disp.add_handler(MessageHandler(Filters.status_update.left_chat_member, self._bot_user_left))
 
     def spin(self):
-        if datetime.now().time() > self._detection_on_time:
+        now = datetime.now().time()
+        do_turn_on = self._detection_on_time is not None and self._last_spin_time <= self._detection_on_time <= now
+        do_turn_off = self._detection_off_time is not None and self._last_spin_time <= self._detection_off_time <= now
+        if do_turn_on and not do_turn_off and not self.detection_enabled:
             self.detection_enabled = True
             self._broadcast(text='Turning on detection (scheduled).')
-        elif datetime.now().time() > self._detection_off_time:
+        elif do_turn_off and not do_turn_on and self.detection_enabled:
             self.detection_enabled = False
             self._broadcast(text='Turning off detection (scheduled).')
+        self._last_spin_time = now
 
     def __init__(self, cam_interface, token):
         self._cam_interface = cam_interface
@@ -319,6 +323,7 @@ class BotManager:
         self._detection_off_time = None
         self._detection_enabled_cached = False
         self._updater = Updater(token=token)
+        self._last_spin_time = datetime.now().time()
         self._auth = ChatAuth()
         # Try to load a pre-existent authorization
         self._try_load_auth()
