@@ -51,6 +51,10 @@ HELP_TXT = '''List of commands:
 /detect on|off at HH:MM - schedule to turn on/off detection at HH:MM
 
 /detect on|off never - delete a preexisting schedule
+
+/light - display current light status
+
+/light on|off- turn on/off light
 '''
 
 
@@ -98,6 +102,12 @@ class BotManager:
             retval += ' Detection was scheduled to be turned ON at ' % self._detection_on_time.isoformat()
         elif self._detection_off_time is not None:
             retval += ' Detection was scheduled to be turned OFF at ' % self._detection_off_time.isoformat()
+        return retval
+
+    @property
+    def light_desc(self):
+        retval = 'Lighting is '
+        retval += 'ON.' if self.light_enabled else 'OFF.'
         return retval
 
     def _bot_start(self, bot, upd):
@@ -177,6 +187,25 @@ class BotManager:
         bot.send_message(chat_id=upd.message.chat_id, reply_to_message_id=upd.message.message_id,
                          text='I did not understand.')
 
+    def _bot_light(self, bot, upd, args):
+        if len(args) == 0:
+            txt = self.light_desc
+            bot.send_message(chat_id=upd.message.chat_id, reply_to_message_id=upd.message.message_id, text=txt)
+            return
+        # Check if it's a valid command
+        if len(args) == 1:
+            switch = args[0].strip().lower()
+            if switch in YES or switch in NO:
+                on_off = switch in YES
+                desc = 'ON' if on_off else 'OFF'
+                # Actually toggle detection
+                self.light_enabled = on_off
+                self._broadcast(text='User %s turned %s light.' % (usr_to_str(upd.message.from_user), desc))
+                _log.info('Bot: %s turned %s light.', usr_to_str(upd.message.from_user), desc)
+                return
+        bot.send_message(chat_id=upd.message.chat_id, reply_to_message_id=upd.message.message_id,
+                         text='I did not understand.')
+
     def _bot_photo(self, _, upd):
         _log.info('Bot: taking photo for %s.', usr_to_str(upd.message.from_user))
         self._cam_interface.request_photo()
@@ -201,6 +230,10 @@ class BotManager:
     def detection_enabled(self):
         return self._detection_enabled_cached
 
+    @property
+    def light_enabled(self):
+        return self._light_enabled_cached
+
     @detection_enabled.setter
     def detection_enabled(self, value):
         if self._detection_enabled_cached == value:
@@ -216,6 +249,13 @@ class BotManager:
         self._updater.stop()
         self._dump_auth()
         _log.info('Bot: exit.')
+
+    @light_enabled.setter
+    def light_enabled(self, value):
+        if self._light_enabled_cached == value:
+            return
+        self._light_enabled_cached = value
+        self._cam_interface.toggle_light(value)
 
     def _broadcast(self, *args, **kwargs):
         for chat_id in self._auth.authorized_chat_ids:
@@ -299,6 +339,7 @@ class BotManager:
         disp.add_handler(CommandHandler('photo', self._bot_photo, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('video', self._bot_video, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('detect', self._bot_detect, pass_args=True, filters=filters[AuthStatus.OK]))
+        disp.add_handler(CommandHandler('light', self._bot_light, pass_args=True, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('logout', self._bot_logout, filters=filters[AuthStatus.OK]))
         disp.add_handler(CommandHandler('help', self._bot_help, filters=filters[AuthStatus.OK]))
 
@@ -322,6 +363,7 @@ class BotManager:
         self._detection_on_time = None
         self._detection_off_time = None
         self._detection_enabled_cached = False
+        self._light_enabled_cached = False
         self._updater = Updater(token=token)
         self._last_spin_time = datetime.now().time()
         self._auth = ChatAuth()

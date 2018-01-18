@@ -41,6 +41,8 @@ class CameraProcess:
                     self._cam.take_photo()
                 if cmd.toggle_detection is not None:
                     self._cam.detection_enabled = cmd.toggle_detection
+                if cmd.toggle_light is not None:
+                    self._cam.light_enabled = cmd.toggle_light
             # Process time dependent events
             self._cam.spin()
             # Do not allow too may commands to poke with the camera manager

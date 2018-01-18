@@ -24,7 +24,7 @@ import os
 _log = logging.getLogger('ratcam')
 
 
-CamCmd = namedtuple('CamCmd', ['video_request', 'photo_request', 'toggle_detection'])
+CamCmd = namedtuple('CamCmd', ['video_request', 'photo_request', 'toggle_detection', 'toggle_light'])
 
 
 B_TRUE = 1
@@ -51,12 +51,14 @@ class CamInterface:
         self._video_request = proc_mgr.Value('b', B_FALSE)
         self._photo_request = proc_mgr.Value('b', B_FALSE)
         self._toggle_detection = proc_mgr.Value('b', B_NONE)
+        self._toggle_light = proc_mgr.Value('b', B_NONE)
         self._changed_event = proc_mgr.Event()
 
     def _as_cmd(self):
         return CamCmd(video_request=b_to_bool(self._video_request.value),
                       photo_request=b_to_bool(self._photo_request.value),
-                      toggle_detection=b_to_bool(self._toggle_detection.value))
+                      toggle_detection=b_to_bool(self._toggle_detection.value),
+                      toggle_light=b_to_bool(self._toggle_light.value))
 
     def _reset(self):
         self._changed_event.clear()
@@ -86,6 +88,10 @@ class CamInterface:
 
     def toggle_detection(self, value):
         self._toggle_detection.value = B_TRUE if value else B_FALSE
+        self._changed_event.set()
+
+    def toggle_light(self, value):
+        self._toggle_light.value = B_TRUE if value else B_FALSE
         self._changed_event.set()
 
 

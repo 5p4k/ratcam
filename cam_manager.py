@@ -22,6 +22,7 @@ from multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
 from picamera import PiCamera
 from threading import Event
+import RPi.GPIO as GPIO
 from colorize_motion import overlay_motionv
 import logging
 
@@ -49,6 +50,7 @@ def _hue_fn(x):
 
 SAT_LUT = [_sat_fn(x) for x in range(256)]
 HUE_LUT = [_hue_fn(x) for x in range(256)]
+TOGGLE_LIGHT_PIN = 12
 
 
 class CookedMotionDetector(DecayMotionDetector, PiMotionAnalysis):
@@ -80,6 +82,7 @@ class CameraManager:
         self._moving = False
         self._manual_rec = False
         self._detection_enabled = False
+        self._light_enabled = False
         self._bot_interface = bot_interface
         self._detector = CookedMotionDetector(self)
         self._recorder = CookedDelayedMP4Recorder(self)
@@ -88,6 +91,9 @@ class CameraManager:
         self._setup_camera()
 
     def __enter__(self):
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(TOGGLE_LIGHT_PIN, GPIO.OUT)
+        self._toggle_light()
         self.camera.start_recording(
             self._recorder, format='h264', motion_output=self._detector,
             quality=None, bitrate=CAM_BITRATE)
@@ -119,6 +125,17 @@ class CameraManager:
             _log.info('Cam: detection is now %s', 'ON' if value else 'OFF')
             self._detection_enabled = value
             self._toggle_recording()
+
+    @property
+    def light_enabled(self):
+        return self._light_enabled
+
+    @light_enabled.setter
+    def light_enabled(self, value):
+        if value != self.light_enabled:
+            _log.info('Cam: light is now %s', 'ON' if value else 'OFF')
+            self._light_enabled = value
+            self._toggle_light()
 
     def _report_motion(self, value):
         if self.detection_enabled:
@@ -191,3 +208,9 @@ class CameraManager:
             _log.debug('Changing keep recording; manual rec: {}, detection enabled: {}, moving: {}'.format(
                 self._manual_rec, self.detection_enabled, self._moving))
             self._recorder.keep_recording = keep_recording
+
+    def _toggle_light(self):
+        if self._light_enabled:
+            GPIO.output(TOGGLE_LIGHT_PIN, GPIO.HIGH)
+        else:
+            GPIO.output(TOGGLE_LIGHT_PIN, GPIO.LOW)
