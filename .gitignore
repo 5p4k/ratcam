@@ -7,3 +7,4 @@ __pycache__
 ratcam.log
 .idea
 auth.json
+.DS_Store
