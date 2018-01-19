@@ -106,7 +106,7 @@ class CameraManager:
     def _setup_camera(self):
         self.camera.iso = 800
         self.camera.sensor_mode = 3
-        self.camera.exposure_mode = 'night'
+        self.camera.exposure_mode = 'auto'
         self.camera.resolution = CAM_RESOLUTION
         self.camera.framerate = CAM_FRAMERATE
         self._rgb_capture_array = np.empty((self.camera.resolution[1], self.camera.resolution[0], 3), dtype=np.uint8)
@@ -201,6 +201,10 @@ class CameraManager:
             self._take_motion_image_evt.clear()
             # Take and deliver a motion image
             self._bot_interface.push_media(self._take_motion_image(), 'jpeg')
+        if not self.light_enabled and self.camera.digital_gain > 1.6:
+            _log.info('Very dark image, turning on light.')
+            self.light_enabled = True
+
 
     def _toggle_recording(self):
         keep_recording = self._manual_rec or (self.detection_enabled and self._moving)
@@ -211,6 +215,8 @@ class CameraManager:
 
     def _toggle_light(self):
         if self._light_enabled:
+            self.camera.exposure_mode = 'night'
             GPIO.output(TOGGLE_LIGHT_PIN, GPIO.HIGH)
         else:
+            self.camera.exposure_mode = 'auto'
             GPIO.output(TOGGLE_LIGHT_PIN, GPIO.LOW)
