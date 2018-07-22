@@ -31,5 +31,5 @@ def create_sync_pair(receive_cls=ReceiveSync, transmit_cls=TransmitSync):
     received_event = Event()
     transmitted_event = Event()
     receive_pipe, transmit_pipe = Pipe(False)
-    return receive_cls(received_event, transmitted_event, receive_pipe), \
-        transmit_cls(received_event, transmitted_event, transmit_pipe)
+    return receive_cls(receive_pipe, received_event, transmitted_event), \
+        transmit_cls(transmit_pipe, received_event, transmitted_event)
