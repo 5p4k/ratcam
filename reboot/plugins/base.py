@@ -18,8 +18,8 @@ class PluginProcessBase:
         if self._main is not None or self._camera is not None or self._telegram is not None:
             raise RuntimeError('Called {}.setup several times is not allowed.'.format(self.__class__.__name__))
         self._main = Pyro4.Proxy(main_uri)
-        self._camera = Pyro4.Proxy(camera_uri)
-        self._telegram = Pyro4.Proxy(telegram_uri)
+        self._camera = Pyro4.Proxy(camera_uri) if camera_uri is not None else None
+        self._telegram = Pyro4.Proxy(telegram_uri) if telegram_uri is not None else None
 
     def __init__(self):
         self._main = None
