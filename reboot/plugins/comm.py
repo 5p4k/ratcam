@@ -11,7 +11,7 @@ class SyncBase:
 
 class TransmitSync(SyncBase):
     def transmit(self, obj, timeout=None):
-        pickle.dump(obj, self._pipe)
+        self._pipe.send(pickle.dumps(obj))
         self._transmitted.set()
         if self._received.wait(timeout=timeout):
             self._received.clear()
@@ -20,7 +20,7 @@ class TransmitSync(SyncBase):
 class ReceiveSync(SyncBase):
     def receive(self, timeout=None):
         if self._transmitted.wait(timeout=timeout):
-            data = pickle.load(self._pipe)
+            data = pickle.loads(self._pipe.recv())
             self._received.set()
             self._transmitted.clear()
             return data
