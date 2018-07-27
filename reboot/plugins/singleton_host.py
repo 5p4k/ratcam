@@ -92,8 +92,6 @@ if __name__ == '__main__':
             print(msg)
             return msg
 
-    Pyro4.config.SERIALIZER = 'marshal'
-
     with SingletonHost('temp.sock', 'temp') as host:
         instance = host(Thingy)
         print('Received: "%s"' % instance.echo('<my message>'))
