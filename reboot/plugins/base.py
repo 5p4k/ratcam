@@ -1,39 +1,41 @@
 import Pyro4
+from .singleton_host import SingletonHost
+from collections import namedtuple
 
 
-class PluginProcessBase:
+_AVAILABLE_PROCESSES = ['main', 'telegram', 'camera']
+
+
+class PluginInstance(namedtuple('_PluginInstance', _AVAILABLE_PROCESSES)):
+    def __init__(self, *args, **kwargs):
+        super(PluginInstance, self).__init__(*args, **kwargs)
+        self.plugin_host = None
+
+
+class PluginDefinition(namedtuple('_PluginDefinition', ['name'] + _AVAILABLE_PROCESSES)):
+    def instantiate(self, host):
+        return PluginInstance(*[host(entry) if entry is not None else None for entry in self[1:]])
+
+
+@Pyro4.expose
+class PluginHost:
+    def __enter__(self):
+        self._host.__enter__()
+        self._plugin_inst = {plugin.name: plugin.instantiate(self._host) for plugin in self._plugin_defs}
+        for plugin in self._plugin_inst.values():
+            plugin.plugin_host = self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._host.__exit__(exc_type, exc_val, exc_tb)
+        for plugin in self._plugin_inst.values():
+            plugin.plugin_host = None
+        self._plugin_inst = {}
+
     @property
-    def main_process(self):
-        return self._main
+    def plugins(self):
+        return self._plugins_inst
 
-    @property
-    def camera_process(self):
-        return self._camera
-
-    @property
-    def telegram_process(self):
-        return self._telegram
-
-    def setup(self, main_uri, camera_uri, telegram_uri, *_, **__):
-        if self._main is not None or self._camera is not None or self._telegram is not None:
-            raise RuntimeError('Called {}.setup several times is not allowed.'.format(self.__class__.__name__))
-        self._main = Pyro4.Proxy(main_uri)
-        self._camera = Pyro4.Proxy(camera_uri) if camera_uri is not None else None
-        self._telegram = Pyro4.Proxy(telegram_uri) if telegram_uri is not None else None
-
-    def __init__(self):
-        self._main = None
-        self._camera = None
-        self._telegram = None
-
-
-class PluginMainProcessBase(PluginProcessBase):
-    pass
-
-
-class PluginTelegramProcessBase(PluginProcessBase):
-    pass
-
-
-class PluginCameraProcessBase(PluginProcessBase):
-    pass
+    def __init__(self, plugin_defs, *args, **kwargs):
+        self._plugin_defs = {plugin.name: plugin for plugin in plugin_defs}
+        self._plugin_inst = {}
+        self._host = SingletonHost(*args, **kwargs)
