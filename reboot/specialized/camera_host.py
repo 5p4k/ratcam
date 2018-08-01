@@ -1,4 +1,4 @@
-from ..plugins.base import PluginHost
+from ..plugins.base import PluginHost, PluginBase
 from picamera import PiCamera
 from picamera.array import PiMotionAnalysis
 import Pyro4
@@ -6,6 +6,17 @@ import logging
 
 
 _log = logging.getLogger('camera_host')
+
+
+class CameraPluginBase(PluginBase):
+    def write(self, data):
+        pass
+
+    def flush(self):
+        pass
+
+    def analyze(self, array):
+        pass
 
 
 class _CameraPluginDispatcher(PiMotionAnalysis):
