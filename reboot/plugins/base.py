@@ -7,11 +7,33 @@ _AVAILABLE_PROCESSES = ['main', 'telegram', 'camera']
 
 
 class PluginBase:
-    def activate(self, plugin_host):
-        pass
+    @property
+    def host(self):
+        return self._plugin_host
+
+    @property
+    def main_instance(self):
+        return self._plugin_inst.main
+
+    @property
+    def telegram_instance(self):
+        return self._plugin_inst.telegram
+
+    @property
+    def camera_instance(self):
+        return self._plugin_inst.camera
+
+    def activate(self, plugin_host, plugin_instance):
+        self._plugin_host = plugin_host
+        self._plugin_inst = plugin_instance
 
     def deactivate(self):
-        pass
+        self._plugin_inst = None
+        self._plugin_host = None
+
+    def __init__(self):
+        self._plugin_host = None
+        self._plugin_inst = None
 
 
 class PluginInstance(namedtuple('_PluginInstance', _AVAILABLE_PROCESSES)):
@@ -37,14 +59,14 @@ class PluginHost:
         self._plugin_inst = {plugin.name: plugin.instantiate(self._host) for plugin in self._plugin_defs}
         for plugin_instance in self._plugin_inst.values():
             for plugin in plugin_instance:
-                plugin.activate(self)
+                plugin.activate(self, plugin_instance)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._host.__exit__(exc_type, exc_val, exc_tb)
         for plugin_instance in self._plugin_inst.values():
             for plugin in plugin_instance:
                 plugin.deactivate()
         self._plugin_inst = {}
+        self._host.__exit__(exc_type, exc_val, exc_tb)
 
     @property
     def plugins(self):
