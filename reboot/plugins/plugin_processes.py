@@ -62,6 +62,7 @@ class PluginProcesses:
             ])
         # Activate all plugin instances with the information about all plugins
         self._activate_all_plugin_process_instances()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Reverse destruction order as __enter__
