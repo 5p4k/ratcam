@@ -1,6 +1,6 @@
 from enum import Enum
 from collections import namedtuple
-from Pyro4 import oneway as pyro_expose_oneway
+from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 
 
 class Process(Enum):
@@ -51,14 +51,17 @@ class PluginProcessInstanceBase:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    @pyro_expose_oneway
+    @pyro_expose
+    @pyro_oneway
     def activate(self, plugins, plugin_name, process):
         self._plugins = plugins
         self._plugin_name = plugin_name
-        self._process = process
+        # Need to explicitly convert because the serialization engine may not preserve the Enum
+        self._process = Process(process)
         self.__enter__()
 
-    @pyro_expose_oneway
+    @pyro_expose
+    @pyro_oneway
     def deactivate(self):
         self.__exit__(None, None, None)
         self._process = None
