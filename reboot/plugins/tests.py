@@ -3,6 +3,7 @@ import os
 from Pyro4 import expose
 from .singleton_host import SingletonHost
 from tempfile import TemporaryDirectory
+from .base import ProcessPack, Process
 
 
 class TestSingletonHosts(unittest.TestCase):
@@ -41,6 +42,14 @@ class TestSingletonHosts(unittest.TestCase):
                 self.assertIsNotNone(instance)
                 args = (1, 33)
                 self.assertEqual(instance.do_math(*args), TestSingletonHosts.MathTest.static_do_math(*args))
+
+
+class TestProcessPack(unittest.TestCase):
+    def test_querying_with_process(self):
+        pack = ProcessPack(*[process.value for process in Process])
+        for process in Process:
+            self.assertEqual(pack[process], process.value)
+            self.assertEqual(pack[process.value], process.value)
 
 
 if __name__ == '__main__':
