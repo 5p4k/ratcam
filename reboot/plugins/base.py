@@ -30,12 +30,12 @@ class ProcessPack(namedtuple('_ProcessPack', _AVAILABLE_PROCESSES)):
 
 class PluginProcessInstanceBase:
     @property
-    def instances_pack(self):
-        return self._instances_pack
+    def plugin_instance_pack(self):
+        return self.plugins[self.plugin_name]
 
     @property
-    def all_plugins(self):
-        return self._all_plugins
+    def plugins(self):
+        return self._plugins
 
     @property
     def plugin_name(self):
@@ -45,41 +45,27 @@ class PluginProcessInstanceBase:
     def process(self):
         return self._process
 
-    def _activate(self):
+    def __enter__(self):
         pass
 
-    def _deactivate(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
     @oneway
-    def activate(self, plugin_name, process, instances_pack, all_plugins):
+    def activate(self, plugins, plugin_name, process):
+        self._plugins = plugins
         self._plugin_name = plugin_name
         self._process = process
-        self._instances_pack = instances_pack
-        self._all_plugins = all_plugins
-        self._activate()
+        self.__enter__()
 
     @oneway
     def deactivate(self):
-        self._deactivate()
+        self.__exit__(None, None, None)
+        self._process = None
         self._plugin_name = None
-        self._all_plugins = None
-        self._instances_pack = None
+        self._plugins = None
 
     def __init__(self):
-        self._plugin_name = None
         self._process = None
-        self._all_plugins = None
-        self._instances_pack = None
-
-
-class PluginBase:
-    name = None
-    process_instance_types = ProcessPack(None, None, None)
-
-    @property
-    def process_instance_pack(self):
-        return self._process_instance_pack
-
-    def __init__(self, process_instance_pack):
-        self._process_instance_pack = process_instance_pack
+        self._plugin_name = None
+        self._plugins = None

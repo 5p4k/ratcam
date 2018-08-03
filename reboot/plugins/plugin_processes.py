@@ -4,38 +4,50 @@ from .plugin_process_host import PluginProcessHost
 import os
 
 
-DEFAULT_PROCESS_HOSTS = ProcessPack(PluginProcessHost, PluginProcessHost, PluginProcessHost)
-
-
 class PluginProcesses:
     @classmethod
-    def _create_host(cls, socket_dir, plugin_types, process):
+    def _create_host(cls, socket_dir, plugin_definitions, process):
+        """
+        Creates a PluginProcessHost bound to a socket in socket_dir/process.sock, hosting plugin_definitions.
+        :param socket_dir: Path to a folder where to set up a socket for this process.
+        :param plugin_definitions: A dict object that maps the plugin name to the a ProcessPack of PluginProcessInstanceBase
+        subclasses. Only the entry corresponding to process will be instantiated.
+        :param process: Process to instatiate.
+        :return: An instance of PluginProcessHost that will instantiate such PluginProcessInstanceBase subclasses upon
+        context acquisition.
+        """
         # Will not be created until host.__enter__
         socket = os.path.join(socket_dir, process.value + '.sock')
         # Plugin name -> plugin process instance type map
         plugin_process_instance_types = {plugin_type.name: plugin_type.process_instance_types[process]
-                                         for plugin_type in plugin_types}
+                                         for plugin_type in plugin_definitions}
         # Instantiate it and give it the name explicitly
         return PluginProcessHost(plugin_process_instance_types, socket=socket, name=process.value)
 
     def _activate_all_plugin_process_instances(self):
-        all_plugins = dict({plugin_name: plugin.process_instance_pack for plugin_name, plugin in self.plugins.items()})
-        for plugin_name, plugin in self.plugins.items():
+        for plugin_name, plugin_instance_pack in self.plugin_instances.items():
             for process in Process:
-                plugin_process_instance = plugin.process_instance_pack[process]
+                plugin_process_instance = plugin_instance_pack[process]
                 if plugin_process_instance is None:
                     continue
-                plugin_process_instance.activate(plugin_name, process, plugin.process_instance_pack, all_plugins)
+                plugin_process_instance.activate(self.plugin_instances, plugin_name, process)
 
     def _deactivate_all_plugin_process_instances(self):
-        for plugin in self.plugins.values():
-            for plugin_process_instance in plugin.process_instance_pack:
+        for plugin_name, plugin_instance_pack in self.plugin_instances.items():
+            for process in Process:
+                plugin_process_instance = plugin_instance_pack[process]
                 if plugin_process_instance is None:
                     continue
                 plugin_process_instance.deactivate()
 
-    def _get_plugin_process_instance_pack(self, plugin_name):
-        return ProcessPack(*[self._plugin_process_host_pack[process].instances[plugin_name] for process in Process])
+    @property
+    def plugin_instances(self):
+        """
+        :return: A dictionary that maps the plugin name to a ProcessPack. If this is called in a runtime context where
+        this PluginProcesses instance is active, the ProcessPack contains three Pyro4 proxies to the instances residing
+        on the processes. Otherwise, the ProcessPack contains None.
+        """
+        return self._plugin_instances
 
     def __enter__(self):
         # Create temp dir
@@ -43,31 +55,36 @@ class PluginProcesses:
         # Activate all hosts in sequence
         for host in self._plugin_process_host_pack.values():
             host.__enter__()
-        # Create all plugin instances
-        for plugin_name, plugin_type in self._plugins.items():
-            # Replace the type of the plugin with an instance of the same type with the right host and instance pack
-            self._plugins[plugin_name] = plugin_type(self._get_plugin_process_instance_pack(plugin_name))
+        # Collect all plugin instances
+        for plugin_name in self._plugin_instances.keys():
+            self._plugin_instances[plugin_name] = ProcessPack(*[
+                self._plugin_process_host_pack[process].plugin_instances[plugin_name] for process in Process
+            ])
+        # Activate all plugin instances with the information about all plugins
         self._activate_all_plugin_process_instances()
-
-    @property
-    def plugins(self):
-        return self._plugins
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Reverse destruction order as __enter__
         self._deactivate_all_plugin_process_instances()
         # Destroy all plugins
-        for plugin_name, plugin in self._plugins.items():
-            # Replace each instance of the plugin with the type that generated it
-            self._plugins[plugin_name] = type(plugin)
+        for plugin_name in self._plugin_instances.keys():
+            self._plugin_instances[plugin_name] = None
+        # Deactivate all hosts
         for host in self._plugin_process_host_pack.values():
             host.__exit__(exc_type, exc_val, exc_tb)
+        # Destroy all dirs
         self._socket_dir.__exit__(exc_type, exc_val, exc_tb)
 
-    def __init__(self, plugin_types):
+    def __init__(self, plugins):
+        """
+        :param plugins: dict-like object that maps plugin name in the process instance types. The key type is string,
+        and the value type is a ProcessPack containing three types, subclasses of PluginProcessInstanceBase. Is it ok
+        for the ProcessPack to contain None entries. For example
+            plugins = {'root_plugin': ProcessPack(None, None, MySubclassOfPluginProcessInstanceBase)}
+        """
         self._socket_dir = TemporaryDirectory()
-        self._plugins = {plugin_type.name: plugin_type for plugin_type in plugin_types}
+        self._plugin_instances = dict({k: None for k in plugins})
         self._plugin_process_host_pack = ProcessPack(*[
-            self.__class__._create_host(self._socket_dir.name, plugin_types, process)
+            self.__class__._create_host(self._socket_dir.name, plugins, process)
             for process in Process
         ])
