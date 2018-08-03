@@ -19,8 +19,8 @@ class PluginProcesses:
         # Will not be created until host.__enter__
         socket = os.path.join(socket_dir, process.value + '.sock')
         # Plugin name -> plugin process instance type map
-        plugin_process_instance_types = {plugin_type.name: plugin_type.process_instance_types[process]
-                                         for plugin_type in plugin_definitions}
+        plugin_process_instance_types = {plugin_name: plugin_types_pack[process]
+                                         for plugin_name, plugin_types_pack in plugin_definitions.items()}
         # Instantiate it and give it the name explicitly
         return PluginProcessHost(plugin_process_instance_types, socket=socket, name=process.value)
 
@@ -53,7 +53,7 @@ class PluginProcesses:
         # Create temp dir
         self._socket_dir.__enter__()
         # Activate all hosts in sequence
-        for host in self._plugin_process_host_pack.values():
+        for host in self._plugin_process_host_pack:
             host.__enter__()
         # Collect all plugin instances
         for plugin_name in self._plugin_instances.keys():
@@ -70,7 +70,7 @@ class PluginProcesses:
         for plugin_name in self._plugin_instances.keys():
             self._plugin_instances[plugin_name] = None
         # Deactivate all hosts
-        for host in self._plugin_process_host_pack.values():
+        for host in self._plugin_process_host_pack:
             host.__exit__(exc_type, exc_val, exc_tb)
         # Destroy all dirs
         self._socket_dir.__exit__(exc_type, exc_val, exc_tb)

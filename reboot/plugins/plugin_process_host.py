@@ -4,14 +4,14 @@ from .singleton_host import SingletonHost
 class PluginProcessHost:
     def __enter__(self):
         self._host.__enter__()
-        for plugin_name, plugin_type in self._plugin_process_instance_types:
+        for plugin_name, plugin_type in self._plugin_process_instance_types.items():
             if plugin_type is None:
                 continue
             self._plugin_process_instances[plugin_name] = self._host(plugin_type)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._plugin_process_instances = {k: None for k in self._plugin_process_instance_types}
+        self._plugin_process_instances = {k: None for k in self._plugin_process_instance_types.keys()}
         self._host.__exit__(exc_type, exc_val, exc_tb)
 
     @property
