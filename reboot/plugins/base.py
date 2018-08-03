@@ -41,6 +41,10 @@ class PluginProcessInstanceBase:
     def plugin_name(self):
         return self._plugin_name
 
+    @property
+    def process(self):
+        return self._process
+
     def _activate(self):
         pass
 
@@ -48,8 +52,9 @@ class PluginProcessInstanceBase:
         pass
 
     @oneway
-    def activate(self, plugin_name, instances_pack, all_plugins):
+    def activate(self, plugin_name, process, instances_pack, all_plugins):
         self._plugin_name = plugin_name
+        self._process = process
         self._instances_pack = instances_pack
         self._all_plugins = all_plugins
         self._activate()
@@ -63,6 +68,7 @@ class PluginProcessInstanceBase:
 
     def __init__(self):
         self._plugin_name = None
+        self._process = None
         self._all_plugins = None
         self._instances_pack = None
 

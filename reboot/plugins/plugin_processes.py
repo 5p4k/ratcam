@@ -22,10 +22,11 @@ class PluginProcesses:
     def _activate_all_plugin_process_instances(self):
         all_plugins = dict({plugin_name: plugin.process_instance_pack for plugin_name, plugin in self.plugins.items()})
         for plugin_name, plugin in self.plugins.items():
-            for plugin_process_instance in plugin.process_instance_pack:
+            for process in Process:
+                plugin_process_instance = plugin.process_instance_pack[process]
                 if plugin_process_instance is None:
                     continue
-                plugin_process_instance.activate(plugin_name, plugin.process_instance_pack, all_plugins)
+                plugin_process_instance.activate(plugin_name, process, plugin.process_instance_pack, all_plugins)
 
     def _deactivate_all_plugin_process_instances(self):
         for plugin in self.plugins.values():
