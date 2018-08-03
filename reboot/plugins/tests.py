@@ -5,6 +5,7 @@ from .singleton_host import SingletonHost
 from tempfile import TemporaryDirectory
 from .base import ProcessPack, Process, PluginProcessInstanceBase
 from .plugin_processes import PluginProcesses
+from .decorators import make_plugin, get_all_plugins
 
 
 class TestSingletonHosts(unittest.TestCase):
@@ -105,6 +106,25 @@ class TestPluginProcess(unittest.TestCase):
             if len(pid_sets) > 0:
                 for pid_set in pid_sets[1:]:
                     self.assertEqual(pid_set, pid_sets[0])
+
+
+class TestPluginDecorator(unittest.TestCase):
+    @make_plugin('TestPluginDecorator', Process.MAIN)
+    class DecoratedInstance(PluginProcessInstanceBase):
+        @pyro_expose
+        def get_two(self):
+            return 2
+
+    def test_process_host(self):
+        with PluginProcesses(get_all_plugins()) as processes:
+            self.assertIn('TestPluginDecorator', processes.plugin_instances)
+            instance_pack = processes.plugin_instances['TestPluginDecorator']
+            for process in Process:
+                if process is Process.MAIN:
+                    self.assertIsNotNone(instance_pack[process])
+                    self.assertEqual(instance_pack[process].get_two(), 2)
+                else:
+                    self.assertIsNone(instance_pack[process])
 
 
 if __name__ == '__main__':
