@@ -9,15 +9,14 @@ DEFAULT_PROCESS_HOSTS = ProcessPack(PluginProcessHost, PluginProcessHost, Plugin
 
 class PluginProcesses:
     @classmethod
-    def _create_host(cls, host_type_pack, socket_dir, plugin_types, process):
+    def _create_host(cls, socket_dir, plugin_types, process):
         # Will not be created until host.__enter__
         socket = os.path.join(socket_dir, process.value + '.sock')
         # Plugin name -> plugin process instance type map
         plugin_process_instance_types = {plugin_type.name: plugin_type.process_instance_types[process]
                                          for plugin_type in plugin_types}
-        host_type = host_type_pack[process]
         # Instantiate it and give it the name explicitly
-        return host_type(plugin_process_instance_types, socket=socket, name=process.value)
+        return PluginProcessHost(plugin_process_instance_types, socket=socket, name=process.value)
 
     def _activate_all_plugin_process_instances(self):
         all_plugins = dict({plugin_name: plugin.process_instance_pack for plugin_name, plugin in self.plugins.items()})
@@ -65,10 +64,10 @@ class PluginProcesses:
             host.__exit__(exc_type, exc_val, exc_tb)
         self._socket_dir.__exit__(exc_type, exc_val, exc_tb)
 
-    def __init__(self, plugin_types, host_type_pack=DEFAULT_PROCESS_HOSTS):
+    def __init__(self, plugin_types):
         self._socket_dir = TemporaryDirectory()
         self._plugins = {plugin_type.name: plugin_type for plugin_type in plugin_types}
         self._plugin_process_host_pack = ProcessPack(*[
-            self.__class__._create_host(host_type_pack, self._socket_dir.name, plugin_types, process)
+            self.__class__._create_host(self._socket_dir.name, plugin_types, process)
             for process in Process
         ])
