@@ -1,8 +1,7 @@
 import os
 import logging
 import pickle
-import Pyro4
-import Pyro4.errors
+from Pyro4 import expose as pyro_expose, errors as pyro_errors, Daemon as PyroDaemon, Proxy as PyroProxy
 from reboot.plugins.comm import create_sync_pair
 from multiprocessing import Process
 
@@ -11,15 +10,15 @@ _log = logging.getLogger('singleton_host')
 
 
 class SingletonHost:
-    class SingletonServer:
-        @Pyro4.expose
+    class _SingletonServer:
+        @pyro_expose
         def register(self, pickled_singleton):
             singleton_cls = pickle.loads(pickled_singleton)
             uri = self._daemon.register(singleton_cls(), singleton_cls.__name__)
             _log.debug('%s: serving at %s', self._name, uri)
             return str(uri)
 
-        @Pyro4.expose
+        @pyro_expose
         def close(self):
             _log.debug('%s: stopping', self._name)
             self._daemon.close()
@@ -32,8 +31,8 @@ class SingletonHost:
     def _server(socket, transmit_sync, name='SingletonServer'):
         if os.path.exists(socket):
             os.remove(socket)
-        daemon = Pyro4.Daemon(unixsocket=socket)
-        uri = daemon.register(SingletonHost.SingletonServer(daemon, name=name), name)
+        daemon = PyroDaemon(unixsocket=socket)
+        uri = daemon.register(SingletonHost._SingletonServer(daemon, name=name), name)
         _log.debug('%s: serving at %s', name, uri)
         transmit_sync.transmit(str(uri))
         daemon.requestLoop()
@@ -46,7 +45,7 @@ class SingletonHost:
         self._process.start()
         _log.debug('%s: waiting for server', self._name)
         uri = receiver.receive()
-        self._instance = Pyro4.Proxy(uri)
+        self._instance = PyroProxy(uri)
         # Default serpent serializer does not trasmit a class
         self._instance._pyroSerializer = 'marshal'
         _log.debug('%s: obtained proxy at %s', self._name, uri)
@@ -55,7 +54,7 @@ class SingletonHost:
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
             self._instance.close()
-        except Pyro4.errors.ConnectionClosedError:
+        except pyro_errors.ConnectionClosedError:
             # Is this even an error?
             pass
 
@@ -73,25 +72,10 @@ class SingletonHost:
         # We cannot send a custom class except through Pickle, but we can't use pickle in Pyro because it's unsafe.
         # So we pickle the object and send it over marshal (because serpent does not serialize correctly bytes too)
         assert self._instance._pyroSerializer == 'marshal'
-        return Pyro4.Proxy(self._instance.register(pickle.dumps(singleton_cls)))
+        return PyroProxy(self._instance.register(pickle.dumps(singleton_cls)))
 
     def __init__(self, socket, name=None):
         self._socket = socket
         self._process = None
         self._instance = None
         self._name = self.__class__.__name__ if name is None else name
-
-
-if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
-
-    class Thingy:
-        @Pyro4.expose
-        def echo(self, msg):
-            msg = 'Echoing %s' % repr(msg)
-            print(msg)
-            return msg
-
-    with SingletonHost('temp.sock', 'temp') as host:
-        instance = host(Thingy)
-        print('Received: "%s"' % instance.echo('<my message>'))
