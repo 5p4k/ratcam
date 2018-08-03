@@ -1,14 +1,15 @@
 import unittest
 import os
-from Pyro4 import expose
+from Pyro4 import expose as pyro_expose
 from .singleton_host import SingletonHost
 from tempfile import TemporaryDirectory
-from .base import ProcessPack, Process
+from .base import ProcessPack, Process, PluginProcessInstanceBase
+from .plugin_processes import PluginProcesses
 
 
 class TestSingletonHosts(unittest.TestCase):
     class SingletonProcessChecker:
-        @expose
+        @pyro_expose
         def extract_pid(self):
             return os.getpid(), os.getppid()
 
@@ -17,7 +18,7 @@ class TestSingletonHosts(unittest.TestCase):
         def static_do_math(a, b):
             return a * b + (b - a) * (a - b)
 
-        @expose
+        @pyro_expose
         def do_math(self, a, b):
             return TestSingletonHosts.MathTest.static_do_math(a, b)
 
@@ -50,6 +51,33 @@ class TestProcessPack(unittest.TestCase):
         for process in Process:
             self.assertEqual(pack[process], process.value)
             self.assertEqual(pack[process.value], process.value)
+
+
+class TestPluginProcess(unittest.TestCase):
+    class TestProcessInstance(PluginProcessInstanceBase):
+        @pyro_expose
+        def get_process(self):
+            return self.process, os.getpid()
+
+    def test_process_host(self):
+        plugins = {
+            'main': ProcessPack(TestPluginProcess.TestProcessInstance,
+                                TestPluginProcess.TestProcessInstance,
+                                TestPluginProcess.TestProcessInstance)
+        }
+        with PluginProcesses(plugins) as processes:
+            self.assertIn('main', processes.plugin_instances)
+            instance_pack = processes.plugin_instances['main']
+            for process in Process:
+                self.assertIsNotNone(instance_pack[process])
+                instance = instance_pack[process]
+                if instance is not None:
+                    process_in_instance, pid_in_instance = instance.get_process()
+                    self.assertIsNotNone(process_in_instance)
+                    self.assertIsNotNone(pid_in_instance)
+                    self.assertNotEqual(pid_in_instance, os.getpid())
+                    # Need to explicitly convert because the serialization engine may not preserve the Enum
+                    self.assertEqual(Process(process_in_instance), process)
 
 
 if __name__ == '__main__':
