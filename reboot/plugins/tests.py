@@ -59,6 +59,10 @@ class TestPluginProcess(unittest.TestCase):
         def get_process(self):
             return self.process, os.getpid()
 
+        @pyro_expose
+        def get_sibling_pid_set(self):
+            return set([instance.get_process()[1] for instance in self.plugin_instance_pack])
+
     def test_process_host(self):
         plugins = {
             'main': ProcessPack(TestPluginProcess.TestProcessInstance,
@@ -78,6 +82,29 @@ class TestPluginProcess(unittest.TestCase):
                     self.assertNotEqual(pid_in_instance, os.getpid())
                     # Need to explicitly convert because the serialization engine may not preserve the Enum
                     self.assertEqual(Process(process_in_instance), process)
+
+    def test_none_process_host(self):
+        plugins = {
+            'main': ProcessPack(None, None, None)
+        }
+        with PluginProcesses(plugins) as processes:
+            instance_pack = processes.plugin_instances['main']
+            for process in Process:
+                self.assertIsNone(instance_pack[process])
+
+    def test_intra_instance_talk(self):
+        plugins = {
+            'main': ProcessPack(TestPluginProcess.TestProcessInstance,
+                                TestPluginProcess.TestProcessInstance,
+                                TestPluginProcess.TestProcessInstance)
+        }
+        with PluginProcesses(plugins) as processes:
+            instance_pack = processes.plugin_instances['main']
+            pid_sets = list([instance.get_sibling_pid_set() for instance in instance_pack])
+            self.assertEqual(len(pid_sets), len(Process))
+            if len(pid_sets) > 0:
+                for pid_set in pid_sets[1:]:
+                    self.assertEqual(pid_set, pid_sets[0])
 
 
 if __name__ == '__main__':
