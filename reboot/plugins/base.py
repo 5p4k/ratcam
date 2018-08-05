@@ -28,7 +28,7 @@ class ProcessPack(namedtuple('_ProcessPack', _AVAILABLE_PROCESSES)):
         super(ProcessPack, self).__setitem__(key, value)
 
 
-class PluginProcessInstanceBase:
+class PluginProcessBase:
     @property
     def plugin_instance_pack(self):
         return self.plugins[self.plugin_name]

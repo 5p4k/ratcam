@@ -3,8 +3,8 @@ import os
 from Pyro4 import expose as pyro_expose
 from .singleton_host import SingletonHost
 from tempfile import TemporaryDirectory
-from .base import ProcessPack, Process, PluginProcessInstanceBase
-from .plugin_processes import PluginProcesses
+from .base import ProcessPack, Process, PluginProcessBase
+from .processes_host import ProcessesHost
 from .decorators import make_plugin, get_all_plugins
 
 
@@ -55,7 +55,7 @@ class TestProcessPack(unittest.TestCase):
 
 
 class TestPluginProcess(unittest.TestCase):
-    class TestProcessInstance(PluginProcessInstanceBase):
+    class TestProcess(PluginProcessBase):
         @pyro_expose
         def get_process(self):
             return self.process, os.getpid()
@@ -66,11 +66,11 @@ class TestPluginProcess(unittest.TestCase):
 
     def test_process_host(self):
         plugins = {
-            'main': ProcessPack(TestPluginProcess.TestProcessInstance,
-                                TestPluginProcess.TestProcessInstance,
-                                TestPluginProcess.TestProcessInstance)
+            'main': ProcessPack(TestPluginProcess.TestProcess,
+                                TestPluginProcess.TestProcess,
+                                TestPluginProcess.TestProcess)
         }
-        with PluginProcesses(plugins) as processes:
+        with ProcessesHost(plugins) as processes:
             self.assertIn('main', processes.plugin_instances)
             instance_pack = processes.plugin_instances['main']
             for process in Process:
@@ -88,18 +88,18 @@ class TestPluginProcess(unittest.TestCase):
         plugins = {
             'main': ProcessPack(None, None, None)
         }
-        with PluginProcesses(plugins) as processes:
+        with ProcessesHost(plugins) as processes:
             instance_pack = processes.plugin_instances['main']
             for process in Process:
                 self.assertIsNone(instance_pack[process])
 
     def test_intra_instance_talk(self):
         plugins = {
-            'main': ProcessPack(TestPluginProcess.TestProcessInstance,
-                                TestPluginProcess.TestProcessInstance,
-                                TestPluginProcess.TestProcessInstance)
+            'main': ProcessPack(TestPluginProcess.TestProcess,
+                                TestPluginProcess.TestProcess,
+                                TestPluginProcess.TestProcess)
         }
-        with PluginProcesses(plugins) as processes:
+        with ProcessesHost(plugins) as processes:
             instance_pack = processes.plugin_instances['main']
             pid_sets = list([instance.get_sibling_pid_set() for instance in instance_pack])
             self.assertEqual(len(pid_sets), len(Process))
@@ -110,13 +110,13 @@ class TestPluginProcess(unittest.TestCase):
 
 class TestPluginDecorator(unittest.TestCase):
     @make_plugin('TestPluginDecorator', Process.MAIN)
-    class DecoratedInstance(PluginProcessInstanceBase):
+    class DecoratedProcess(PluginProcessBase):
         @pyro_expose
         def get_two(self):
             return 2
 
     def test_process_host(self):
-        with PluginProcesses(get_all_plugins()) as processes:
+        with ProcessesHost(get_all_plugins()) as processes:
             self.assertIn('TestPluginDecorator', processes.plugin_instances)
             instance_pack = processes.plugin_instances['TestPluginDecorator']
             for process in Process:

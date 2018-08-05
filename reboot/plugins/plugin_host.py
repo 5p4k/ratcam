@@ -1,7 +1,7 @@
 from .singleton_host import SingletonHost
 
 
-class PluginProcessHost:
+class PluginHost:
     def __enter__(self):
         self._host.__enter__()
         for plugin_name, plugin_type in self._plugin_process_instance_types.items():

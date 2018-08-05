@@ -1,4 +1,4 @@
-from ..plugins import PluginProcessBase, make as make_plugin, Process
+from ..plugins import PluginProcessBase, make_plugin, Process
 from picamera import PiCamera
 from picamera.array import PiMotionAnalysis
 from Pyro4 import expose as pyro_expose
@@ -116,4 +116,3 @@ class PicameraProcess(PluginProcessBase):
             raise NotImplementedError('Unable to set bitrate while recording')
         else:
             self._bitrate = value
-

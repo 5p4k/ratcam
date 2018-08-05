@@ -1,4 +1,4 @@
-from .base import ProcessPack, Process, PluginProcessInstanceBase
+from .base import ProcessPack, Process, PluginProcessBase
 
 
 _plugins = {}
@@ -10,7 +10,7 @@ def _update_pack(pack, **kwargs):
 
 class _MakePlugin:
     def __call__(self, cls):
-        if not issubclass(cls, PluginProcessInstanceBase):
+        if not issubclass(cls, PluginProcessBase):
             raise ValueError('A class need to be subclass of PluginProcessInstanceBase to be instantiable.')
         global _plugins
         if self._name not in _plugins:

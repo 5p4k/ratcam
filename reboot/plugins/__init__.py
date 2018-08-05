@@ -1,3 +1,3 @@
-from .base import Process, ProcessPack, PluginProcessInstanceBase as PluginProcessBase
-from .decorators import make_plugin as make, get_all_plugins as get_all
-from .plugin_processes import PluginProcesses as ProcessesHost
+from .base import Process, ProcessPack, PluginProcessBase
+from .decorators import make_plugin, get_all_plugins
+from .processes_host import ProcessesHost

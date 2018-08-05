@@ -1,10 +1,10 @@
 from tempfile import TemporaryDirectory
 from .base import Process, ProcessPack
-from .plugin_process_host import PluginProcessHost
+from .plugin_host import PluginHost
 import os
 
 
-class PluginProcesses:
+class ProcessesHost:
     @classmethod
     def _create_host(cls, socket_dir, plugin_definitions, process):
         """
@@ -22,7 +22,7 @@ class PluginProcesses:
         plugin_process_instance_types = {plugin_name: plugin_types_pack[process]
                                          for plugin_name, plugin_types_pack in plugin_definitions.items()}
         # Instantiate it and give it the name explicitly
-        return PluginProcessHost(plugin_process_instance_types, socket=socket, name=process.value)
+        return PluginHost(plugin_process_instance_types, socket=socket, name=process.value)
 
     def _activate_all_plugin_process_instances(self):
         for plugin_name, plugin_instance_pack in self.plugin_instances.items():
