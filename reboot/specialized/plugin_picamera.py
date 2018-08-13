@@ -31,8 +31,8 @@ class _CameraPluginDispatcher(PiMotionAnalysis):
             plugin_cam_process = plugin[Process.CAMERA]
             if plugin_cam_process is None:
                 continue
-            method = getattr(plugin_cam_process, method_name)
-            if method is None:
+            method = getattr(plugin_cam_process, method_name, None)
+            if method is None or not callable(method):
                 continue
             try:
                 method(*args, **kwargs)
