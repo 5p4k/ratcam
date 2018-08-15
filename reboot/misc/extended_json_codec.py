@@ -22,6 +22,7 @@ def make_custom_serializable(typ):
             typ.from_json = classmethod(typ_from_json)
             typ.to_json = lambda self: self.__dict__
     ExtendedJSONCodec.ACCEPTED_CLASSES[typ.__name__] = typ
+    return typ
 
 
 class ExtendedJSONCodec(JSONEncoder):
