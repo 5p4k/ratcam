@@ -1,5 +1,4 @@
 from enum import Enum
-from collections import namedtuple
 from datetime import datetime, timedelta
 from bcrypt import hashpw, gensalt, checkpw
 from ...misc.pwgen import generate_password
@@ -8,21 +7,9 @@ from ...misc.extended_json_codec import make_custom_serializable
 
 class AuthStatus(Enum):
     AUTHORIZED = 'authorized'
-    NEGOTIATING = 'negotiating'
+    ONGOING = 'ongoing'
     DENIED = 'denied'
     UNKNOWN = 'unknown'
-
-
-_CHAT_AUTH_FIELDS = ['user', 'datetime', 'status']
-
-
-class ChatAuthStatus(namedtuple('_ChatAuth', _CHAT_AUTH_FIELDS)):
-    @classmethod
-    def from_json(cls, payload):
-        return cls(*map(payload.get, _CHAT_AUTH_FIELDS))
-
-    def to_json(self):
-        return {field: getattr(self, field) for field in _CHAT_AUTH_FIELDS}
 
 
 class AuthAttemptResult(Enum):
@@ -31,6 +18,48 @@ class AuthAttemptResult(Enum):
     TOO_MANY_RETRIES = 'too many retries'
     WRONG_TOKEN = 'wrong token'
     EXPIRED = 'expired token'
+
+
+class ChatAuthStatus:
+    def __init__(self, chat_id=None, status=AuthStatus.UNKNOWN, user=None, date=None, transaction=None):
+        self.chat_id = chat_id
+        self.user = user
+        self.date = date
+        self.status = status
+        self.transaction = transaction
+
+    def start_auth(self, user):
+        assert self.status == AuthStatus.UNKNOWN and self.transaction is None
+        self.transaction = ChatAuthTransaction()
+        self.status = AuthStatus.ONGOING
+        return self.transaction.generate(self.chat_id, user)
+
+    def try_auth(self, pwd):
+        assert self.status == AuthStatus.ONGOING and self.transaction is not None
+        result = self.transaction.authenticate(pwd)
+        if result == AuthAttemptResult.AUTHENTICATED:
+            self.date = self.transaction.request_time
+            self.user = self.transaction.requested_by
+            self.status = AuthStatus.AUTHORIZED
+            self.transaction = None
+        elif result in [AuthAttemptResult.TOO_MANY_RETRIES, AuthAttemptResult.EXPIRED]:
+            self.status = AuthStatus.DENIED
+            self.transaction = None
+        return result
+
+    def revoke_auth(self):
+        self.status = AuthStatus.UNKNOWN
+        self.user = None
+        self.date = None
+
+    def to_json(self):
+        return self.__dict__
+
+    @classmethod
+    def from_json(cls, payload):
+        obj = cls()
+        obj.__dict__.update(payload)
+        return obj
 
 
 @make_custom_serializable
@@ -82,54 +111,28 @@ class ChatAuthTransaction:
     def from_json(cls, payload):
         obj = cls()
         obj.__dict__.update(payload)
+        return obj
 
 
+@make_custom_serializable
 class ChatAuthStorage:
     def __init__(self):
         self._storage = {}
 
     @property
     def authorized_chat_ids(self):
-        yield from filter(lambda chat_id: self.status(chat_id) == AuthStatus.OK, self._storage.keys())
+        return filter(lambda auth_status: auth_status.status == AuthStatus.AUTHORIZED, self._storage.values())
 
-    def status(self, chat_id):
-        status = self._storage.get(chat_id, None)
-        if status is None:
-            return AuthStatus.UNKNOWN
-        elif isinstance(status, AuthorizedChat):
-            return AuthStatus.OK
-        elif isinstance(status, DeniedChat):
-            return AuthStatus.DENIED
-        elif isinstance(status, ChatAuthProcess):
-            return AuthStatus.ONGOING
-        return None
+    def __getitem__(self, chat_id):
+        if chat_id not in self._storage:
+            self._storage[chat_id] = ChatAuthStatus(chat_id)
+        return self._storage[chat_id]
 
-    def start_auth(self, chat_id, user):
-        assert(self.status(chat_id) == AuthStatus.UNKNOWN)
-        self._storage[chat_id] = ChatAuthProcess()
-        return self._storage[chat_id].generate(chat_id, user)
-
-    def do_auth(self, chat_id, pwd):
-        assert(self.status(chat_id) == AuthStatus.ONGOING)
-        process = self._storage[chat_id]
-        result = process.authenticate(pwd)
-        if result == AuthAttemptResult.AUTHENTICATED:
-            self._storage[chat_id] = AuthorizedChat(process.requested_by, process.request_time)
-        elif result in [AuthAttemptResult.TOO_MANY_RETRIES, AuthAttemptResult.EXPIRED]:
-            self._storage[chat_id] = DeniedChat(process.requested_by, process.request_time)
-        return result
-
-    def revoke_auth(self, chat_id):
-        if chat_id in self._storage:
-            del self._storage[chat_id]
-
-    def as_json_obj(self):
-        # Convert keys to string
-        return {str(k): self._storage[k] for k in self._storage}
+    def to_json(self):
+        return self._storage
 
     @classmethod
-    def from_json_obj(cls, d):
-        retval = ChatAuthStorage()
-        # Convert the keys back from string
-        retval._storage = {int(k): d[k] for k in d}
-        return retval
+    def from_json(cls, payload):
+        obj = cls()
+        obj._storage = payload
+        return obj
