@@ -103,9 +103,10 @@ class ChatAuthStorage:
     def __init__(self):
         self._storage = {}
 
-    @property
-    def authorized_chat_ids(self):
-        return filter(lambda auth_status: auth_status.status == AuthStatus.AUTHORIZED, self._storage.values())
+    def has_auth_status(self, chat_id, status):
+        if chat_id in self._storage:
+            return self._storage[chat_id].status == status
+        return status == AuthStatus.UNKNOWN
 
     def __getitem__(self, chat_id):
         if chat_id not in self._storage:
