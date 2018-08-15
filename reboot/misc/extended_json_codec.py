@@ -1,9 +1,27 @@
 from datetime import datetime
 from json import JSONEncoder
+from enum import Enum
 
 
-def make_custom_serializable(cls):
-    ExtendedJSONCodec.ACCEPTED_CLASSES[cls.__name__] = cls
+def make_custom_serializable(typ):
+    has_custom_serialize = callable(getattr(typ, 'to_json', None))
+    has_custom_deserialize = callable(getattr(typ, 'from_json', None))
+    if has_custom_deserialize != has_custom_serialize:
+        raise RuntimeError('Serializable classes that define one of the from_json, to_json methods must define also '
+                           'the other.')
+    elif not has_custom_serialize and not has_custom_deserialize:
+        # Synthesize methods for known types
+        if issubclass(typ, Enum):
+            typ.to_json = lambda self: self.value
+            typ.from_json = classmethod(lambda cls, payload: cls(payload))
+        else:
+            def typ_from_json(cls, payload):
+                obj = cls()
+                obj.__dict__.update(payload)
+                return obj
+            typ.from_json = classmethod(typ_from_json)
+            typ.to_json = lambda self: self.__dict__
+    ExtendedJSONCodec.ACCEPTED_CLASSES[typ.__name__] = typ
 
 
 class ExtendedJSONCodec(JSONEncoder):
