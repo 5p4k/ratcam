@@ -5,6 +5,7 @@ from ...misc.pwgen import generate_password
 from ...misc.extended_json_codec import make_custom_serializable
 
 
+@make_custom_serializable
 class AuthStatus(Enum):
     AUTHORIZED = 'authorized'
     ONGOING = 'ongoing'
@@ -20,6 +21,7 @@ class AuthAttemptResult(Enum):
     EXPIRED = 'expired token'
 
 
+@make_custom_serializable
 class ChatAuthStatus:
     def __init__(self, chat_id=None, status=AuthStatus.UNKNOWN, user=None, date=None, transaction=None):
         self.chat_id = chat_id
@@ -51,15 +53,6 @@ class ChatAuthStatus:
         self.status = AuthStatus.UNKNOWN
         self.user = None
         self.date = None
-
-    def to_json(self):
-        return self.__dict__
-
-    @classmethod
-    def from_json(cls, payload):
-        obj = cls()
-        obj.__dict__.update(payload)
-        return obj
 
 
 @make_custom_serializable
@@ -103,15 +96,6 @@ class ChatAuthTransaction:
                 return AuthAttemptResult.TOO_MANY_RETRIES
             else:
                 return AuthAttemptResult.WRONG_PASSWORD
-
-    def to_json(self):
-        return self.__dict__
-
-    @classmethod
-    def from_json(cls, payload):
-        obj = cls()
-        obj.__dict__.update(payload)
-        return obj
 
 
 @make_custom_serializable
