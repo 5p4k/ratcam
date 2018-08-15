@@ -18,14 +18,6 @@ class ExtendedJSONCodec(JSONEncoder):
     def _can_be_custom_deserialized(cls, payload):
         return callable(getattr(cls.ACCEPTED_CLASSES.get(payload.get(cls.TYPE_KEY)), 'from_json', None))
 
-    @classmethod
-    def _custom_serialize(cls, obj):
-        return obj.to_json()
-
-    @classmethod
-    def _custom_deserialize(cls, payload):
-        return cls.ACCEPTED_CLASSES[payload.get(cls.TYPE_KEY)].from_json(payload)
-
     def default(self, obj):
         # Manually add support for bytes and datetime
         if isinstance(obj, datetime):
@@ -33,7 +25,7 @@ class ExtendedJSONCodec(JSONEncoder):
         elif isinstance(obj, bytes):
             return {self.__class__.TYPE_KEY: obj.__class__.__name__, obj.__class__.__name__: obj.hex()}
         elif self.__class__._can_be_custom_serialized(obj):
-            return self.__class__._custom_serialize(obj)
+            return {self.__class__.TYPE_KEY: obj.__class__.__name__, obj.__class__.__name__: obj.to_json()}
         else:
             return JSONEncoder.default(self, obj)
 
@@ -46,6 +38,7 @@ class ExtendedJSONCodec(JSONEncoder):
         elif declared_type == bytes.__name__:
             return bytes.fromhex(payload.get(bytes.__name__))
         elif cls._can_be_custom_deserialized(payload):
-            return cls._custom_deserialize(payload)
+            declared_type = cls.ACCEPTED_CLASSES[payload.get(cls.TYPE_KEY)]
+            return declared_type.from_json(payload.get(declared_type.__name__))
         else:
             return payload
