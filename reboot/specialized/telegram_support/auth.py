@@ -114,10 +114,10 @@ class ChatAuthStorage:
         return self._storage[chat_id]
 
     def to_json(self):
-        return self._storage
+        return list(self._storage.values())
 
     @classmethod
     def from_json(cls, payload):
         obj = cls()
-        obj._storage = payload
+        obj._storage = dict({entry.chat_id: entry for entry in payload})
         return obj
