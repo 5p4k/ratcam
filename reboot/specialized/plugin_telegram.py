@@ -16,10 +16,11 @@ _log = logging.getLogger(_TELEGRAM_PLUGIN_NAME.lower())
 
 
 def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
-    if filters is None:
-        filters = []
     if auth_status is not None:
-        filters.append(some_telegram_plugin.telegram_plugin.auth_filters[auth_status])
+        if filters is None:
+            return some_telegram_plugin.telegram_plugin.auth_filters[auth_status]
+        else:
+            return filters & some_telegram_plugin.telegram_plugin.auth_filters[auth_status]
     return filters
 
 
@@ -54,7 +55,7 @@ class TelegramProcess(TelegramProcessBase):
     def _collect_handlers(self):
         for plugin_name, plugin in self.plugins.items():
             plugin_telegram_process = plugin[Process.TELEGRAM]
-            if plugin_telegram_process is None or not hasattr(plugin_telegram_process, 'handlers'):
+            if plugin_telegram_process is None or not isinstance(plugin_telegram_process, TelegramProcessBase):
                 continue
             yield from plugin_telegram_process.handlers
 
@@ -89,6 +90,7 @@ class TelegramProcess(TelegramProcessBase):
             _log.info('Registered %d handler(s). Beginning serving...', cnt_handlers)
         self._updater.start_polling(poll_interval=1, timeout=20, clean=True)
         _log.info('Telegram bot is being served.')
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         super(TelegramProcess, self).__exit__(exc_type, exc_val, exc_tb)
@@ -111,12 +113,12 @@ class TelegramProcess(TelegramProcessBase):
                   user_to_str(upd.message.from_user))
         bot.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
 
-    @handle_command('start', auth_status=AuthStatus.OK)
+    @handle_command('start', auth_status=AuthStatus.AUTHORIZED)
     def _bot_start(self, bot, upd):
         _log.info('Started on chat %d', upd.message.chat_id)
         bot.send_message(chat_id=upd.message.chat_id, text='Ratcam is active.')
 
-    @handle_message([Filters.text], auth_status=AuthStatus.ONGOING)
+    @handle_message(Filters.text, auth_status=AuthStatus.ONGOING)
     def _bot_try_auth(self, bot, upd):
         password = upd.message.text
         result = self._auth_storage[upd.message.chat_id].try_auth(password)
@@ -132,7 +134,7 @@ class TelegramProcess(TelegramProcessBase):
         _log.info('Authentication attempt for chat %d, user %s, outcome: %s', upd.message.chat_id,
                   user_to_str(upd.message.from_user), result)
 
-    @handle_message([Filters.status_update.left_chat_member], auth_status=None)
+    @handle_message(Filters.status_update.left_chat_member, auth_status=None)
     def _bot_user_left(self, _, upd):
         if upd.message.chat.get_members_count() <= 1:
             _log.info('Exiting chat %d (%s).', upd.message.chat_id, str(upd.message.chat.title))
