@@ -40,7 +40,7 @@ def save_chat_auth_storage(path, chat_auth_storage, log=None):
     path = os.path.abspath(path)
     try:
         with open(path, 'w') as fp:
-            json.dump(chat_auth_storage, fp)
+            json.dump(chat_auth_storage, fp, cls=ExtendedJSONCodec, indent=2)
     except OSError as exc:
         if log:
             log.warning('Could not write to auth file %s, error: %s', path, exc.strerror)
