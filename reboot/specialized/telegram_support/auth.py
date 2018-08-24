@@ -95,7 +95,7 @@ class ChatAuthTransaction:
                 self.password = None
                 return AuthAttemptResult.TOO_MANY_RETRIES
             else:
-                return AuthAttemptResult.WRONG_PASSWORD
+                return AuthAttemptResult.WRONG_TOKEN
 
 
 @make_custom_serializable

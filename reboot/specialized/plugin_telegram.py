@@ -125,7 +125,7 @@ class TelegramProcess(TelegramProcessBase):
         self._save_chat_auth_storage()
         if result == AuthAttemptResult.AUTHENTICATED:
             bot.send_message(chat_id=upd.message.chat_id, text='Authenticated.')
-        elif result == AuthAttemptResult.WRONG_PASSWORD:
+        elif result == AuthAttemptResult.WRONG_TOKEN:
             bot.send_message(chat_id=upd.message.chat_id, text='Incorrect password.')
         elif result == AuthAttemptResult.EXPIRED:
             bot.send_message(chat_id=upd.message.chat_id, text='Your password expired.')
