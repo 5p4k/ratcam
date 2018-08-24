@@ -43,7 +43,7 @@ def handle_message(filters=None, auth_status=AuthStatus.AUTHORIZED):
 class TelegramProcessBase(PluginProcessBase, HandlerBase):
     @property
     def telegram_plugin(self):
-        return self.plugins[_TELEGRAM_PLUGIN_NAME]
+        return self.plugins[_TELEGRAM_PLUGIN_NAME][Process.TELEGRAM]
 
 
 @make_plugin(_TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)

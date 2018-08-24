@@ -12,7 +12,7 @@ _log = logging.getLogger(_PICAMERA_PLUGIN_NAME.lower())
 class CameraProcessBase(PluginProcessBase):
     @property
     def camera_plugin(self):
-        return self.plugins[_PICAMERA_PLUGIN_NAME]
+        return self.plugins[_PICAMERA_PLUGIN_NAME][Process.CAMERA]
 
     def write(self, data):
         pass
