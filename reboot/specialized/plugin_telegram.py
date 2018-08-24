@@ -1,13 +1,11 @@
 from ..plugins import PluginProcessBase, make_plugin, Process
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from .telegram_support.auth import AuthStatus, AuthAttemptResult
-from ..misc.extended_json_codec import ExtendedJSONCodec
 from .telegram_support.auth_filter import AuthStatusFilter
-from Pyro4 import expose as pyro_expose
 import logging
 from .telegram_support.auth_io import save_chat_auth_storage, load_chat_auth_storage
-from .telegram_support.inspect import get_cls_of_method, bind_method
 from .telegram_support.format import user_to_str
+from .telegram_support.handlers import make_handler as _make_handler, HandlerBase
 
 
 _TELEGRAM_PLUGIN_NAME = 'RatcamBot'
@@ -17,64 +15,35 @@ _TELEGRAM_TEMP_AUTH_FILE = 'telegram_auth.json'
 _log = logging.getLogger(_TELEGRAM_PLUGIN_NAME.lower())
 
 
-class TelegramProcessBase(PluginProcessBase):
-    _HANDLER_CREATOR_FN = []
+def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
+    if filters is None:
+        filters = []
+    if auth_status is not None:
+        filters.append(some_telegram_plugin.telegram_plugin.auth_filters[auth_status])
+    return filters
 
-    @property
-    def handlers(self):
-        return [create_handler_fn(self) for create_handler_fn in self.__class__._HANDLER_CREATOR_FN]
 
+def handle_command(command, pass_args=False, filters=None, auth_status=AuthStatus.AUTHORIZED):
+    def _make_command_handler(some_telegram_plugin_, callback_, command_, pass_args_, filters_, auth_status_):
+        return CommandHandler(command_, callback_,
+                              filters=_normalize_filters(some_telegram_plugin_, filters_, auth_status=auth_status_),
+                              pass_args=pass_args_)
+
+    return _make_handler(_make_command_handler, command, pass_args, filters, auth_status)
+
+
+def handle_message(filters=None, auth_status=AuthStatus.AUTHORIZED):
+    def _make_message_handler(some_telegram_plugin_, callback_, filters_, auth_status_):
+        return MessageHandler(_normalize_filters(some_telegram_plugin_, filters_, auth_status=auth_status_),
+                              callback_)
+
+    return _make_handler(_make_message_handler, filters, auth_status)
+
+
+class TelegramProcessBase(PluginProcessBase, HandlerBase):
     @property
     def telegram_plugin(self):
         return self.plugins[_TELEGRAM_PLUGIN_NAME]
-
-
-class _HandleCommand:
-    def __call__(self, f):
-        cls = get_cls_of_method(f)
-        if not issubclass(cls, TelegramProcessBase):
-            raise ValueError('A class need to be subclass of TelegramProcessBase to support this decorator.')
-
-        def _create_handler(plugin_self):
-            filters = self._filters
-            if self._auth_status is not None:
-                filters.append(plugin_self.telegram_plugin.auth_filters[self._auth_status])
-            callback = bind_method(plugin_self, f)
-            return CommandHandler(self._command, callback, pass_args=self._pass_args, filters=filters)
-
-        cls._HANDLER_CREATOR_FN.append(_create_handler)
-        return f
-
-    def __init__(self, command, pass_args=False, auth_status=AuthStatus.AUTHORIZED, filters=None):
-        self._command = command
-        self._pass_args = pass_args
-        self._auth_status = auth_status
-        self._filters = [] if filters is None else list(filters)
-
-
-class _HandleMessage:
-    def __call__(self, f):
-        cls = get_cls_of_method(f)
-        if not issubclass(cls, TelegramProcessBase):
-            raise ValueError('A class need to be subclass of TelegramProcessBase to support this decorator.')
-
-        def _create_handler(plugin_self):
-            filters = self._filters
-            if self._auth_status is not None:
-                filters.append(plugin_self.telegram_plugin.auth_filters[self._auth_status])
-            callback = bind_method(plugin_self, f)
-            return MessageHandler(filters, callback)
-
-        cls._HANDLER_CREATOR_FN.append(_create_handler)
-        return f
-
-    def __init__(self, filters, auth_status=AuthStatus.AUTHORIZED):
-        self._filters = list(filters)
-        self._auth_status = auth_status
-
-
-handle_command = _HandleCommand
-handle_message = _HandleMessage
 
 
 @make_plugin(_TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)
