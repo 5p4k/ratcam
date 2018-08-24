@@ -48,10 +48,4 @@ class HandlerMeta(type):
 class HandlerBase(metaclass=HandlerMeta):
     @property
     def handlers(self):
-        return iter(self._handlers)
-
-    def __init__(self):
-        self._handlers = []
-        # Bind all the handlers
-        for handler_cctor in getattr(self.__class__, _HANDLERS_CLS_PROP_NAME):
-                self._handlers.append(handler_cctor(self))
+        return [handler_cctor(self) for handler_cctor in getattr(self.__class__, _HANDLERS_CLS_PROP_NAME)]
