@@ -1,5 +1,4 @@
 from enum import Enum
-from collections import namedtuple
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 
 
@@ -12,20 +11,43 @@ class Process(Enum):
 _AVAILABLE_PROCESSES = [e.value for e in Process]
 
 
-class ProcessPack(namedtuple('_ProcessPack', _AVAILABLE_PROCESSES)):
+class ProcessPack:
+    def __getattr__(self, item):
+        if item in _AVAILABLE_PROCESSES:
+            return self[item]
+        raise AttributeError(item)
+
+    def __setattr__(self, key, value):
+        if key in _AVAILABLE_PROCESSES:
+            self[key] = value
+        super(ProcessPack, self).__setattr__(key, value)
+
     def __getitem__(self, item):
         if isinstance(item, Process):
-            return getattr(self, item.value)
+            return self._d[_AVAILABLE_PROCESSES.index(item.value)]
         elif isinstance(item, str):
-            return getattr(self, Process(item).value)
-        return super(ProcessPack, self).__getitem__(item)
+            return self._d[_AVAILABLE_PROCESSES.index(item)]
+        elif isinstance(item, int):
+            return self._d[item]
+        raise KeyError(item)
 
     def __setitem__(self, key, value):
         if isinstance(key, Process):
-            setattr(self, key.value, value)
+            self._d[_AVAILABLE_PROCESSES.index(key.value)] = value
         elif isinstance(key, str):
-            setattr(self, Process(key).value, value)
-        super(ProcessPack, self).__setitem__(key, value)
+            self._d[_AVAILABLE_PROCESSES.index(key)] = value
+        elif isinstance(key, int):
+            self._d[key] = value
+        else:
+            raise KeyError(key)
+
+    def __init__(self, *args, **kwargs):
+        args = list(args[:len(_AVAILABLE_PROCESSES)])
+        args = args + ([None] * (len(_AVAILABLE_PROCESSES) - len(args)))
+        self._d = args
+        for k, v in kwargs.items():
+            if k in _AVAILABLE_PROCESSES:
+                self[k] = v
 
 
 class PluginProcessBase:
