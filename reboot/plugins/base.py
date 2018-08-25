@@ -76,6 +76,13 @@ class PluginProcessBase:
     @pyro_expose
     @pyro_oneway
     def activate(self, plugins, plugin_name, process):
+        # If this assertion fails, you are calling 'activate'
+        if not isinstance(process, Process):
+            msg = 'You called PluginProcessBase.activate via Pyro, but the Process object was downcasted to a ' \
+                  'string. You may have configured the wrong Pyro serializer. The current Pyro serializer is ' + \
+                  Pyro4.config.SERIALIZER + ' and the only serializer that can send correctly an Enum (or ProcessPack, ' \
+                                            'which is also needed) is pickle.'
+            raise RuntimeError(msg)
         self._plugins = plugins
         self._plugin_name = plugin_name
         # Need to explicitly convert because the serialization engine may not preserve the Enum

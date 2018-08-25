@@ -2,11 +2,17 @@ import os
 import logging
 import pickle
 from Pyro4 import expose as pyro_expose, errors as pyro_errors, Daemon as PyroDaemon, Proxy as PyroProxy
+import Pyro4
 from reboot.plugins.comm import create_sync_pair
 from multiprocessing import Process
 
 
 _log = logging.getLogger('singleton_host')
+
+
+_log.info('Changing default Pyro4 serializer to pickle.')
+Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
+Pyro4.config.SERIALIZER = 'pickle'
 
 
 LOCAL_SINGLETONS_BY_NAME = {}
@@ -32,8 +38,11 @@ class SingletonHost:
             del self._hosted_singletons[:]
 
         @pyro_expose
-        def register(self, pickled_singleton):
-            singleton_cls = pickle.loads(pickled_singleton)
+        def register_marshal(self, pickled_singleton):
+            return self.register(pickle.loads(pickled_singleton))
+
+        @pyro_expose
+        def register(self, singleton_cls):
             uri = self._daemon.register(self._instantiate(singleton_cls), singleton_cls.__name__)
             _log.debug('%s: serving at %s', self._name, uri)
             return str(uri)
@@ -69,7 +78,8 @@ class SingletonHost:
         uri = receiver.receive()
         self._instance = PyroProxy(uri)
         # Default serpent serializer does not trasmit a class
-        self._instance._pyroSerializer = 'marshal'
+        if self._instance._pyroSerializer != 'pickle':
+            self._instance._pyroSerializer = 'marshal'
         _log.debug('%s: obtained proxy at %s', self._name, uri)
         return self
 
@@ -93,8 +103,11 @@ class SingletonHost:
             raise RuntimeError('You must __enter__ into a %s.' % self.__class__.__name__)
         # We cannot send a custom class except through Pickle, but we can't use pickle in Pyro because it's unsafe.
         # So we pickle the object and send it over marshal (because serpent does not serialize correctly bytes too)
-        assert self._instance._pyroSerializer == 'marshal'
-        return PyroProxy(self._instance.register(pickle.dumps(singleton_cls)))
+        assert self._instance._pyroSerializer in ['marshal', 'pickle']
+        if self._instance._pyroSerializer == 'marshal':
+            return PyroProxy(self._instance.register_marshal(pickle.dumps(singleton_cls)))
+        elif self._instance._pyroSerializer == 'pickle':
+            return PyroProxy(self._instance.register(singleton_cls))
 
     def __init__(self, socket, name=None):
         self._socket = socket
