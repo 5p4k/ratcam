@@ -9,12 +9,32 @@ from multiprocessing import Process
 _log = logging.getLogger('singleton_host')
 
 
+LOCAL_SINGLETONS_BY_NAME = {}
+LOCAL_SINGLETONS_BY_ID = {}
+
+
 class SingletonHost:
     class _SingletonServer:
+        def _instantiate(self, singleton_cls):
+            global LOCAL_SINGLETONS_BY_NAME, LOCAL_SINGLETONS_BY_ID
+            instance = singleton_cls()
+            id_name_pair = (id(instance), singleton_cls.__name__)
+            self._hosted_singletons.append(id_name_pair)
+            LOCAL_SINGLETONS_BY_ID[id_name_pair[0]] = instance
+            LOCAL_SINGLETONS_BY_NAME[id_name_pair[1]] = instance
+            return instance
+
+        def _clear_instantiated_objs(self):
+            global LOCAL_SINGLETONS_BY_NAME, LOCAL_SINGLETONS_BY_ID
+            for instance_id, instance_name in self._hosted_singletons:
+                del LOCAL_SINGLETONS_BY_NAME[instance_name]
+                del LOCAL_SINGLETONS_BY_ID[instance_id]
+            del self._hosted_singletons[:]
+
         @pyro_expose
         def register(self, pickled_singleton):
             singleton_cls = pickle.loads(pickled_singleton)
-            uri = self._daemon.register(singleton_cls(), singleton_cls.__name__)
+            uri = self._daemon.register(self._instantiate(singleton_cls), singleton_cls.__name__)
             _log.debug('%s: serving at %s', self._name, uri)
             return str(uri)
 
@@ -22,10 +42,12 @@ class SingletonHost:
         def close(self):
             _log.debug('%s: stopping', self._name)
             self._daemon.close()
+            self._clear_instantiated_objs()
 
         def __init__(self, daemon, name=None):
             self._daemon = daemon
             self._name = self.__class__.__name__ if name is None else name
+            self._hosted_singletons = []
 
     @staticmethod
     def _server(socket, transmit_sync, name='SingletonServer'):
