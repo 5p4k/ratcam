@@ -1,5 +1,7 @@
 from enum import Enum
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
+import Pyro4
+from .singleton_host import LOCAL_SINGLETONS_BY_ID
 
 
 class Process(Enum):
@@ -51,6 +53,19 @@ class ProcessPack:
 
 
 class PluginProcessBase:
+    @pyro_expose
+    def get_obj_id(self):
+        return id(self)
+
+    def _replace_local_plugin_instances(self):
+        for plugin in self._plugins.values():
+            if plugin[self.process] is None:
+                continue
+            # Try to get the id and replace
+            plugin_id = plugin[self.process].get_obj_id()
+            if plugin_id in LOCAL_SINGLETONS_BY_ID:
+                plugin[self.process] = LOCAL_SINGLETONS_BY_ID[plugin_id]
+
     @property
     def plugin_instance_pack(self):
         return self.plugins[self.plugin_name]
@@ -85,8 +100,8 @@ class PluginProcessBase:
             raise RuntimeError(msg)
         self._plugins = plugins
         self._plugin_name = plugin_name
-        # Need to explicitly convert because the serialization engine may not preserve the Enum
-        self._process = Process(process)
+        self._process = process
+        self._replace_local_plugin_instances()
         self.__enter__()
 
     @pyro_expose
