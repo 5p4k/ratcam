@@ -12,7 +12,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 if __name__ == '__main__':
     _plugin._TELEGRAM_TEMP_TOKEN = sys.argv[1]
     proc = TelegramProcess()
-    proc._plugins = {_plugin._TELEGRAM_PLUGIN_NAME: ProcessPack(None, proc, None)}
+    proc._plugins = {_plugin.TELEGRAM_PLUGIN_NAME: ProcessPack(None, proc, None)}
     try:
         with proc:
             while True:

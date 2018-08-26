@@ -24,14 +24,14 @@ except ImportError:
         pass
 
 
-_PICAMERA_PLUGIN_NAME = 'Picamera'
-_log = logging.getLogger(_PICAMERA_PLUGIN_NAME.lower())
+PICAMERA_PLUGIN_NAME = 'Picamera'
+_log = logging.getLogger(PICAMERA_PLUGIN_NAME.lower())
 
 
 class CameraProcessBase(PluginProcessBase):
     @property
     def camera_plugin(self):
-        return self.plugins[_PICAMERA_PLUGIN_NAME][Process.CAMERA]
+        return self.plugins[PICAMERA_PLUGIN_NAME][Process.CAMERA]
 
     def write(self, data):
         pass
@@ -73,7 +73,7 @@ class _CameraPluginDispatcher(PiMotionAnalysis):
         self._picamera_proc = picamera_proc
 
 
-@make_plugin(_PICAMERA_PLUGIN_NAME, Process.CAMERA)
+@make_plugin(PICAMERA_PLUGIN_NAME, Process.CAMERA)
 class PicameraProcess(PluginProcessBase):
     def __init__(self):
         super(PicameraProcess, self).__init__()

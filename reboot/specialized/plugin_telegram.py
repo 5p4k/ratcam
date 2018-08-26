@@ -8,11 +8,11 @@ from .telegram_support.format import user_to_str
 from .telegram_support.handlers import make_handler as _make_handler, HandlerBase
 
 
-_TELEGRAM_PLUGIN_NAME = 'RatcamBot'
+TELEGRAM_PLUGIN_NAME = 'RatcamBot'
 _TELEGRAM_TEMP_TOKEN = 'Replace me with a token value fetched from shared settings'
 _TELEGRAM_TEMP_AUTH_FILE = 'telegram_auth.json'
 
-_log = logging.getLogger(_TELEGRAM_PLUGIN_NAME.lower())
+_log = logging.getLogger(TELEGRAM_PLUGIN_NAME.lower())
 
 
 def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
@@ -44,10 +44,10 @@ def handle_message(filters=None, auth_status=AuthStatus.AUTHORIZED):
 class TelegramProcessBase(PluginProcessBase, HandlerBase):
     @property
     def telegram_plugin(self):
-        return self.plugins[_TELEGRAM_PLUGIN_NAME][Process.TELEGRAM]
+        return self.plugins[TELEGRAM_PLUGIN_NAME][Process.TELEGRAM]
 
 
-@make_plugin(_TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)
+@make_plugin(TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)
 class TelegramProcess(TelegramProcessBase):
     def _save_chat_auth_storage(self):
         save_chat_auth_storage(_TELEGRAM_TEMP_AUTH_FILE, self._auth_storage, log=_log)
