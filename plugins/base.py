@@ -1,7 +1,7 @@
 from enum import Enum
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 import Pyro4
-from .singleton_host import LOCAL_SINGLETONS_BY_ID
+from plugins.singleton_host import LOCAL_SINGLETONS_BY_ID
 
 
 class Process(Enum):

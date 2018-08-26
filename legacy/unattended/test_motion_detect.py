@@ -17,7 +17,7 @@
 #
 from picamera import PiCamera
 from picamera.array import PiMotionAnalysis
-from detector import DecayMotionDetector
+from legacy.detector import DecayMotionDetector
 
 class LogDetector(DecayMotionDetector, PiMotionAnalysis):
     def __init__(self, camera, size=None):

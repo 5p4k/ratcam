@@ -18,9 +18,9 @@
 
 import argparse
 from time import sleep
-from bot_process import BotProcess
-from cam_process import CameraProcess
-from comm import CamInterface, BotInterface
+from legacy.bot_process import BotProcess
+from legacy.cam_process import CameraProcess
+from legacy.comm import CamInterface, BotInterface
 from multiprocessing import Process, Manager
 import os
 import sys

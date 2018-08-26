@@ -1,6 +1,6 @@
 from tempfile import TemporaryDirectory
-from .base import Process, ProcessPack
-from .plugin_host import PluginHost
+from plugins.base import Process, ProcessPack
+from plugins.plugin_host import PluginHost
 import os
 
 

@@ -1,7 +1,7 @@
-from ..plugins import PluginProcessBase, make_plugin, Process
+from plugins import PluginProcessBase, make_plugin, Process
 from Pyro4 import expose as pyro_expose
 import logging
-from ..misc.settings import SETTINGS
+from misc.settings import SETTINGS
 
 try:
     from picamera import PiCamera

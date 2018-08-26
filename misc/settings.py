@@ -1,7 +1,7 @@
 import os
 import json
-from reboot.misc.extended_json_codec import ExtendedJSONCodec
-from reboot.misc.dotdict import DotDict
+from misc.extended_json_codec import ExtendedJSONCodec
+from misc.dotdict import DotDict
 
 
 SETTINGS = DotDict({})

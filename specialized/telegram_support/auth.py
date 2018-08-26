@@ -1,8 +1,8 @@
 from enum import Enum
 from datetime import datetime, timedelta
 from bcrypt import hashpw, gensalt, checkpw
-from ...misc.pwgen import generate_password
-from ...misc.extended_json_codec import make_custom_serializable
+from misc.pwgen import generate_password
+from misc.extended_json_codec import make_custom_serializable
 
 
 @make_custom_serializable

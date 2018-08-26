@@ -1,9 +1,9 @@
 import unittest
 from enum import Enum
-from .extended_json_codec import make_custom_serializable, ExtendedJSONCodec
+from misc.extended_json_codec import make_custom_serializable, ExtendedJSONCodec
 import json
 from datetime import datetime
-from .dotdict import DotDict
+from misc.dotdict import DotDict
 
 
 def through_json(obj):

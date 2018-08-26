@@ -1,5 +1,5 @@
 import unittest
-from .handlers import make_handler, HandlerBase, _HANDLERS_CLS_PROP_NAME
+from specialized.telegram_support.handlers import make_handler, HandlerBase, _HANDLERS_CLS_PROP_NAME
 
 
 class HandlersTestCase(unittest.TestCase):

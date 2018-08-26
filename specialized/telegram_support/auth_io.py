@@ -1,7 +1,7 @@
 import os
 import json
-from ..telegram_support.auth import ChatAuthStorage
-from ...misc.extended_json_codec import ExtendedJSONCodec
+from specialized.telegram_support.auth import ChatAuthStorage
+from misc.extended_json_codec import ExtendedJSONCodec
 
 
 def load_chat_auth_storage(path, log=None):

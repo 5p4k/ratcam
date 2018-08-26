@@ -1,4 +1,4 @@
-from .singleton_host import SingletonHost
+from plugins.singleton_host import SingletonHost
 
 
 class PluginHost:

@@ -18,7 +18,7 @@
 from time import sleep
 import threading
 import logging
-from cam_manager import CameraManager
+from legacy.cam_manager import CameraManager
 
 _log = logging.getLogger('ratcam')
 

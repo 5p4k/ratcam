@@ -1,9 +1,9 @@
-from reboot.specialized.plugin_telegram import TelegramProcess
+from specialized.plugin_telegram import TelegramProcess
 import logging
 import time
-import reboot.specialized.plugin_telegram as _plugin
-from reboot.plugins.base import ProcessPack
-from reboot.misc.settings import SETTINGS
+import specialized.plugin_telegram as _plugin
+from plugins import ProcessPack
+from misc.settings import SETTINGS
 import sys
 
 

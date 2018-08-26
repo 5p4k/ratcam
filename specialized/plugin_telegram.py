@@ -1,12 +1,12 @@
-from ..plugins import PluginProcessBase, make_plugin, Process
+from plugins import PluginProcessBase, make_plugin, Process
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from .telegram_support.auth import AuthStatus, AuthAttemptResult
-from .telegram_support.auth_filter import AuthStatusFilter
+from specialized.telegram_support.auth import AuthStatus, AuthAttemptResult
+from specialized.telegram_support.auth_filter import AuthStatusFilter
 import logging
-from .telegram_support.auth_io import save_chat_auth_storage, load_chat_auth_storage
-from .telegram_support.format import user_to_str
-from .telegram_support.handlers import make_handler as _make_handler, HandlerBase
-from ..misc.settings import SETTINGS
+from specialized.telegram_support.auth_io import save_chat_auth_storage, load_chat_auth_storage
+from specialized.telegram_support.format import user_to_str
+from specialized.telegram_support.handlers import make_handler as _make_handler, HandlerBase
+from misc.settings import SETTINGS
 
 
 TELEGRAM_PLUGIN_NAME = 'RatcamBot'

@@ -1,4 +1,4 @@
-from .base import ProcessPack, Process, PluginProcessBase
+from plugins.base import ProcessPack, Process, PluginProcessBase
 
 
 _plugins = {}

@@ -17,13 +17,13 @@
 
 import numpy as np
 from picamera.array import PiMotionAnalysis
-from detector import DecayMotionDetector
-from multiplex import DelayedMP4Recorder
+from legacy.detector import DecayMotionDetector
+from legacy.multiplex import DelayedMP4Recorder
 from tempfile import NamedTemporaryFile
 from picamera import PiCamera
 from threading import Event
 import RPi.GPIO as GPIO
-from colorize_motion import overlay_motionv
+from legacy.colorize_motion import overlay_motionv
 import logging
 
 _log = logging.getLogger('ratcam')

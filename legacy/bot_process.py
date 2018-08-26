@@ -17,7 +17,7 @@
 
 import threading
 import logging
-from bot_manager import BotManager
+from legacy.bot_manager import BotManager
 
 _log = logging.getLogger('ratcam')
 

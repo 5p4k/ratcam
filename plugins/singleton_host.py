@@ -3,7 +3,7 @@ import logging
 import pickle
 from Pyro4 import expose as pyro_expose, errors as pyro_errors, Daemon as PyroDaemon, Proxy as PyroProxy
 import Pyro4
-from reboot.plugins.comm import create_sync_pair
+from plugins.comm import create_sync_pair
 from multiprocessing import Process
 
 

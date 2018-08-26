@@ -18,7 +18,7 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import os
 import logging
-from auth import ChatAuth, ChatAuthJSONCodec, AuthStatusFilter, AuthStatus, AuthAttemptResult
+from legacy.auth import ChatAuth, ChatAuthJSONCodec, AuthStatusFilter, AuthStatus, AuthAttemptResult
 import json
 from datetime import time, datetime
 

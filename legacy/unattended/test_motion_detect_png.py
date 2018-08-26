@@ -17,7 +17,7 @@
 #
 from PIL import Image
 import numpy as np
-from detector import DecayMotionDetector
+from legacy.detector import DecayMotionDetector
 from glob import glob
 from time import process_time
 

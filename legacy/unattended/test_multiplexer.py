@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from multiplex import DelayedMP4Recorder
+from legacy.multiplex import DelayedMP4Recorder
 import picamera
 
 if __name__ == '__main__':

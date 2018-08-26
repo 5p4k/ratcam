@@ -1,11 +1,11 @@
 import unittest
 import os
 from Pyro4 import expose as pyro_expose
-from .singleton_host import SingletonHost
+from plugins.singleton_host import SingletonHost
 from tempfile import TemporaryDirectory
-from .base import ProcessPack, Process, PluginProcessBase
-from .processes_host import ProcessesHost
-from .decorators import make_plugin, get_all_plugins
+from plugins.base import ProcessPack, Process, PluginProcessBase
+from plugins.processes_host import ProcessesHost
+from plugins.decorators import make_plugin, get_all_plugins
 
 
 class TestSingletonHosts(unittest.TestCase):
