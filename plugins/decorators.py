@@ -28,4 +28,4 @@ make_plugin = _MakePlugin
 
 def get_all_plugins():
     global _plugins
-    return {k: v for k, v in _plugins.items()}
+    return dict({k: v for k, v in _plugins.items()})
