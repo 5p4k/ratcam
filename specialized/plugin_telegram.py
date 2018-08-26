@@ -7,10 +7,11 @@ from specialized.telegram_support.auth_io import save_chat_auth_storage, load_ch
 from specialized.telegram_support.format import user_to_str
 from specialized.telegram_support.handlers import make_handler as _make_handler, HandlerBase
 from misc.settings import SETTINGS
+from misc.logging import ensure_logging_setup
 
 
 TELEGRAM_PLUGIN_NAME = 'RatcamBot'
-
+ensure_logging_setup()
 _log = logging.getLogger(TELEGRAM_PLUGIN_NAME.lower())
 
 

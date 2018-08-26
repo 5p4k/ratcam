@@ -1,11 +1,24 @@
 from plugins import PluginProcessBase, make_plugin, Process
 from Pyro4 import expose as pyro_expose
 import logging
+from misc.logging import ensure_logging_setup
 from misc.settings import SETTINGS
+
+
+PICAMERA_PLUGIN_NAME = 'Picamera'
+ensure_logging_setup()
+_log = logging.getLogger(PICAMERA_PLUGIN_NAME.lower())
+
 
 try:
     from picamera import PiCamera
-except ImportError:
+    from picamera.array import PiMotionAnalysis
+except (ImportError, OSError) as e:
+    if isinstance(e, ImportError):
+        _log.warning('Detected missing PiCamera package, running mockup.')
+    else:
+        _log.warning('Faulty PiCamera package (installed s/w else than a RPi?), running mockup.')
+
     class PiCamera:
         def __init__(self):
             self.recoding = False
