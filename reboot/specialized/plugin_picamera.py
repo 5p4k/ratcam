@@ -1,8 +1,27 @@
 from ..plugins import PluginProcessBase, make_plugin, Process
-from picamera import PiCamera
-from picamera.array import PiMotionAnalysis
 from Pyro4 import expose as pyro_expose
 import logging
+
+try:
+    from picamera import PiCamera
+except ImportError:
+    class PiCamera:
+        def __init__(self):
+            self.recoding = False
+            self.bitrate = 1
+            self.framerate = 1
+            self.resolution = (640, 480)  # Is this really the first resolution that comes to mind, in 2018?? :D
+
+        def start_recording(self, *_, **__):
+            self.recoding = True
+
+        def stop_recording(self):
+            self.recoding = False
+try:
+    from picamera.array import PiMotionAnalysis
+except ImportError:
+    class PiMotionAnalysis:
+        pass
 
 
 _PICAMERA_PLUGIN_NAME = 'Picamera'
