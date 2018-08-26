@@ -3,6 +3,7 @@ import logging
 import time
 import reboot.specialized.plugin_telegram as _plugin
 from reboot.plugins.base import ProcessPack
+from reboot.misc.settings import SETTINGS
 import sys
 
 
@@ -10,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 
 if __name__ == '__main__':
-    _plugin._TELEGRAM_TEMP_TOKEN = sys.argv[1]
+    SETTINGS.telegram.token = sys.argv[1]
     proc = TelegramProcess()
     proc._plugins = {_plugin.TELEGRAM_PLUGIN_NAME: ProcessPack(None, proc, None)}
     try:

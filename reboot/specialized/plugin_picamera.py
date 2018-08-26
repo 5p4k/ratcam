@@ -1,6 +1,7 @@
 from ..plugins import PluginProcessBase, make_plugin, Process
 from Pyro4 import expose as pyro_expose
 import logging
+from ..misc.settings import SETTINGS
 
 try:
     from picamera import PiCamera
@@ -78,8 +79,7 @@ class PicameraProcess(PluginProcessBase):
     def __init__(self):
         super(PicameraProcess, self).__init__()
         self._camera = PiCamera()
-        # TODO Load settings for bitrate, resolution and framerate
-        self._bitrate = 750000
+        self._bitrate = SETTINGS.camera.bitrate
         self._dispatcher = _CameraPluginDispatcher(self)
 
     def __enter__(self):

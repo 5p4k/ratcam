@@ -6,11 +6,10 @@ import logging
 from .telegram_support.auth_io import save_chat_auth_storage, load_chat_auth_storage
 from .telegram_support.format import user_to_str
 from .telegram_support.handlers import make_handler as _make_handler, HandlerBase
+from ..misc.settings import SETTINGS
 
 
 TELEGRAM_PLUGIN_NAME = 'RatcamBot'
-_TELEGRAM_TEMP_TOKEN = 'Replace me with a token value fetched from shared settings'
-_TELEGRAM_TEMP_AUTH_FILE = 'telegram_auth.json'
 
 _log = logging.getLogger(TELEGRAM_PLUGIN_NAME.lower())
 
@@ -50,7 +49,7 @@ class TelegramProcessBase(PluginProcessBase, HandlerBase):
 @make_plugin(TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)
 class TelegramProcess(TelegramProcessBase):
     def _save_chat_auth_storage(self):
-        save_chat_auth_storage(_TELEGRAM_TEMP_AUTH_FILE, self._auth_storage, log=_log)
+        save_chat_auth_storage(SETTINGS.telegram.auth_file, self._auth_storage, log=_log)
 
     def _collect_handlers(self):
         for plugin_name, plugin in self.plugins.items():
@@ -74,8 +73,8 @@ class TelegramProcess(TelegramProcessBase):
 
     def __init__(self):
         super(TelegramProcess, self).__init__()
-        self._updater = Updater(token=_TELEGRAM_TEMP_TOKEN)
-        self._auth_storage = load_chat_auth_storage(_TELEGRAM_TEMP_AUTH_FILE, log=_log)
+        self._updater = Updater(token=SETTINGS.telegram.token)
+        self._auth_storage = load_chat_auth_storage(SETTINGS.telegram.auth_file, log=_log)
         self._auth_filters = dict({
             status: AuthStatusFilter(self._auth_storage, status) for status in AuthStatus
         })
