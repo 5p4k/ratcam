@@ -3,6 +3,7 @@ from enum import Enum
 from .extended_json_codec import make_custom_serializable, ExtendedJSONCodec
 import json
 from datetime import datetime
+from .dotdict import DotDict
 
 
 def through_json(obj):
@@ -59,6 +60,19 @@ class TestCustomSerialization(unittest.TestCase):
         self.assertEqual(TestCustom(), through_json(TestCustom()))
         self.assertEqual(TestCustom(5), through_json(TestCustom(5)))
         self.assertEqual(TestCustom(b'foobar'), through_json(TestCustom(b'foobar')))
+
+
+class TestDotDict(unittest.TestCase):
+    def test_dotdict(self):
+        d = DotDict({'a': {}})
+        self.assertIsNotNone(d.a)
+        self.assertIsInstance(d.a, DotDict)
+        d.b = {'c': {}}
+        self.assertIsNotNone(d.b)
+        self.assertIsNotNone(d.b.c)
+        self.assertIsInstance(d.b.c, DotDict)
+        d = d.to_dict_tree()
+        self.assertEqual(d, {'a': {}, 'b': {'c': {}}})
 
 
 if __name__ == '__main__':
