@@ -1,0 +1,9 @@
+{
+  "telegram": {
+    "token": null,
+    "auth_file": "telegram_auth.json"
+  },
+  "camera": {
+    "bitrate": 750000
+  }
+}
