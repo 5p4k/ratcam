@@ -5,8 +5,11 @@ from Pyro4 import expose as pyro_expose, errors as pyro_errors, Daemon as PyroDa
 import Pyro4
 from plugins.comm import create_sync_pair
 from multiprocessing import Process
+from misc.logging import ensure_logging_setup
+import traceback
 
 
+ensure_logging_setup()
 _log = logging.getLogger('singleton_host')
 
 
@@ -23,11 +26,19 @@ class SingletonHost:
     class _SingletonServer:
         def _instantiate(self, singleton_cls):
             global LOCAL_SINGLETONS_BY_NAME, LOCAL_SINGLETONS_BY_ID
-            instance = singleton_cls()
+            try:
+                instance = singleton_cls()
+            except Exception as e:
+                _log.error('Unable to instantiate {}, error: {}, {}'.format(singleton_cls.__name__,
+                                                                            e.__class__.__name__, str(e)))
+                for line in traceback.format_exc().splitlines(keepends=False):
+                    _log.debug(line)
+                raise e
             id_name_pair = (id(instance), singleton_cls.__name__)
             self._hosted_singletons.append(id_name_pair)
             LOCAL_SINGLETONS_BY_ID[id_name_pair[0]] = instance
             LOCAL_SINGLETONS_BY_NAME[id_name_pair[1]] = instance
+            # _log.info('Registered objects on {}: {}'.format(self._name, LOCAL_SINGLETONS_BY_ID))
             return instance
 
         def _clear_instantiated_objs(self):
