@@ -18,15 +18,10 @@ except ImportError:
 
         def stop_recording(self):
             self.recoding = False
-try:
-    from picamera.array import PiMotionAnalysis
-except ImportError:
+
     class PiMotionAnalysis:
-        pass
-
-
-PICAMERA_PLUGIN_NAME = 'Picamera'
-_log = logging.getLogger(PICAMERA_PLUGIN_NAME.lower())
+        def __init__(self, _, __=None):
+            pass
 
 
 class CameraProcessBase(PluginProcessBase):
@@ -70,7 +65,7 @@ class _CameraPluginDispatcher(PiMotionAnalysis):
         self._dispatch('analyze', array)
 
     def __init__(self, picamera_proc):
-        super(_CameraPluginDispatcher, self).__init__(self, picamera_proc.camera)
+        super(_CameraPluginDispatcher, self).__init__(picamera_proc.camera)
         self._picamera_proc = picamera_proc
 
 
