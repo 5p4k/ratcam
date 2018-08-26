@@ -95,8 +95,8 @@ class PluginProcessBase:
         if not isinstance(process, Process):
             msg = 'You called PluginProcessBase.activate via Pyro, but the Process object was downcasted to a ' \
                   'string. You may have configured the wrong Pyro serializer. The current Pyro serializer is ' + \
-                  Pyro4.config.SERIALIZER + ' and the only serializer that can send correctly an Enum (or ProcessPack, ' \
-                                            'which is also needed) is pickle.'
+                  Pyro4.config.SERIALIZER + ' and the only serializer that can send correctly an Enum (or ' \
+                                            'ProcessPack, which is also needed) is pickle.'
             raise RuntimeError(msg)
         self._plugins = plugins
         self._plugin_name = plugin_name
