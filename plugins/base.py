@@ -47,6 +47,9 @@ class ProcessPack:
         for process in Process:
             yield process, self[process]
 
+    def values(self):
+        yield from self._d
+
     def __init__(self, *args, **kwargs):
         args = list(args[:len(AVAILABLE_PROCESSES)])
         args = args + ([None] * (len(AVAILABLE_PROCESSES) - len(args)))

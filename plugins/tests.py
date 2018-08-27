@@ -73,9 +73,8 @@ class TestPluginProcess(unittest.TestCase):
         with ProcessesHost(plugins) as processes:
             self.assertIn('main', processes.plugin_instances)
             instance_pack = processes.plugin_instances['main']
-            for process in Process:
-                self.assertIsNotNone(instance_pack[process])
-                instance = instance_pack[process]
+            for process, instance in instance_pack.items():
+                self.assertIsNotNone(instance)
                 if instance is not None:
                     process_in_instance, pid_in_instance = instance.get_process()
                     self.assertIsNotNone(process_in_instance)
@@ -90,8 +89,8 @@ class TestPluginProcess(unittest.TestCase):
         }
         with ProcessesHost(plugins) as processes:
             instance_pack = processes.plugin_instances['main']
-            for process in Process:
-                self.assertIsNone(instance_pack[process])
+            for instance in instance_pack.values():
+                self.assertIsNone(instance)
 
     def test_intra_instance_talk(self):
         plugins = {
@@ -119,12 +118,12 @@ class TestPluginDecorator(unittest.TestCase):
         with ProcessesHost(get_all_plugins()) as processes:
             self.assertIn('TestPluginDecorator', processes.plugin_instances)
             instance_pack = processes.plugin_instances['TestPluginDecorator']
-            for process in Process:
+            for process, instance in instance_pack.items():
                 if process is Process.MAIN:
-                    self.assertIsNotNone(instance_pack[process])
-                    self.assertEqual(instance_pack[process].get_two(), 2)
+                    self.assertIsNotNone(instance)
+                    self.assertEqual(instance.get_two(), 2)
                 else:
-                    self.assertIsNone(instance_pack[process])
+                    self.assertIsNone(instance)
 
 
 if __name__ == '__main__':
