@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from plugins.base import ProcessPack, Process, PluginProcessBase, AVAILABLE_PROCESSES
 from plugins.processes_host import ProcessesHost
 from plugins.decorators import make_plugin, get_all_plugins
+from plugins.lookup_table import PluginLookupTable
 
 
 class TestSingletonHosts(unittest.TestCase):
@@ -134,6 +135,59 @@ class TestPluginDecorator(unittest.TestCase):
                     self.assertEqual(instance.get_two(), 2)
                 else:
                     self.assertIsNone(instance)
+
+
+class TestPluginLookup(unittest.TestCase):
+    @make_plugin('TestPluginTable', Process.MAIN)
+    class TestPluginTablePluginMain(PluginProcessBase):
+        pass
+
+    @make_plugin('TestPluginTable', Process.TELEGRAM)
+    class TestPluginTablePluginTelegram(PluginProcessBase):
+        pass
+
+    def test_direct_lookup(self):
+        name = TestPluginLookup.TestPluginTablePluginMain.plugin_name()
+        plugin_main = TestPluginLookup.TestPluginTablePluginMain()
+        plugin_telegram = TestPluginLookup.TestPluginTablePluginTelegram()
+        pack = ProcessPack(main=plugin_main, telegram=plugin_telegram)
+        table = PluginLookupTable({name: pack}, Process.MAIN)
+
+        self.assertIs(table[name], pack)
+        self.assertIs(table[TestPluginLookup.TestPluginTablePluginTelegram], pack)
+        self.assertIs(table[TestPluginLookup.TestPluginTablePluginMain], pack)
+        self.assertIs(table[plugin_main], pack)
+        self.assertIs(table[plugin_telegram], pack)
+
+        self.assertIs(table.telegram[name], plugin_telegram)
+        self.assertIs(table.telegram[TestPluginLookup.TestPluginTablePluginTelegram], plugin_telegram)
+        self.assertIs(table.telegram[TestPluginLookup.TestPluginTablePluginMain], plugin_telegram)
+        self.assertIs(table.telegram[plugin_main], plugin_telegram)
+        self.assertIs(table.telegram[plugin_telegram], plugin_telegram)
+
+        self.assertIs(table.main[name], plugin_main)
+        self.assertIs(table.main[TestPluginLookup.TestPluginTablePluginTelegram], plugin_main)
+        self.assertIs(table.main[TestPluginLookup.TestPluginTablePluginMain], plugin_main)
+        self.assertIs(table.main[plugin_main], plugin_main)
+        self.assertIs(table.main[plugin_telegram], plugin_main)
+
+        self.assertIs(table[Process.TELEGRAM][name], plugin_telegram)
+        self.assertIs(table[Process.TELEGRAM][TestPluginLookup.TestPluginTablePluginTelegram], plugin_telegram)
+        self.assertIs(table[Process.TELEGRAM][TestPluginLookup.TestPluginTablePluginMain], plugin_telegram)
+        self.assertIs(table[Process.TELEGRAM][plugin_main], plugin_telegram)
+        self.assertIs(table[Process.TELEGRAM][plugin_telegram], plugin_telegram)
+
+        self.assertIs(table[Process.MAIN][name], plugin_main)
+        self.assertIs(table[Process.MAIN][TestPluginLookup.TestPluginTablePluginTelegram], plugin_main)
+        self.assertIs(table[Process.MAIN][TestPluginLookup.TestPluginTablePluginMain], plugin_main)
+        self.assertIs(table[Process.MAIN][plugin_main], plugin_main)
+        self.assertIs(table[Process.MAIN][plugin_telegram], plugin_main)
+
+        self.assertIs(getattr(table, name), pack)
+        self.assertIs(table.telegram.TestPluginTable, plugin_telegram)
+        self.assertIs(table.main.TestPluginTable, plugin_main)
+        self.assertIs(table[Process.TELEGRAM].TestPluginTable, plugin_telegram)
+        self.assertIs(table[Process.MAIN].TestPluginTable, plugin_main)
 
 
 if __name__ == '__main__':
