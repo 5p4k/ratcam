@@ -1,12 +1,14 @@
 import os
 import logging
 import pickle
-from Pyro4 import expose as pyro_expose, errors as pyro_errors, Daemon as PyroDaemon, Proxy as PyroProxy
+from Pyro4 import expose as pyro_expose, Daemon as PyroDaemon, Proxy as PyroProxy
 import Pyro4
 from plugins.comm import create_sync_pair
 from multiprocessing import Process
 from misc.logging import ensure_logging_setup
 import traceback
+from threading import Thread
+import time
 
 
 ensure_logging_setup()
@@ -16,6 +18,10 @@ _log = logging.getLogger('singleton_host')
 _log.info('Changing default Pyro4 serializer to pickle.')
 Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.SERIALIZER = 'pickle'
+
+
+# Pyro and the subprocesses have 0.1 seconds to tear themselves down
+_DELAY_FOR_SHUTDOWN = 0.1
 
 
 class SingletonHost:
@@ -57,9 +63,14 @@ class SingletonHost:
 
         @pyro_expose
         def close(self):
-            _log.debug('%s: stopping', self._name)
-            self._daemon.close()
+            _log.debug('%s: will stop in %f secs', self._name, _DELAY_FOR_SHUTDOWN)
             self._clear_instantiated_objs()
+
+            # Need to run on another thread, or it will cause a ConnectionClosedError
+            def _stop_daemon():
+                time.sleep(_DELAY_FOR_SHUTDOWN * 0.5)
+                self._daemon.close()
+            Thread(name='shutdown_threads', target=_stop_daemon).start()
 
         def __init__(self, daemon, name=None):
             self._daemon = daemon
@@ -100,15 +111,14 @@ class SingletonHost:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        try:
-            self._instance.close()
-        except pyro_errors.ConnectionClosedError:
-            # Is this even an error?
-            pass
-
+        self._instance.close()
         _log.debug('%s: signalled exit, waiting for server', self._name)
-        self._process.join()
-        _log.debug('%s: server joined', self._name)
+        self._process.join(_DELAY_FOR_SHUTDOWN)
+        if self._process.is_alive():
+            _log.warning('%s: server did not join, terminating.', self._name)
+            self._process.terminate()
+        else:
+            _log.debug('%s: server joined', self._name)
         self._instance = None
         self._process = None
         if os.path.exists(self._socket):
