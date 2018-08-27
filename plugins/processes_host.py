@@ -1,10 +1,22 @@
 from tempfile import TemporaryDirectory
 from plugins.base import Process, ProcessPack
 from plugins.plugin_host import PluginHost
+from Pyro4 import expose as pyro_expose
 import os
 
 
+CURRENT_RUNNING_PROCESS = None
+
+
 class ProcessesHost:
+    class _ChangeCurrentlyRunningProcess:
+        @pyro_expose
+        def change(self, process):
+            global CURRENT_RUNNING_PROCESS
+            if (CURRENT_RUNNING_PROCESS is None) == (process is None):
+                raise RuntimeError('More than one PluginHost are using the same process!')
+            CURRENT_RUNNING_PROCESS = process
+
     @classmethod
     def _create_host(cls, socket_dir, plugin_definitions, process):
         """
@@ -53,8 +65,11 @@ class ProcessesHost:
         # Create temp dir
         self._socket_dir.__enter__()
         # Activate all hosts in sequence
-        for host in self._plugin_process_host_pack:
+        for process, host in self._plugin_process_host_pack.items():
             host.__enter__()
+            # Change the running process variable in the remote process
+            self._process_changers[process] = host.singleton_host(ProcessesHost._ChangeCurrentlyRunningProcess)
+            self._process_changers[process].change(process)
         # Collect all plugin instances
         for plugin_name in self._plugin_instances.keys():
             self._plugin_instances[plugin_name] = ProcessPack(*[
@@ -71,7 +86,10 @@ class ProcessesHost:
         for plugin_name in self._plugin_instances.keys():
             self._plugin_instances[plugin_name] = None
         # Deactivate all hosts
-        for host in self._plugin_process_host_pack:
+        for process, host in self._plugin_process_host_pack.items():
+            # Change the running process variable in the remote process
+            self._process_changers[process].change(None)
+            self._process_changers[process] = None
             host.__exit__(exc_type, exc_val, exc_tb)
         # Destroy all dirs
         self._socket_dir.__exit__(exc_type, exc_val, exc_tb)
@@ -89,3 +107,4 @@ class ProcessesHost:
             self.__class__._create_host(self._socket_dir.name, plugins, process)
             for process in Process
         ])
+        self._process_changers = ProcessPack()

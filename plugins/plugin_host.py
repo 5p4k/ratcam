@@ -15,6 +15,10 @@ class PluginHost:
         self._host.__exit__(exc_type, exc_val, exc_tb)
 
     @property
+    def singleton_host(self):
+        return self._host
+
+    @property
     def plugin_instances(self):
         """
         :return: A dictionary mapping the plugin name to the plugin instance proxy object (or None, if the original type
