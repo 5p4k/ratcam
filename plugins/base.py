@@ -79,16 +79,6 @@ class PluginProcessBase:
     def get_remote_process(self):
         return self.__class__.process()
 
-    # def _replace_local_plugin_instances(self):
-    #     cur_process = ProcessesHost.current_process()
-    #     for plugin in self._plugins.values():
-    #         if plugin[cur_process] is None:
-    #             continue
-    #         # Try to get the id and replace
-    #         plugin_id = plugin[cur_process].get_obj_id()
-    #         if plugin_id in SingletonHost.local_singletons_by_id():
-    #             plugin[cur_process] = SingletonHost.local_singletons_by_id()[plugin_id]
-
     @property
     def plugins(self):
         return self._plugins

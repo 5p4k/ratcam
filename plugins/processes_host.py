@@ -1,19 +1,30 @@
 from tempfile import TemporaryDirectory
 from plugins.base import Process, ProcessPack
 from plugins.plugin_host import PluginHost
+from plugins.lookup_table import PluginLookupTable
 from Pyro4 import expose as pyro_expose
 import os
 
 
 class ProcessesHost:
     _CURRENT_RUNNING_PROCESS = None
+    _PLUGINS_TABLE = None
 
-    class _ChangeCurrentlyRunningProcess:
+    class _Housekeeper:
         @pyro_expose
-        def change(self, process):
-            if (ProcessesHost._CURRENT_RUNNING_PROCESS is None) == (process is None):
+        def setup(self, process, plugins):
+            if ProcessesHost._CURRENT_RUNNING_PROCESS is not None or ProcessesHost._PLUGINS_TABLE is not None:
                 raise RuntimeError('More than one PluginHost are using the same process!')
+            assert isinstance(process, Process), 'You should be serializing using pickle on Pyro!'
             ProcessesHost._CURRENT_RUNNING_PROCESS = process
+            ProcessesHost._PLUGINS_TABLE = PluginLookupTable(plugins, process)
+
+        @pyro_expose
+        def teardown(self):
+            if ProcessesHost._CURRENT_RUNNING_PROCESS is None or ProcessesHost._PLUGINS_TABLE is None:
+                raise RuntimeError('More than one PluginHost are using the same process!')
+            ProcessesHost._CURRENT_RUNNING_PROCESS = None
+            ProcessesHost._PLUGINS_TABLE = None
 
     @classmethod
     def _create_host(cls, socket_dir, plugin_definitions, process):
@@ -52,6 +63,10 @@ class ProcessesHost:
     def current_process(cls):
         return cls._CURRENT_RUNNING_PROCESS
 
+    @classmethod
+    def plugins_table(cls):
+        return cls._PLUGINS_TABLE
+
     @property
     def plugin_instances(self):
         """
@@ -65,16 +80,17 @@ class ProcessesHost:
         # Create temp dir
         self._socket_dir.__enter__()
         # Activate all hosts in sequence
-        for process, host in self._plugin_process_host_pack.items():
+        for host in self._plugin_process_host_pack.values():
             host.__enter__()
-            # Change the running process variable in the remote process
-            self._process_changers[process] = host.singleton_host(ProcessesHost._ChangeCurrentlyRunningProcess)
-            self._process_changers[process].change(process)
         # Collect all plugin instances
         for plugin_name in self._plugin_instances.keys():
             self._plugin_instances[plugin_name] = ProcessPack(*[
                 self._plugin_process_host_pack[process].plugin_instances[plugin_name] for process in Process
             ])
+        # Change the running process variable in the remote process and publish a list of plugins
+        for process, host in self._plugin_process_host_pack.items():
+            self._housekeepers[process] = host.singleton_host(ProcessesHost._Housekeeper)
+            self._housekeepers[process].setup(process, self._plugin_instances)
         # Activate all plugin instances with the information about all plugins
         self._activate_all_plugin_process_instances()
         return self
@@ -82,14 +98,15 @@ class ProcessesHost:
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Reverse destruction order as __enter__
         self._deactivate_all_plugin_process_instances()
+        # Remove the list of plugins
+        for process in Process:
+            self._housekeepers[process].teardown()
+            self._housekeepers[process] = None
         # Destroy all plugins
         for plugin_name in self._plugin_instances.keys():
             self._plugin_instances[plugin_name] = None
         # Deactivate all hosts
-        for process, host in self._plugin_process_host_pack.items():
-            # Change the running process variable in the remote process
-            self._process_changers[process].change(None)
-            self._process_changers[process] = None
+        for host in self._plugin_process_host_pack.values():
             host.__exit__(exc_type, exc_val, exc_tb)
         # Destroy all dirs
         self._socket_dir.__exit__(exc_type, exc_val, exc_tb)
@@ -107,4 +124,4 @@ class ProcessesHost:
             self.__class__._create_host(self._socket_dir.name, plugins, process)
             for process in Process
         ])
-        self._process_changers = ProcessPack()
+        self._housekeepers = ProcessPack()
