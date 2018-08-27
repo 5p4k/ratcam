@@ -35,11 +35,11 @@ class ProcessesHost:
         return PluginHost(plugin_process_instance_types, socket=socket, name=process.value)
 
     def _activate_all_plugin_process_instances(self):
-        for plugin_name, plugin_instance_pack in self.plugin_instances.items():
+        for plugin_instance_pack in self.plugin_instances.values():
             for process, plugin_process_instance in plugin_instance_pack.items():
                 if plugin_process_instance is None:
                     continue
-                plugin_process_instance.activate(self.plugin_instances, plugin_name)
+                plugin_process_instance.activate(self.plugin_instances)
 
     def _deactivate_all_plugin_process_instances(self):
         for plugin_name, plugin_instance_pack in self.plugin_instances.items():

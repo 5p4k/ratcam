@@ -1,8 +1,6 @@
 from enum import Enum
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 import Pyro4
-from plugins.singleton_host import SingletonHost
-from plugins.processes_host import ProcessesHost
 
 
 class Process(Enum):
@@ -65,27 +63,19 @@ class PluginProcessBase:
     def get_obj_id(self):
         return id(self)
 
-    def _replace_local_plugin_instances(self):
-        cur_process = ProcessesHost.current_process()
-        for plugin in self._plugins.values():
-            if plugin[cur_process] is None:
-                continue
-            # Try to get the id and replace
-            plugin_id = plugin[cur_process].get_obj_id()
-            if plugin_id in SingletonHost.local_singletons_by_id():
-                plugin[cur_process] = SingletonHost.local_singletons_by_id()[plugin_id]
-
-    @property
-    def plugin_instance_pack(self):
-        return self.plugins[self.plugin_name]
+    # def _replace_local_plugin_instances(self):
+    #     cur_process = ProcessesHost.current_process()
+    #     for plugin in self._plugins.values():
+    #         if plugin[cur_process] is None:
+    #             continue
+    #         # Try to get the id and replace
+    #         plugin_id = plugin[cur_process].get_obj_id()
+    #         if plugin_id in SingletonHost.local_singletons_by_id():
+    #             plugin[cur_process] = SingletonHost.local_singletons_by_id()[plugin_id]
 
     @property
     def plugins(self):
         return self._plugins
-
-    @property
-    def plugin_name(self):
-        return self._plugin_name
 
     def __enter__(self):
         pass
@@ -95,24 +85,21 @@ class PluginProcessBase:
 
     @pyro_expose
     @pyro_oneway
-    def activate(self, plugins, plugin_name):
+    def activate(self, plugins):
         assert all(map(lambda plugin_pack: isinstance(plugin_pack, ProcessPack), plugins.values())), \
             'You called PluginProcessBase.activate via Pyro, but the Process object was downcasted to a string. You ' \
             'may have configured the wrong Pyro serializer. The current Pyro serializer is ' + \
             Pyro4.config.SERIALIZER + ' and the only serializer that can send correctly an Enum (or ProcessPack, ' \
                                       'which is also needed) is pickle.'
         self._plugins = plugins
-        self._plugin_name = plugin_name
-        self._replace_local_plugin_instances()
+        # self._replace_local_plugin_instances()
         self.__enter__()
 
     @pyro_expose
     @pyro_oneway
     def deactivate(self):
         self.__exit__(None, None, None)
-        self._plugin_name = None
         self._plugins = None
 
     def __init__(self):
-        self._plugin_name = None
         self._plugins = None

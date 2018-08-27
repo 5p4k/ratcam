@@ -3,7 +3,7 @@ import os
 from Pyro4 import expose as pyro_expose
 from plugins.singleton_host import SingletonHost
 from tempfile import TemporaryDirectory
-from plugins.base import ProcessPack, Process, PluginProcessBase
+from plugins.base import ProcessPack, Process, PluginProcessBase, AVAILABLE_PROCESSES
 from plugins.processes_host import ProcessesHost
 from plugins.decorators import make_plugin, get_all_plugins
 
@@ -56,19 +56,21 @@ class TestProcessPack(unittest.TestCase):
 
 class TestPluginProcess(unittest.TestCase):
     class TestProcess(PluginProcessBase):
+        PLUGIN_NAME = 'main'
+
         @pyro_expose
         def get_process(self):
             return ProcessesHost.current_process(), os.getpid()
 
         @pyro_expose
         def get_sibling_pid_set(self):
-            return set([instance.get_process()[1] for instance in self.plugin_instance_pack])
+            return set([instance.get_process()[1] for instance in self.plugins[self.__class__.PLUGIN_NAME]])
 
     def test_process_host(self):
         plugins = {
-            'main': ProcessPack(TestPluginProcess.TestProcess,
-                                TestPluginProcess.TestProcess,
-                                TestPluginProcess.TestProcess)
+            TestPluginProcess.TestProcess.PLUGIN_NAME: ProcessPack(TestPluginProcess.TestProcess,
+                                                                   TestPluginProcess.TestProcess,
+                                                                   TestPluginProcess.TestProcess)
         }
         with ProcessesHost(plugins) as processes:
             self.assertIn('main', processes.plugin_instances)
@@ -101,7 +103,7 @@ class TestPluginProcess(unittest.TestCase):
         with ProcessesHost(plugins) as processes:
             instance_pack = processes.plugin_instances['main']
             pid_sets = list([instance.get_sibling_pid_set() for instance in instance_pack])
-            self.assertEqual(len(pid_sets), len(Process))
+            self.assertEqual(len(pid_sets), len(AVAILABLE_PROCESSES))
             if len(pid_sets) > 0:
                 for pid_set in pid_sets[1:]:
                     self.assertEqual(pid_set, pid_sets[0])
