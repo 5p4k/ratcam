@@ -10,45 +10,49 @@ class Process(Enum):
     CAMERA = 'camera'
 
 
-_AVAILABLE_PROCESSES = [e.value for e in Process]
+AVAILABLE_PROCESSES = [e.value for e in Process]
 
 
 class ProcessPack:
     def __getattr__(self, item):
-        if item in _AVAILABLE_PROCESSES:
+        if item in AVAILABLE_PROCESSES:
             return self[item]
         raise AttributeError(item)
 
     def __setattr__(self, key, value):
-        if key in _AVAILABLE_PROCESSES:
+        if key in AVAILABLE_PROCESSES:
             self[key] = value
         super(ProcessPack, self).__setattr__(key, value)
 
     def __getitem__(self, item):
         if isinstance(item, Process):
-            return self._d[_AVAILABLE_PROCESSES.index(item.value)]
+            return self._d[AVAILABLE_PROCESSES.index(item.value)]
         elif isinstance(item, str):
-            return self._d[_AVAILABLE_PROCESSES.index(item)]
+            return self._d[AVAILABLE_PROCESSES.index(item)]
         elif isinstance(item, int):
             return self._d[item]
         raise KeyError(item)
 
     def __setitem__(self, key, value):
         if isinstance(key, Process):
-            self._d[_AVAILABLE_PROCESSES.index(key.value)] = value
+            self._d[AVAILABLE_PROCESSES.index(key.value)] = value
         elif isinstance(key, str):
-            self._d[_AVAILABLE_PROCESSES.index(key)] = value
+            self._d[AVAILABLE_PROCESSES.index(key)] = value
         elif isinstance(key, int):
             self._d[key] = value
         else:
             raise KeyError(key)
 
+    def items(self):
+        for process in Process:
+            yield process, self[process]
+
     def __init__(self, *args, **kwargs):
-        args = list(args[:len(_AVAILABLE_PROCESSES)])
-        args = args + ([None] * (len(_AVAILABLE_PROCESSES) - len(args)))
+        args = list(args[:len(AVAILABLE_PROCESSES)])
+        args = args + ([None] * (len(AVAILABLE_PROCESSES) - len(args)))
         self._d = args
         for k, v in kwargs.items():
-            if k in _AVAILABLE_PROCESSES:
+            if k in AVAILABLE_PROCESSES:
                 self[k] = v
 
 
