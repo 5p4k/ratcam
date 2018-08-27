@@ -59,9 +59,25 @@ class ProcessPack:
 
 
 class PluginProcessBase:
+    @classmethod
+    def plugin_name(cls):
+        return None
+
+    @classmethod
+    def process(cls):
+        return None
+
     @pyro_expose
-    def get_obj_id(self):
+    def get_remote_id(self):
         return id(self)
+
+    @pyro_expose
+    def get_remote_plugin_name(self):
+        return self.__class__.plugin_name()
+
+    @pyro_expose
+    def get_remote_process(self):
+        return self.__class__.process()
 
     # def _replace_local_plugin_instances(self):
     #     cur_process = ProcessesHost.current_process()

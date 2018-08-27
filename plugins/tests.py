@@ -58,6 +58,14 @@ class TestPluginProcess(unittest.TestCase):
     class TestProcess(PluginProcessBase):
         PLUGIN_NAME = 'main'
 
+        @classmethod
+        def plugin_name(cls):
+            return cls.PLUGIN_NAME
+
+        @classmethod
+        def process(cls):
+            return ProcessesHost.current_process()
+
         @pyro_expose
         def get_process(self):
             return ProcessesHost.current_process(), os.getpid()

@@ -16,6 +16,8 @@ class _MakePlugin:
         if self._name not in _plugins:
             _plugins[self._name] = ProcessPack(None, None, None)
         _plugins[self._name] = _update_pack(_plugins[self._name], **{self._process.value: cls})
+        cls.plugin_name = lambda _: self._name
+        cls.process = lambda _: self._process
         return cls
 
     def __init__(self, plugin_name, process):
