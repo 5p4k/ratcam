@@ -1,40 +1,4 @@
 from plugins.singleton_host import SingletonHost
-from plugins.base import Process, AVAILABLE_PROCESSES
-
-
-class _PartialLookup:
-    def _concat_keys(self, item):
-        if isinstance(item, tuple) or isinstance(item, list):
-            return tuple(self._prepend + list(item))
-        else:
-            return tuple(self._prepend + [item])
-
-    def __getitem__(self, item):
-        return self._parent[self._concat_keys(item)]
-
-    def __setitem__(self, key, value):
-        self._parent[self._concat_keys(key)] = value
-
-    __setattr__ = __setitem__
-    __getattr__ = __getitem__
-
-    def __init__(self, parent, prepend_keys):
-        self._parent = parent
-        if isinstance(prepend_keys, tuple) or isinstance(prepend_keys, list):
-            self._prepend = list(prepend_keys)
-        else:
-            self._prepend = [prepend_keys]
-
-
-class PluginTable:
-    @classmethod
-    def _normalize_keys(cls, tpl):
-        assert isinstance(tpl, tuple) and len(tpl) == 2
-        if isinstance(tpl[0], Process) or tpl[0] in AVAILABLE_PROCESSES:
-            return Process(tpl[0]), str(tpl[1])
-        elif isinstance(tpl[1], Process):
-            return Process(tpl[1]), str(tpl[0])
-        raise ValueError(tpl)
 
 
 class PluginHost:
