@@ -1,10 +1,11 @@
 *.sublime-workspace
 *.sublime-project
 token.txt
-venv
+venv*
 __pycache__
 *.pyc
 ratcam.log
 .idea
-auth.json
+*auth.json
 .DS_Store
+.coverage
