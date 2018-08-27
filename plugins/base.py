@@ -1,7 +1,7 @@
 from enum import Enum
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 import Pyro4
-from plugins.singleton_host import LOCAL_SINGLETONS_BY_ID
+from plugins.singleton_host import SingletonHost
 
 
 class Process(Enum):
@@ -70,8 +70,8 @@ class PluginProcessBase:
                 continue
             # Try to get the id and replace
             plugin_id = plugin[self.process].get_obj_id()
-            if plugin_id in LOCAL_SINGLETONS_BY_ID:
-                plugin[self.process] = LOCAL_SINGLETONS_BY_ID[plugin_id]
+            if plugin_id in SingletonHost.local_singletons_by_id():
+                plugin[self.process] = SingletonHost.local_singletons_by_id()[plugin_id]
 
     @property
     def plugin_instance_pack(self):

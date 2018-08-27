@@ -18,14 +18,12 @@ Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.SERIALIZER = 'pickle'
 
 
-LOCAL_SINGLETONS_BY_NAME = {}
-LOCAL_SINGLETONS_BY_ID = {}
-
-
 class SingletonHost:
+    _LOCAL_SINGLETONS_BY_NAME = {}
+    _LOCAL_SINGLETONS_BY_ID = {}
+
     class _SingletonServer:
         def _instantiate(self, singleton_cls):
-            global LOCAL_SINGLETONS_BY_NAME, LOCAL_SINGLETONS_BY_ID
             try:
                 instance = singleton_cls()
             except Exception as e:
@@ -36,16 +34,15 @@ class SingletonHost:
                 raise e
             id_name_pair = (id(instance), singleton_cls.__name__)
             self._hosted_singletons.append(id_name_pair)
-            LOCAL_SINGLETONS_BY_ID[id_name_pair[0]] = instance
-            LOCAL_SINGLETONS_BY_NAME[id_name_pair[1]] = instance
-            # _log.info('Registered objects on {}: {}'.format(self._name, LOCAL_SINGLETONS_BY_ID))
+            SingletonHost._LOCAL_SINGLETONS_BY_ID[id_name_pair[0]] = instance
+            SingletonHost._LOCAL_SINGLETONS_BY_NAME[id_name_pair[1]] = instance
+            # _log.info('Registered objects on {}: {}'.format(self._name, SingletonHost._LOCAL_SINGLETONS_BY_ID))
             return instance
 
         def _clear_instantiated_objs(self):
-            global LOCAL_SINGLETONS_BY_NAME, LOCAL_SINGLETONS_BY_ID
             for instance_id, instance_name in self._hosted_singletons:
-                del LOCAL_SINGLETONS_BY_NAME[instance_name]
-                del LOCAL_SINGLETONS_BY_ID[instance_id]
+                del SingletonHost._LOCAL_SINGLETONS_BY_NAME[instance_name]
+                del SingletonHost._LOCAL_SINGLETONS_BY_ID[instance_id]
             del self._hosted_singletons[:]
 
         @pyro_expose
@@ -79,6 +76,14 @@ class SingletonHost:
         transmit_sync.transmit(str(uri))
         daemon.requestLoop()
         _log.debug('%s: stopped serving at %s', name, uri)
+
+    @classmethod
+    def local_singletons_by_name(cls):
+        return cls._LOCAL_SINGLETONS_BY_NAME
+
+    @classmethod
+    def local_singletons_by_id(cls):
+        return cls._LOCAL_SINGLETONS_BY_ID
 
     def __enter__(self):
         receiver, transmitter = create_sync_pair()
