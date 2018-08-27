@@ -1,7 +1,7 @@
 from plugins.base import ProcessPack, Process, PluginProcessBase
 
 
-_plugins = {}
+_PLUGINS = {}
 
 
 def _update_pack(pack, **kwargs):
@@ -12,10 +12,10 @@ class _MakePlugin:
     def __call__(self, cls):
         if not issubclass(cls, PluginProcessBase):
             raise ValueError('A class need to be subclass of PluginProcessInstanceBase to be instantiable.')
-        global _plugins
-        if self._name not in _plugins:
-            _plugins[self._name] = ProcessPack(None, None, None)
-        _plugins[self._name] = _update_pack(_plugins[self._name], **{self._process.value: cls})
+        global _PLUGINS
+        if self._name not in _PLUGINS:
+            _PLUGINS[self._name] = ProcessPack(None, None, None)
+        _PLUGINS[self._name] = _update_pack(_PLUGINS[self._name], **{self._process.value: cls})
         cls.plugin_name = classmethod(lambda _: self._name)
         cls.process = classmethod(lambda _: self._process)
         return cls
@@ -29,5 +29,5 @@ make_plugin = _MakePlugin
 
 
 def get_all_plugins():
-    global _plugins
-    return dict({k: v for k, v in _plugins.items()})
+    global _PLUGINS
+    return dict({k: v for k, v in _PLUGINS.items()})
