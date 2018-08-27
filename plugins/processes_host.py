@@ -6,25 +6,44 @@ from Pyro4 import expose as pyro_expose
 import os
 
 
+_ACTIVE_PROCESS = None
+_ACTIVE_PLUGINS = None
+
+
+def active_process():
+    global _ACTIVE_PROCESS
+    return _ACTIVE_PROCESS
+
+
+def active_plugins():
+    global _ACTIVE_PLUGINS
+    return _ACTIVE_PLUGINS
+
+
+def find_plugin(*args):
+    assert len(args) in [1, 2]
+    return active_plugins()[tuple(args)]
+
+
 class ProcessesHost:
-    _CURRENT_RUNNING_PROCESS = None
-    _PLUGINS_TABLE = None
 
     class _Housekeeper:
         @pyro_expose
         def setup(self, process, plugins):
-            if ProcessesHost._CURRENT_RUNNING_PROCESS is not None or ProcessesHost._PLUGINS_TABLE is not None:
+            global _ACTIVE_PROCESS, _ACTIVE_PLUGINS
+            if _ACTIVE_PROCESS is not None or _ACTIVE_PLUGINS is not None:
                 raise RuntimeError('More than one PluginHost are using the same process!')
             assert isinstance(process, Process), 'You should be serializing using pickle on Pyro!'
-            ProcessesHost._CURRENT_RUNNING_PROCESS = process
-            ProcessesHost._PLUGINS_TABLE = PluginLookupTable(plugins, process)
+            _ACTIVE_PROCESS = process
+            _ACTIVE_PLUGINS = PluginLookupTable(plugins, process)
 
         @pyro_expose
         def teardown(self):
-            if ProcessesHost._CURRENT_RUNNING_PROCESS is None or ProcessesHost._PLUGINS_TABLE is None:
+            global _ACTIVE_PROCESS, _ACTIVE_PLUGINS
+            if _ACTIVE_PROCESS is None or _ACTIVE_PLUGINS is None:
                 raise RuntimeError('More than one PluginHost are using the same process!')
-            ProcessesHost._CURRENT_RUNNING_PROCESS = None
-            ProcessesHost._PLUGINS_TABLE = None
+            _ACTIVE_PROCESS = None
+            _ACTIVE_PLUGINS = None
 
     @classmethod
     def _create_host(cls, socket_dir, plugin_definitions, process):
@@ -58,14 +77,6 @@ class ProcessesHost:
                 if plugin_process_instance is None:
                     continue
                 plugin_process_instance.deactivate()
-
-    @classmethod
-    def current_process(cls):
-        return cls._CURRENT_RUNNING_PROCESS
-
-    @classmethod
-    def plugins_table(cls):
-        return cls._PLUGINS_TABLE
 
     @property
     def plugin_instances(self):

@@ -4,7 +4,7 @@ from Pyro4 import expose as pyro_expose
 from plugins.singleton_host import SingletonHost
 from tempfile import TemporaryDirectory
 from plugins.base import ProcessPack, Process, PluginProcessBase, AVAILABLE_PROCESSES
-from plugins.processes_host import ProcessesHost
+from plugins.processes_host import ProcessesHost, active_process
 from plugins.decorators import make_plugin, get_all_plugins
 from plugins.lookup_table import PluginLookupTable
 
@@ -65,11 +65,11 @@ class TestPluginProcess(unittest.TestCase):
 
         @classmethod
         def process(cls):
-            return ProcessesHost.current_process()
+            return active_process()
 
         @pyro_expose
         def get_process(self):
-            return ProcessesHost.current_process(), os.getpid()
+            return active_process(), os.getpid()
 
         @pyro_expose
         def get_sibling_pid_set(self):
