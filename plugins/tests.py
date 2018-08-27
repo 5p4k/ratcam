@@ -58,7 +58,7 @@ class TestPluginProcess(unittest.TestCase):
     class TestProcess(PluginProcessBase):
         @pyro_expose
         def get_process(self):
-            return self.process, os.getpid()
+            return ProcessesHost.current_process(), os.getpid()
 
         @pyro_expose
         def get_sibling_pid_set(self):
