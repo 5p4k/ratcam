@@ -1,4 +1,4 @@
-from plugins.base import Process, AVAILABLE_PROCESSES, PluginProcessBase, ProcessPack
+from plugins.base import Process, AVAILABLE_PROCESSES, PluginProcessBase
 from plugins.singleton_host import SingletonHost
 
 
@@ -84,6 +84,5 @@ class PluginLookupTable:
                 plugin[process] = SingletonHost.local_singletons_by_id()[plugin_id]
 
     def __init__(self, plugins, process):
-        # Manually copy before replacing local instances
-        self._plugins = dict({k: ProcessPack(*v.values()) for k, v in plugins.items()})
+        self._plugins = plugins
         self._replace_local_instances(process)

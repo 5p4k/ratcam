@@ -153,11 +153,11 @@ class TestPluginLookup(unittest.TestCase):
         pack = ProcessPack(main=plugin_main, telegram=plugin_telegram)
         table = PluginLookupTable({name: pack}, Process.MAIN)
 
-        self.assertIsInstance(table[name], ProcessPack)
-        self.assertIsInstance(table[TestPluginLookup.TestPluginTablePluginTelegram], ProcessPack)
-        self.assertIsInstance(table[TestPluginLookup.TestPluginTablePluginMain], ProcessPack)
-        self.assertIsInstance(table[plugin_main], ProcessPack)
-        self.assertIsInstance(table[plugin_telegram], ProcessPack)
+        self.assertIs(table[name], pack)
+        self.assertIs(table[TestPluginLookup.TestPluginTablePluginTelegram], pack)
+        self.assertIs(table[TestPluginLookup.TestPluginTablePluginMain], pack)
+        self.assertIs(table[plugin_main], pack)
+        self.assertIs(table[plugin_telegram], pack)
 
         self.assertIs(table.telegram[name], plugin_telegram)
         self.assertIs(table.telegram[TestPluginLookup.TestPluginTablePluginTelegram], plugin_telegram)
@@ -183,7 +183,7 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIs(table[Process.MAIN][plugin_main], plugin_main)
         self.assertIs(table[Process.MAIN][plugin_telegram], plugin_main)
 
-        self.assertIsInstance(getattr(table, name), ProcessPack)
+        self.assertIs(getattr(table, name), pack)
         self.assertIs(table.telegram.TestPluginTable, plugin_telegram)
         self.assertIs(table.main.TestPluginTable, plugin_main)
         self.assertIs(table[Process.TELEGRAM].TestPluginTable, plugin_telegram)
