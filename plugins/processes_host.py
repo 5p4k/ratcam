@@ -5,17 +5,15 @@ from Pyro4 import expose as pyro_expose
 import os
 
 
-CURRENT_RUNNING_PROCESS = None
-
-
 class ProcessesHost:
+    _CURRENT_RUNNING_PROCESS = None
+
     class _ChangeCurrentlyRunningProcess:
         @pyro_expose
         def change(self, process):
-            global CURRENT_RUNNING_PROCESS
-            if (CURRENT_RUNNING_PROCESS is None) == (process is None):
+            if (ProcessesHost._CURRENT_RUNNING_PROCESS is None) == (process is None):
                 raise RuntimeError('More than one PluginHost are using the same process!')
-            CURRENT_RUNNING_PROCESS = process
+            ProcessesHost._CURRENT_RUNNING_PROCESS = process
 
     @classmethod
     def _create_host(cls, socket_dir, plugin_definitions, process):
@@ -49,6 +47,10 @@ class ProcessesHost:
                 if plugin_process_instance is None:
                     continue
                 plugin_process_instance.deactivate()
+
+    @classmethod
+    def current_process(cls):
+        return cls._CURRENT_RUNNING_PROCESS
 
     @property
     def plugin_instances(self):
