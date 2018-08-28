@@ -114,6 +114,8 @@ class ProcessesHost:
             self._plugin_instances[plugin_name] = None
         # Deactivate all hosts
         for host in self._plugin_process_host_pack.values():
+            host.singleton_host.initiate_shutdown()
+        for host in self._plugin_process_host_pack.values():
             host.__exit__(exc_type, exc_val, exc_tb)
         # Destroy all dirs
         self._socket_dir.__exit__(exc_type, exc_val, exc_tb)

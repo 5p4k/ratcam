@@ -8,7 +8,6 @@ from multiprocessing import Process
 from misc.logging import ensure_logging_setup
 import traceback
 from threading import Thread
-import time
 
 
 ensure_logging_setup()
@@ -20,8 +19,8 @@ Pyro4.config.SERIALIZERS_ACCEPTED.add('pickle')
 Pyro4.config.SERIALIZER = 'pickle'
 
 
-# Pyro and the subprocesses have 0.1 seconds to tear themselves down
-_DELAY_FOR_SHUTDOWN = 0.1
+# The subprocesses have this many seconds to shut themselves off
+_SHUTDOWN_TIMEOUT = 5
 
 
 class SingletonHost:
@@ -63,30 +62,26 @@ class SingletonHost:
 
         @pyro_expose
         def close(self):
-            _log.debug('%s: will stop in %f secs', self._name, _DELAY_FOR_SHUTDOWN)
+            _log.debug('%s: will stop.', self._name)
             self._clear_instantiated_objs()
-
             # Need to run on another thread, or it will cause a ConnectionClosedError
-            def _stop_daemon():
-                time.sleep(_DELAY_FOR_SHUTDOWN * 0.5)
-                self._daemon.close()
-            Thread(name='shutdown_threads', target=_stop_daemon).start()
+            Thread(target=self._daemon.shutdown, name='shutdown_thread').start()
 
         def __init__(self, daemon, name=None):
             self._daemon = daemon
             self._name = self.__class__.__name__ if name is None else name
             self._hosted_singletons = []
 
-    @staticmethod
-    def _server(socket, transmit_sync, name='SingletonServer'):
-        if os.path.exists(socket):
-            os.remove(socket)
-        daemon = PyroDaemon(unixsocket=socket)
-        uri = daemon.register(SingletonHost._SingletonServer(daemon, name=name), name)
-        _log.debug('%s: serving at %s', name, uri)
-        transmit_sync.transmit(str(uri))
-        daemon.requestLoop()
-        _log.debug('%s: stopped serving at %s', name, uri)
+        @staticmethod
+        def server_main(socket, transmit_sync, name='SingletonServer'):
+            if os.path.exists(socket):
+                os.remove(socket)
+            daemon = PyroDaemon(unixsocket=socket)
+            uri = daemon.register(SingletonHost._SingletonServer(daemon, name=name), name)
+            _log.debug('%s: serving at %s', name, uri)
+            transmit_sync.transmit(str(uri))
+            daemon.requestLoop()
+            _log.debug('%s: stopped serving at %s', name, uri)
 
     @classmethod
     def local_singletons_by_name(cls):
@@ -98,7 +93,8 @@ class SingletonHost:
 
     def __enter__(self):
         receiver, transmitter = create_sync_pair()
-        self._process = Process(target=SingletonHost._server, args=(self._socket, transmitter, self._name + 'Server'),
+        self._process = Process(target=SingletonHost._SingletonServer.server_main,
+                                args=(self._socket, transmitter, self._name + 'Server'),
                                 name=self._name)
         self._process.start()
         _log.debug('%s: waiting for server', self._name)
@@ -110,16 +106,22 @@ class SingletonHost:
         _log.debug('%s: obtained proxy at %s', self._name, uri)
         return self
 
+    def initiate_shutdown(self):
+        if self._instance is not None:
+            self._instance.close()
+            _log.debug('%s: signalled exit', self._name)
+            # On Linux, Pyro does not query the stopping flag unless we call something.
+            self._instance = None
+
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._instance.close()
-        _log.debug('%s: signalled exit, waiting for server', self._name)
-        self._process.join(_DELAY_FOR_SHUTDOWN)
+        self.initiate_shutdown()
+        _log.debug('%s: waiting %0.1f seconds for server to join.', self._name, _SHUTDOWN_TIMEOUT)
+        self._process.join(_SHUTDOWN_TIMEOUT)
         if self._process.is_alive():
             _log.warning('%s: server did not join, terminating.', self._name)
             self._process.terminate()
         else:
             _log.debug('%s: server joined', self._name)
-        self._instance = None
         self._process = None
         if os.path.exists(self._socket):
             os.remove(self._socket)
