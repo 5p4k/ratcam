@@ -1,4 +1,6 @@
 [run]
+concurrency = multiprocessing
+    thread
 omit =
     legacy
     srgb

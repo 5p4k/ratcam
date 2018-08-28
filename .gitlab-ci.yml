@@ -4,4 +4,5 @@ python_unittest:
   - pip install -r requirements-ut.txt
   script:
   - coverage run tests.py
+  - coverage combine
   - coverage report

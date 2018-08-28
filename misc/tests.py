@@ -75,5 +75,5 @@ class TestDotDict(unittest.TestCase):
         self.assertEqual(d, {'a': {}, 'b': {'c': {}}})
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     unittest.main()

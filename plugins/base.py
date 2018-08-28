@@ -1,6 +1,5 @@
 from enum import Enum
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
-import Pyro4
 
 
 class Process(Enum):

@@ -9,3 +9,4 @@ ratcam.log
 *auth.json
 .DS_Store
 .coverage
+.coverage.*

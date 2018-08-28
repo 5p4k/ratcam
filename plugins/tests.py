@@ -194,5 +194,5 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIn(name, table.keys())
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     unittest.main()
