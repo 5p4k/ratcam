@@ -66,16 +66,12 @@ class ProcessesHost:
 
     def _activate_all_plugin_process_instances(self):
         for plugin_instance_pack in self.plugin_instances.values():
-            for process, plugin_process_instance in plugin_instance_pack.items():
-                if plugin_process_instance is None:
-                    continue
-                plugin_process_instance.activate(self.plugin_instances)
+            for plugin_process_instance in filter(lambda x: x is not None, plugin_instance_pack.values()):
+                plugin_process_instance.activate()
 
     def _deactivate_all_plugin_process_instances(self):
         for plugin_name, plugin_instance_pack in self.plugin_instances.items():
-            for process, plugin_process_instance in plugin_instance_pack.items():
-                if plugin_process_instance is None:
-                    continue
+            for plugin_process_instance in filter(lambda x: x is not None, plugin_instance_pack.values()):
                 plugin_process_instance.deactivate()
 
     @property

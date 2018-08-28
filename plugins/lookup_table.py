@@ -74,6 +74,15 @@ class PluginLookupTable:
 
     __getattr__ = __getitem__
 
+    def values(self):
+        return self._plugins.values()
+    
+    def items(self):
+        return self._plugins.items()
+    
+    def keys(self):
+        return self._plugins.keys()
+
     def _replace_local_instances(self, process):
         for plugin in self._plugins.values():
             if plugin[process] is None:
