@@ -24,6 +24,13 @@ class HandlersTestCase(unittest.TestCase):
         self.assertEqual(len(handlers), 1)
         self.assertEqual(handlers[0](), ('something', 3387))
 
+    def test_manual_override_of_handlers_prop(self):
+        with self.assertRaises(RuntimeError):
+            class TestHandlerClsFailing(HandlerBase):
+                _HANDLERS = 'SOME STRING'
+            # Dummy
+            TestHandlerClsFailing()  # pragma: no cover
+
 
 if __name__ == '__main__':  # pragma: no cover
     unittest.main()
