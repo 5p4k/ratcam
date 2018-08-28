@@ -1,4 +1,6 @@
-from plugins import PluginProcessBase, make_plugin, Process
+from plugins.base import PluginProcessBase, Process
+from plugins.decorators import make_plugin
+from plugins.processes_host import find_plugin, active_plugins
 from Pyro4 import expose as pyro_expose
 import logging
 from misc.logging import ensure_logging_setup
@@ -39,8 +41,8 @@ except (ImportError, OSError) as e:
 
 class CameraProcessBase(PluginProcessBase):
     @property
-    def camera_plugin(self):
-        return self.plugins[PICAMERA_PLUGIN_NAME][Process.CAMERA]
+    def root_camera_plugin(self):
+        return find_plugin(PICAMERA_PLUGIN_NAME).camera
 
     def write(self, data):
         pass
@@ -54,14 +56,12 @@ class CameraProcessBase(PluginProcessBase):
 
 class _CameraPluginDispatcher(PiMotionAnalysis):
     def _dispatch(self, method_name, *args, **kwargs):
-        for plugin_name, plugin in self._picamera_proc.plugins.items():
+        for plugin_name, plugin in active_plugins().items():
             # TODO Make sure it's ready to receive data
-            plugin_cam_process = plugin[Process.CAMERA]
-            if plugin_cam_process is None:
+            if plugin.camera is None or not isinstance(plugin.camera, CameraProcessBase):
                 continue
-            method = getattr(plugin_cam_process, method_name, None)
-            if method is None or not callable(method):
-                continue
+            method = getattr(plugin.camera, method_name, None)
+            assert method is not None and callable(method), 'Calling a method undefined in CameraProcessBase?'
             try:
                 method(*args, **kwargs)
             except Exception as e:
@@ -77,9 +77,8 @@ class _CameraPluginDispatcher(PiMotionAnalysis):
     def analyze(self, array):
         self._dispatch('analyze', array)
 
-    def __init__(self, picamera_proc):
-        super(_CameraPluginDispatcher, self).__init__(picamera_proc.camera)
-        self._picamera_proc = picamera_proc
+    def __init__(self, camera):
+        super(_CameraPluginDispatcher, self).__init__(camera)
 
 
 @make_plugin(PICAMERA_PLUGIN_NAME, Process.CAMERA)
@@ -88,7 +87,7 @@ class PicameraProcess(PluginProcessBase):
         super(PicameraProcess, self).__init__()
         self._camera = PiCamera()
         self._bitrate = SETTINGS.camera.bitrate
-        self._dispatcher = _CameraPluginDispatcher(self)
+        self._dispatcher = _CameraPluginDispatcher(self.camera)
 
     def __enter__(self):
         super(PicameraProcess, self).__enter__()

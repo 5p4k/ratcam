@@ -79,10 +79,6 @@ class PluginProcessBase:
     def get_remote_process(self):
         return self.__class__.process()
 
-    @property
-    def plugins(self):
-        return self._plugins
-
     def __enter__(self):
         pass
 
@@ -91,21 +87,10 @@ class PluginProcessBase:
 
     @pyro_expose
     @pyro_oneway
-    def activate(self, plugins):
-        assert all(map(lambda plugin_pack: isinstance(plugin_pack, ProcessPack), plugins.values())), \
-            'You called PluginProcessBase.activate via Pyro, but the Process object was downcasted to a string. You ' \
-            'may have configured the wrong Pyro serializer. The current Pyro serializer is ' + \
-            Pyro4.config.SERIALIZER + ' and the only serializer that can send correctly an Enum (or ProcessPack, ' \
-                                      'which is also needed) is pickle.'
-        self._plugins = plugins
-        # self._replace_local_plugin_instances()
+    def activate(self):
         self.__enter__()
 
     @pyro_expose
     @pyro_oneway
     def deactivate(self):
         self.__exit__(None, None, None)
-        self._plugins = None
-
-    def __init__(self):
-        self._plugins = None

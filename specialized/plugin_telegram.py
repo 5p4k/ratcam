@@ -1,4 +1,6 @@
-from plugins import PluginProcessBase, make_plugin, Process
+from plugins.base import PluginProcessBase, Process
+from plugins.decorators import make_plugin
+from plugins.processes_host import find_plugin, active_plugins
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from specialized.telegram_support.auth import AuthStatus, AuthAttemptResult
 from specialized.telegram_support.auth_filter import AuthStatusFilter
@@ -18,9 +20,9 @@ _log = logging.getLogger(TELEGRAM_PLUGIN_NAME.lower())
 def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
     if auth_status is not None:
         if filters is None:
-            return some_telegram_plugin.telegram_plugin.auth_filters[auth_status]
+            return some_telegram_plugin.root_telegram_plugin.auth_filters[auth_status]
         else:
-            return filters & some_telegram_plugin.telegram_plugin.auth_filters[auth_status]
+            return filters & some_telegram_plugin.root_telegram_plugin.auth_filters[auth_status]
     return filters
 
 
@@ -43,8 +45,8 @@ def handle_message(filters=None, auth_status=AuthStatus.AUTHORIZED):
 
 class TelegramProcessBase(PluginProcessBase, HandlerBase):
     @property
-    def telegram_plugin(self):
-        return self.plugins[TELEGRAM_PLUGIN_NAME][Process.TELEGRAM]
+    def root_telegram_plugin(self):
+        return find_plugin(TELEGRAM_PLUGIN_NAME).telegram
 
 
 @make_plugin(TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)
@@ -53,11 +55,10 @@ class TelegramProcess(TelegramProcessBase):
         save_chat_auth_storage(SETTINGS.telegram.auth_file, self._auth_storage, log=_log)
 
     def _collect_handlers(self):
-        for plugin_name, plugin in self.plugins.items():
-            plugin_telegram_process = plugin[Process.TELEGRAM]
-            if plugin_telegram_process is None or not isinstance(plugin_telegram_process, TelegramProcessBase):
+        for plugin in active_plugins().values():
+            if plugin.telegram is None or not isinstance(plugin.telegram, TelegramProcessBase):
                 continue
-            yield from plugin_telegram_process.handlers
+            yield from plugin.telegram.handlers
 
     def _setup_handlers(self):
         if len(self._updater.dispatcher.handlers) > 0:
