@@ -189,6 +189,10 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIs(table[Process.TELEGRAM].TestPluginTable, plugin_telegram)
         self.assertIs(table[Process.MAIN].TestPluginTable, plugin_main)
 
+        self.assertIn(pack, table.values())
+        self.assertIn((name, pack), table.items())
+        self.assertIn(name, table.keys())
+
 
 if __name__ == '__main__':
     unittest.main()
