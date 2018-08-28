@@ -31,7 +31,8 @@ class SingletonHost:
         def _instantiate(self, singleton_cls):
             try:
                 instance = singleton_cls()
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
+                # This doesn't need to be covered by testing, we use it for debugging only
                 _log.error('Unable to instantiate {}, error: {}, {}'.format(singleton_cls.__name__,
                                                                             e.__class__.__name__, str(e)))
                 for line in traceback.format_exc().splitlines(keepends=False):
@@ -117,7 +118,7 @@ class SingletonHost:
         self.initiate_shutdown()
         _log.debug('%s: waiting %0.1f seconds for server to join.', self._name, _SHUTDOWN_TIMEOUT)
         self._process.join(_SHUTDOWN_TIMEOUT)
-        if self._process.is_alive():
+        if self._process.is_alive():  # pragma: no cover
             _log.warning('%s: server did not join, terminating.', self._name)
             self._process.terminate()
         else:
