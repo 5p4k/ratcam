@@ -31,7 +31,7 @@ class ProcessesHost:
         @pyro_expose
         def setup(self, process, plugins):
             global _ACTIVE_PROCESS, _ACTIVE_PLUGINS
-            if _ACTIVE_PROCESS is not None or _ACTIVE_PLUGINS is not None:
+            if _ACTIVE_PROCESS is not None or _ACTIVE_PLUGINS is not None:  # pragma: no cover
                 raise RuntimeError('More than one PluginHost are using the same process!')
             assert isinstance(process, Process), 'You should be serializing using pickle on Pyro!'
             _ACTIVE_PROCESS = process
@@ -40,7 +40,7 @@ class ProcessesHost:
         @pyro_expose
         def teardown(self):
             global _ACTIVE_PROCESS, _ACTIVE_PLUGINS
-            if _ACTIVE_PROCESS is None or _ACTIVE_PLUGINS is None:
+            if _ACTIVE_PROCESS is None or _ACTIVE_PLUGINS is None:  # pragma: no cover
                 raise RuntimeError('More than one PluginHost are using the same process!')
             _ACTIVE_PROCESS = None
             _ACTIVE_PLUGINS = None
