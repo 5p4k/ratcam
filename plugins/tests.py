@@ -136,6 +136,14 @@ class TestPluginDecorator(unittest.TestCase):
                 else:
                     self.assertIsNone(instance)
 
+    def test_wrong_base(self):
+        with self.assertRaises(ValueError):
+            @make_plugin('A', Process.MAIN)
+            class NotAPlugin:
+                pass
+            # Dummy usage
+            NotAPlugin()  # pragma: no cover
+
 
 class TestPluginLookup(unittest.TestCase):
     @make_plugin('TestPluginTable', Process.MAIN)

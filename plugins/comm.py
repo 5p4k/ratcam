@@ -24,7 +24,7 @@ class ReceiveSync(SyncBase):
             self._received.set()
             self._transmitted.clear()
             return data
-        return None
+        return None  # pragma: no cover
 
 
 def create_sync_pair(receive_cls=ReceiveSync, transmit_cls=TransmitSync):
