@@ -61,6 +61,20 @@ class TestCustomSerialization(unittest.TestCase):
         self.assertEqual(TestCustom(5), through_json(TestCustom(5)))
         self.assertEqual(TestCustom(b'foobar'), through_json(TestCustom(b'foobar')))
 
+    def test_nonserializable(self):
+        class Something:
+            pass
+        with self.assertRaises(TypeError):
+            through_json(Something())
+        with self.assertRaises(RuntimeError):
+            @make_custom_serializable
+            class SomethingNonSerializable:
+                @classmethod
+                def from_json(cls, payload):  # pragma: no cover
+                    pass
+            # Dummy usage
+            SomethingNonSerializable()  # pragma: no cover
+
 
 class TestDotDict(unittest.TestCase):
     def test_dotdict(self):
