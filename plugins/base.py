@@ -59,11 +59,11 @@ class ProcessPack:
 
 class PluginProcessBase:
     @classmethod
-    def plugin_name(cls):
+    def plugin_name(cls):  # pragma: no cover
         return None
 
     @classmethod
-    def process(cls):
+    def process(cls):  # pragma: no cover
         return None
 
     @pyro_expose
