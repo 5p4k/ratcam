@@ -19,8 +19,8 @@ class Media(namedtuple('_Media', ['uuid', 'owning_process', 'kind', 'path', 'inf
 
 
 class MediaReceiver:
-    def handle_media(self, media):
-        raise NotImplementedError
+    def handle_media(self, media):  # pragma: no cover
+        raise NotImplementedError()
 
 
 class MediaManagerPlugin(PluginProcessBase):
@@ -29,7 +29,7 @@ class MediaManagerPlugin(PluginProcessBase):
         return MEDIA_MANAGER_PLUGIN_NAME
 
     @classmethod
-    def process(cls):
+    def process(cls):  # pragma: no cover
         # This plugin can run on any process
         return active_process()
 
