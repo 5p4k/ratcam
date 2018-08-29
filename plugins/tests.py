@@ -196,6 +196,7 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIs(table[Process.MAIN][plugin_telegram], plugin_main)
 
         self.assertIs(getattr(table, name), pack)
+        self.assertIs(getattr(table.telegram, name), plugin_telegram)
         self.assertIs(table.telegram.TestPluginTable, plugin_telegram)
         self.assertIs(table.main.TestPluginTable, plugin_main)
         self.assertIs(table[Process.TELEGRAM].TestPluginTable, plugin_telegram)
@@ -204,6 +205,18 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIn(pack, table.values())
         self.assertIn((name, pack), table.items())
         self.assertIn(name, table.keys())
+
+        possible_results = []
+        with self.assertRaises(ValueError):
+            possible_results.append(table[123, 123])
+
+        with self.assertRaises(ValueError):
+            possible_results.append(table[123, Process.MAIN])
+
+        with self.assertRaises(ValueError):
+            possible_results.append(table[1, 2, 3])
+
+        self.assertEqual(len(possible_results), 0)
 
 
 if __name__ == '__main__':  # pragma: no cover
