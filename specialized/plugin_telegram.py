@@ -54,17 +54,16 @@ class TelegramProcess(TelegramProcessBase):
     def _save_chat_auth_storage(self):
         save_chat_auth_storage(SETTINGS.telegram.auth_file, self._auth_storage, log=_log)
 
-    def _collect_handlers(self):
-        for plugin in active_plugins().values():
-            if plugin.telegram is None or not isinstance(plugin.telegram, TelegramProcessBase):
-                continue
-            yield from plugin.telegram.handlers
-
     def _setup_handlers(self):
+        def _collect_handlers():
+            for plugin in active_plugins():
+                if plugin.telegram is None or not isinstance(plugin.telegram, TelegramProcessBase):
+                    continue
+                yield from plugin.telegram.handlers
         if len(self._updater.dispatcher.handlers) > 0:
             return None
         cnt = 0
-        for handler in self._collect_handlers():
+        for handler in _collect_handlers():
             self._updater.dispatcher.add_handler(handler)
             cnt += 1
         return cnt
