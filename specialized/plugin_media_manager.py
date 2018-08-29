@@ -54,16 +54,18 @@ class MediaManagerPlugin(PluginProcessBase):
                 self._dispatch_thread_wake.set()
 
     def deliver_media(self, path, kind, info=None):
+        media_mgr_pack = find_plugin(self)
         with self._media_lock:
             uuid = None
             while uuid is None or uuid in self._media:
                 uuid = uuid4()
             media = Media(uuid, active_process(), kind, path, info)
             self._media[uuid] = media
-            self._media_in_use[uuid] = ProcessPack(True, True, True)
+            # Assume not necessarily we have a media manager on every single process. This makes easier testing.
+            self._media_in_use[uuid] = ProcessPack([entry is not None for entry in media_mgr_pack.values()])
             _log.info('Dispatching media %s at path %s.', str(media.uuid), os.path.abspath(media.path))
-        # Dispatch to all the other media managers
-        for media_mgr in find_plugin(self).values():
+        # Dispatch to all the other media managers.
+        for media_mgr in media_mgr_pack.nonempty_values():
             media_mgr.dispatch_media(media)
 
     def _pop_media_to_delete(self):
