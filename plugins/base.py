@@ -48,6 +48,15 @@ class ProcessPack:
     def values(self):
         yield from self._d
 
+    def nonempty_values(self):
+        yield from [entry for entry in self._d if entry is not None]
+
+    def __iter__(self):
+        return iter(self.values())
+
+    def __next__(self):
+        return next(self.values())
+
     def __init__(self, *args, **kwargs):
         args = list(args[:len(AVAILABLE_PROCESSES)])
         args = args + ([None] * (len(AVAILABLE_PROCESSES) - len(args)))

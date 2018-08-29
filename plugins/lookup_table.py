@@ -75,6 +75,12 @@ class PluginLookupTable:
 
     __getattr__ = __getitem__
 
+    def __iter__(self):
+        return iter(self.values())
+
+    def __next__(self):
+        return next(self.values())
+
     def values(self):
         return self._plugins.values()
     
