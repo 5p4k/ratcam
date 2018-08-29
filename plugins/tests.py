@@ -55,7 +55,7 @@ class TestProcessPack(unittest.TestCase):
             self.assertEqual(pack[process.value], process.value)
             self.assertEqual(getattr(pack, process.value), process.value)
             setattr(pack, process.value, None)
-            pack[AVAILABLE_PROCESSES.index(process.value)] = None  # also None, to test assignment
+            pack[process] = None  # also None, to test assignment
             self.assertIsNone(getattr(pack, process.value))
         with self.assertRaises(KeyError):
             _ = pack[dict()]

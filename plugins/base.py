@@ -27,8 +27,6 @@ class ProcessPack:
             return self._d[AVAILABLE_PROCESSES.index(item.value)]
         elif isinstance(item, str):
             return self._d[AVAILABLE_PROCESSES.index(item)]
-        elif isinstance(item, int):
-            return self._d[item]
         raise KeyError(item)
 
     def __setitem__(self, key, value):
@@ -36,8 +34,6 @@ class ProcessPack:
             self._d[AVAILABLE_PROCESSES.index(key.value)] = value
         elif isinstance(key, str):
             self._d[AVAILABLE_PROCESSES.index(key)] = value
-        elif isinstance(key, int):
-            self._d[key] = value
         else:
             raise KeyError(key)
 
