@@ -1,5 +1,6 @@
 from plugins.base import Process, AVAILABLE_PROCESSES, PluginProcessBase
 from plugins.singleton_host import SingletonHost
+import inspect
 
 
 class _PartialLookup:
@@ -29,7 +30,7 @@ class PluginLookupTable:
             return spec
         elif isinstance(spec, PluginProcessBase):
             return spec.get_remote_plugin_name()
-        elif issubclass(spec, PluginProcessBase):
+        elif inspect.isclass(spec) and issubclass(spec, PluginProcessBase):
             return spec.plugin_name()
         return None
 
