@@ -4,10 +4,6 @@ from plugins.base import ProcessPack, Process, PluginProcessBase
 _PLUGINS = {}
 
 
-def _update_pack(pack, **kwargs):
-    return ProcessPack(*[pack[k] if k.value not in kwargs else kwargs[k.value] for k in Process])
-
-
 class _MakePlugin:
     def _ensure_process(self, cls):
         if cls.process.__func__ is PluginProcessBase.process.__func__:
@@ -58,4 +54,4 @@ def register(plugin_cls, name, process):
     global _PLUGINS
     if name not in _PLUGINS:
         _PLUGINS[name] = ProcessPack(None, None, None)
-    _PLUGINS[name] = _update_pack(_PLUGINS[name], **{process.value: plugin_cls})
+    _PLUGINS[name][process] = plugin_cls
