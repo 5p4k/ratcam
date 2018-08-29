@@ -1,7 +1,7 @@
 import os
 import logging
 import pickle
-from Pyro4 import expose as pyro_expose, Daemon as PyroDaemon, Proxy as PyroProxy
+from Pyro4 import expose as pyro_expose, Daemon as PyroDaemon, Proxy as PyroProxy, oneway as pyro_oneway
 import Pyro4
 from plugins.comm import create_sync_pair
 from multiprocessing import Process
@@ -62,6 +62,7 @@ class SingletonHost:
             return str(uri)
 
         @pyro_expose
+        @pyro_oneway
         def close(self):
             _log.debug('%s: will stop.', self._name)
             self._clear_instantiated_objs()
