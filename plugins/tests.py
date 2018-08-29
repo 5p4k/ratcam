@@ -130,7 +130,7 @@ class TestPluginDecorator(unittest.TestCase):
             return 2
 
     def test_process_host(self):
-        with ProcessesHost(get_all_plugins()) as processes:
+        with ProcessesHost({k: v for k, v in get_all_plugins().items() if k == 'TestPluginDecorator'}) as processes:
             self.assertIn('TestPluginDecorator', processes.plugin_instances)
             instance_pack = processes.plugin_instances['TestPluginDecorator']
             for process, instance in instance_pack.items():

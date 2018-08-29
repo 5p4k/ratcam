@@ -87,11 +87,9 @@ class PluginProcessBase:
         pass
 
     @pyro_expose
-    @pyro_oneway
     def activate(self):
         self.__enter__()
 
     @pyro_expose
-    @pyro_oneway
     def deactivate(self):
         self.__exit__(None, None, None)
