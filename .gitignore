@@ -10,3 +10,6 @@ ratcam.log
 .DS_Store
 .coverage
 .coverage.*
+cam_replay.json.gz
+cam_replay.json
+*.old
