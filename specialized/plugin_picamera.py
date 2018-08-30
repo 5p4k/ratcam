@@ -64,9 +64,9 @@ class _CameraPluginDispatcher(PiMotionAnalysis):
             assert method is not None and callable(method), 'Calling a method undefined in CameraProcessBase?'
             try:
                 method(*args, **kwargs)
-            except Exception as e:
+            except Exception as exc:
                 _log.error('Plugin %s has triggered an exception during %s: %s',
-                           plugin_name, method_name, str(e))
+                           plugin_name, method_name, str(exc))
 
     def write(self, data):
         self._dispatch('write', data)
