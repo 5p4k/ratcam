@@ -207,13 +207,13 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIn(name, table.keys())
 
         possible_results = []
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             possible_results.append(table[123, 123])
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             possible_results.append(table[123, Process.MAIN])
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             possible_results.append(table[1, 2, 3])
 
         self.assertEqual(len(possible_results), 0)
