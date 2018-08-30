@@ -4,7 +4,6 @@ from enum import Enum
 from misc.extended_json_codec import make_custom_serializable
 import numpy as np
 import io
-from base64 import b64encode as base64_encode, b64decode as base64_decode
 
 
 @make_custom_serializable
@@ -25,7 +24,7 @@ class Event:
         if self.event_type == EventType.ANALYZE:
             with io.BytesIO() as buffer:
                 np.save(buffer, self.data)
-                return base64_encode(buffer.getvalue())
+                return buffer.getvalue()
         elif self.event_type == EventType.WRITE:
             return self.data.hex()
         elif self.event_type == EventType.FLUSH:
@@ -34,7 +33,7 @@ class Event:
     @classmethod
     def _decode_data(cls, event_type, data):
         if event_type == EventType.ANALYZE:
-            with io.BytesIO(base64_decode(data)) as buffer:
+            with io.BytesIO(data) as buffer:
                 return np.load(buffer)
         elif event_type == EventType.WRITE:
             return bytes.fromhex(data)

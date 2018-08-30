@@ -1,6 +1,7 @@
 from datetime import datetime
 from json import JSONEncoder
 from enum import Enum
+from base64 import b64encode, b64decode
 
 
 def make_custom_serializable(typ):
@@ -42,7 +43,7 @@ class ExtendedJSONCodec(JSONEncoder):
         if isinstance(obj, datetime):
             return {self.__class__.TYPE_KEY: obj.__class__.__name__, obj.__class__.__name__: obj.timestamp()}
         elif isinstance(obj, bytes):
-            return {self.__class__.TYPE_KEY: obj.__class__.__name__, obj.__class__.__name__: obj.hex()}
+            return {self.__class__.TYPE_KEY: obj.__class__.__name__, obj.__class__.__name__: b64encode(obj).decode()}
         elif self.__class__._can_be_custom_serialized(obj):
             return {self.__class__.TYPE_KEY: obj.__class__.__name__, obj.__class__.__name__: obj.to_json()}
         else:
@@ -55,7 +56,7 @@ class ExtendedJSONCodec(JSONEncoder):
         if declared_type == datetime.__name__:
             return datetime.fromtimestamp(payload.get(datetime.__name__))
         elif declared_type == bytes.__name__:
-            return bytes.fromhex(payload.get(bytes.__name__))
+            return b64decode(payload.get(bytes.__name__).encode())
         elif cls._can_be_custom_deserialized(payload):
             declared_type = cls.ACCEPTED_CLASSES[payload.get(cls.TYPE_KEY)]
             return declared_type.from_json(payload.get(declared_type.__name__))
