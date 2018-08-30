@@ -26,7 +26,7 @@ class Event:
                 np.save(buffer, self.data)
                 return buffer.getvalue()
         elif self.event_type == EventType.WRITE:
-            return self.data.hex()
+            return self.data
         elif self.event_type == EventType.FLUSH:
             return None
 
@@ -36,7 +36,7 @@ class Event:
             with io.BytesIO(data) as buffer:
                 return np.load(buffer)
         elif event_type == EventType.WRITE:
-            return bytes.fromhex(data)
+            return data
         elif event_type == EventType.FLUSH:
             return None
 
