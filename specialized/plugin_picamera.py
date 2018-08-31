@@ -54,31 +54,34 @@ class CameraProcessBase(PluginProcessBase):
         pass
 
 
-class _CameraPluginDispatcher(PiMotionAnalysis):
-    def _dispatch(self, method_name, *args, **kwargs):
-        for plugin_name, plugin in active_plugins().items():
-            # TODO Make sure it's ready to receive data
-            if plugin.camera is None or not isinstance(plugin.camera, CameraProcessBase):
-                continue
-            method = getattr(plugin.camera, method_name, None)
-            assert method is not None and callable(method), 'Calling a method undefined in CameraProcessBase?'
-            try:
-                method(*args, **kwargs)
-            except Exception as exc:
-                _log.error('Plugin %s has triggered an exception during %s: %s',
-                           plugin_name, method_name, str(exc))
+def _cam_dispatch(self, method_name, *args, **kwargs):
+    for plugin_name, plugin in active_plugins().items():
+        # TODO Make sure it's ready to receive data
+        if plugin.camera is None or not isinstance(plugin.camera, CameraProcessBase):
+            continue
+        method = getattr(plugin.camera, method_name, None)
+        assert method is not None and callable(method), 'Calling a method undefined in CameraProcessBase?'
+        try:
+            method(*args, **kwargs)
+        except Exception as exc:
+            _log.error('Plugin %s has triggered an exception during %s: %s',
+                       plugin_name, method_name, str(exc))
 
-    def write(self, data):
-        self._dispatch('write', data)
 
-    def flush(self):
-        self._dispatch('flush')
-
+class _CameraPluginMotionDispatcher(PiMotionAnalysis):
     def analyze(self, array):
-        self._dispatch('analyze', array)
+        _cam_dispatch('analyze', array)
 
     def __init__(self, camera):
-        super(_CameraPluginDispatcher, self).__init__(camera)
+        super(_CameraPluginMotionDispatcher, self).__init__(camera)
+
+
+class _CameraPluginVideoDispatcher:
+    def write(self, data):
+        _cam_dispatch('write', data)
+
+    def flush(self):
+        _cam_dispatch('flush')
 
 
 @make_plugin(PICAMERA_PLUGIN_NAME, Process.CAMERA)
@@ -87,16 +90,15 @@ class PicameraProcess(PluginProcessBase):
         super(PicameraProcess, self).__init__()
         self._camera = PiCamera()
         self._bitrate = SETTINGS.camera.bitrate
-        self._dispatcher = _CameraPluginDispatcher(self.camera)
 
     def __enter__(self):
         super(PicameraProcess, self).__enter__()
         _log.info('Beginning streaming data at bitrate %s, framerate %s and resolution %s.',
                   str(self.bitrate), str(self.framerate), str(self.resolution))
         self.camera.start_recording(
-            self._dispatcher,
+            _CameraPluginVideoDispatcher(),
             format='h264',
-            motion_output=self._dispatcher,
+            motion_output=_CameraPluginMotionDispatcher(self.camera),
             quality=None,
             bitrate=self.bitrate)
 
@@ -139,6 +141,6 @@ class PicameraProcess(PluginProcessBase):
     def bitrate(self, value):
         if self.camera.recording:
             # TODO: possibly stop and restart recording?
-            raise NotImplementedError('Unable to set bitrate while recording')
+            raise RuntimeError('Unable to set bitrate while recording')
         else:
             self._bitrate = value
