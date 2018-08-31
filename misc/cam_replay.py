@@ -55,20 +55,20 @@ class CamEvent:
         event_type = CamEventType(payload['event_type'])
         return cls(payload['time'], event_type, cls._decode_data(event_type, payload['data']))
 
-    def __lt__(self, other):
+    def __lt__(self, other):  # pragma: no cover
         return self.time < other.time
 
-    def __le__(self, other):
+    def __le__(self, other):  # pragma: no cover
         return self.time <= other.time
 
-    def __gt__(self, other):
+    def __gt__(self, other):  # pragma: no cover
         return self.time > other.time
 
-    def __ge__(self, other):
+    def __ge__(self, other):  # pragma: no cover
         return self.time >= other.time
 
 
-class Recorder:
+class Recorder:  # pragma: no cover
     def record_event(self, event_type, data=None):
         self.data.append(CamEvent(now() - self.start_time, event_type, data))
 
@@ -77,7 +77,7 @@ class Recorder:
         self.data = []
 
 
-class MotionRecorder(PiMotionAnalysis):
+class MotionRecorder(PiMotionAnalysis):  # pragma: no cover
     def analyze(self, array):
         self._recorder.record_event(CamEventType.ANALYZE, array)
 
@@ -86,7 +86,7 @@ class MotionRecorder(PiMotionAnalysis):
         self._recorder = recorder
 
 
-class VideoRecorder:
+class VideoRecorder:  # pragma: no cover
     def write(self, data):
         self._recorder.record_event(CamEventType.WRITE, data)
 
@@ -100,7 +100,7 @@ class VideoRecorder:
 PiMotionAnalysisMockup = PiMotionAnalysis
 
 
-class PiCameraMockup:
+class PiCameraMockup:  # pragma: no cover
     def __init__(self):
         self._recording = False
         self._bitrate = 7500
@@ -162,7 +162,7 @@ class PicameraReplay:
     def __init__(self, events, camera=PiCameraMockup()):
         # Partial copy
         self._events = sorted([CamEvent(e.time, e.event_type, e.data) for e in events])
-        if len(self._events) == 0:
+        if len(self._events) == 0:  # pragma: no cover
             raise ValueError('You must provide at least one event')
         self._camera = camera
         self._replay_thread = None
