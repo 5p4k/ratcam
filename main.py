@@ -18,7 +18,7 @@ def main(args):
         ensure_logging_setup(logging.DEBUG, reset=True)
     plugins = get_all_plugins()
     if not args.camera:
-        del plugins[plugin_picamera.PICAMERA_PLUGIN_NAME]
+        del plugins[plugin_picamera.PICAMERA_ROOT_PLUGIN_NAME]
     assert plugin_telegram.TELEGRAM_PLUGIN_NAME in plugins
     logging.info('Running the following plugins: ' + ', '.join(plugins.keys()))
     # Ignore KeyboardInterrupt. If we don't do so, it will be raised also in the child processes. We do not have control

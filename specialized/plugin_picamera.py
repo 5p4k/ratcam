@@ -7,9 +7,9 @@ from misc.logging import ensure_logging_setup
 from misc.settings import SETTINGS
 
 
-PICAMERA_PLUGIN_NAME = 'Picamera'
+PICAMERA_ROOT_PLUGIN_NAME = 'Picamera'
 ensure_logging_setup()
-_log = logging.getLogger(PICAMERA_PLUGIN_NAME.lower())
+_log = logging.getLogger(PICAMERA_ROOT_PLUGIN_NAME.lower())
 
 
 try:
@@ -23,10 +23,10 @@ except (ImportError, OSError) as e:
         _log.warning('Faulty PiCamera package (installed s/w else than a RPi?), running mockup.')
 
 
-class CameraProcessBase(PluginProcessBase):
+class PiCameraProcessBase(PluginProcessBase):
     @property
-    def root_camera_plugin(self):
-        return find_plugin(PICAMERA_PLUGIN_NAME).camera
+    def picamera_root_plugin(self):
+        return find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera
 
     def write(self, data):
         pass
@@ -41,10 +41,10 @@ class CameraProcessBase(PluginProcessBase):
 def _cam_dispatch(self, method_name, *args, **kwargs):
     for plugin_name, plugin in active_plugins().items():
         # TODO Make sure it's ready to receive data
-        if plugin.camera is None or not isinstance(plugin.camera, CameraProcessBase):
+        if plugin.camera is None or not isinstance(plugin.camera, PiCameraProcessBase):
             continue
         method = getattr(plugin.camera, method_name, None)
-        assert method is not None and callable(method), 'Calling a method undefined in CameraProcessBase?'
+        assert method is not None and callable(method), 'Calling a method undefined in PiCameraProcessBase?'
         try:
             method(*args, **kwargs)
         except Exception as exc:
@@ -68,15 +68,15 @@ class _CameraPluginVideoDispatcher:
         _cam_dispatch('flush')
 
 
-@make_plugin(PICAMERA_PLUGIN_NAME, Process.CAMERA)
-class PicameraProcess(PluginProcessBase):
+@make_plugin(PICAMERA_ROOT_PLUGIN_NAME, Process.CAMERA)
+class PiCameraRootPlugin(PluginProcessBase):
     def __init__(self):
-        super(PicameraProcess, self).__init__()
+        super(PiCameraRootPlugin, self).__init__()
         self._camera = PiCamera()
         self._bitrate = SETTINGS.camera.bitrate
 
     def __enter__(self):
-        super(PicameraProcess, self).__enter__()
+        super(PiCameraRootPlugin, self).__enter__()
         _log.info('Beginning streaming data at bitrate %s, framerate %s and resolution %s.',
                   str(self.bitrate), str(self.framerate), str(self.resolution))
         self.camera.start_recording(
@@ -87,7 +87,7 @@ class PicameraProcess(PluginProcessBase):
             bitrate=self.bitrate)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        super(PicameraProcess, self).__exit__(exc_type, exc_val, exc_tb)
+        super(PiCameraRootPlugin, self).__exit__(exc_type, exc_val, exc_tb)
         self.camera.stop_recording()
         _log.info('Stopping streaming data.')
 
