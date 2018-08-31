@@ -4,6 +4,7 @@ from misc.extended_json_codec import make_custom_serializable, ExtendedJSONCodec
 import json
 from datetime import datetime
 from misc.dotdict import DotDict
+from misc.cam_replay import CamEventType, CamEvent, PicameraReplay, PiMotionAnalysisMockup
 
 
 def through_json(obj):
@@ -87,6 +88,44 @@ class TestDotDict(unittest.TestCase):
         self.assertIsInstance(d.b.c, DotDict)
         d = d.to_dict_tree()
         self.assertEqual(d, {'a': {}, 'b': {'c': {}}})
+
+
+class VideoEventCollector:
+    def __init__(self, events):
+        self._events = events
+
+    def write(self, _):
+        self._events.append(CamEventType.WRITE)
+
+    def flush(self):
+        self._events.append(CamEventType.FLUSH)
+
+
+class MotionEventCollector(PiMotionAnalysisMockup):
+    def __init__(self, events):
+        super(MotionEventCollector, self).__init__(None)
+        self._events = events
+
+    def analyze(self, _):
+        self._events.append(CamEventType.ANALYZE)
+
+
+class TestPicameraReplay(unittest.TestCase):
+
+    def test_replay(self):
+        events = [
+            CamEvent(0.0, CamEventType.WRITE, None),
+            CamEvent(0.25, CamEventType.ANALYZE, None),
+            CamEvent(0.5, CamEventType.FLUSH, None),
+        ]
+        collected_evt_types = []
+        with PicameraReplay(events) as sim:
+            sim.camera.start_recording(VideoEventCollector(collected_evt_types),
+                                       motion_output=MotionEventCollector(collected_evt_types))
+            sim.has_stopped.wait()
+        self.assertEqual(len(collected_evt_types), 3)
+        for i in range(0, len(events)):
+            self.assertEqual(events[i].event_type, collected_evt_types[i])
 
 
 if __name__ == '__main__':  # pragma: no cover
