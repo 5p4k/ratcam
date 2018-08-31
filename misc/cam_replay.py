@@ -67,6 +67,17 @@ class CamEvent:
     def __ge__(self, other):  # pragma: no cover
         return self.time >= other.time
 
+    def __eq__(self, other):  # pragma: no cover
+        if self.time != other.time or self.event_type != other.event_type:
+            return False
+        # Smart compare data
+        if isinstance(self.data, np.ndarray) and isinstance(other.data, np.ndarray):
+            return np.all(self.data == other.data)
+        return self.data == other.data
+
+    def __ne__(self, other):  # pragma: no cover
+        return not self.__eq__(other)
+
 
 class Recorder:  # pragma: no cover
     def record_event(self, event_type, data=None):

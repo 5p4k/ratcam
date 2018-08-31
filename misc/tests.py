@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from misc.dotdict import DotDict
 from misc.cam_replay import CamEventType, CamEvent, PicameraReplay, PiMotionAnalysisMockup
+import numpy as np
+import io
 
 
 def through_json(obj):
@@ -145,6 +147,16 @@ class TestPicameraReplay(unittest.TestCase):
         with PicameraReplay(events):
             pass
         self.assertEqual(len(collected_evt_types), 0)
+
+    def test_event_json(self):
+        events = [
+            CamEvent(0.1, CamEventType.WRITE, b'hellow'),
+            CamEvent(0.25, CamEventType.ANALYZE, np.array([(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+                                                          dtype=[('x', '|i1'), ('y', '|i1'), ('sad', '<u2')])),
+            CamEvent(0.5, CamEventType.FLUSH, None)
+        ]
+        events_copy = through_json(events)
+        self.assertEqual(events, events_copy)
 
 
 if __name__ == '__main__':  # pragma: no cover
