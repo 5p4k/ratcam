@@ -182,7 +182,7 @@ class PicameraReplay:
             while now() - start_t < amount:
                 if self._stop_event.wait(0.01):
                     return False
-            return True
+            return not self._stop_event.is_set()
         evt_idx = 0
         while evt_idx < len(self._events) and _wait(self._events[evt_idx].time):
             if self._camera.recording:

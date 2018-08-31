@@ -111,7 +111,6 @@ class MotionEventCollector(PiMotionAnalysisMockup):
 
 
 class TestPicameraReplay(unittest.TestCase):
-
     def test_replay(self):
         events = [
             CamEvent(0.0, CamEventType.WRITE, None),
@@ -126,6 +125,26 @@ class TestPicameraReplay(unittest.TestCase):
         self.assertEqual(len(collected_evt_types), 3)
         for i in range(0, len(events)):
             self.assertEqual(events[i].event_type, collected_evt_types[i])
+
+    def test_abort_replay(self):
+        events = [
+            CamEvent(0.1, CamEventType.WRITE, None),
+            CamEvent(0.25, CamEventType.ANALYZE, None),
+            CamEvent(0.5, CamEventType.FLUSH, None),
+        ]
+        collected_evt_types = []
+        with PicameraReplay(events):
+            pass
+        self.assertEqual(len(collected_evt_types), 0)
+
+    def test_zero_wait_time(self):
+        events = [
+            CamEvent(0, CamEventType.WRITE, None)
+        ]
+        collected_evt_types = []
+        with PicameraReplay(events):
+            pass
+        self.assertEqual(len(collected_evt_types), 0)
 
 
 if __name__ == '__main__':  # pragma: no cover
