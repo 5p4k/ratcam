@@ -16,27 +16,11 @@ try:
     from picamera import PiCamera
     from picamera.array import PiMotionAnalysis
 except (ImportError, OSError) as e:
+    from misc.cam_replay import PiCameraMockup as PiCamera, PiMotionAnalysisMockup as PiMotionAnalysis
     if isinstance(e, ImportError):
         _log.warning('Detected missing PiCamera package, running mockup.')
     else:
         _log.warning('Faulty PiCamera package (installed s/w else than a RPi?), running mockup.')
-
-    class PiCamera:
-        def __init__(self):
-            self.recoding = False
-            self.bitrate = 1
-            self.framerate = 1
-            self.resolution = (640, 480)  # Is this really the first resolution that comes to mind, in 2018?? :D
-
-        def start_recording(self, *_, **__):
-            self.recoding = True
-
-        def stop_recording(self):
-            self.recoding = False
-
-    class PiMotionAnalysis:
-        def __init__(self, _, __=None):
-            pass
 
 
 class CameraProcessBase(PluginProcessBase):
