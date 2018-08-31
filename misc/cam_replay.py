@@ -156,11 +156,10 @@ class PiCameraMockup:  # pragma: no cover
         elif event.event_type is CamEventType.ANALYZE and self._motion_output is not None:
             self._motion_output.analyze(event.data)
 
-    def start_recording(self, output, format='h264', resize=None, splitter_port=1, motion_output=None, **options):
+    def start_recording(self, output, format='h264', resize=None, splitter_port=1, motion_output=None, **_):
         assert resize is None, 'Unsupported'
         assert format == 'h264', 'Unsupported'
         assert splitter_port == 1, 'Unsupported'
-        assert len(options) == 0, 'Unsupported'
         self._output = output
         self._motion_output = motion_output
         self._recording = True
