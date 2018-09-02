@@ -1,7 +1,7 @@
 [
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 2.2540760040283203,
       "data": {
@@ -11,8 +11,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 2.4391794204711914,
       "data": {
@@ -22,8 +22,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 2.440953016281128,
       "data": {
@@ -33,8 +33,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 2.5354580879211426,
       "data": {
@@ -44,8 +44,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 2.5369060039520264,
       "data": {
@@ -55,8 +55,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 2.636401891708374,
       "data": {
@@ -66,8 +66,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 2.637885093688965,
       "data": {
@@ -77,8 +77,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 2.735222578048706,
       "data": {
@@ -88,8 +88,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 2.7365589141845703,
       "data": {
@@ -99,8 +99,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 2.8351941108703613,
       "data": {
@@ -110,8 +110,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 2.8366146087646484,
       "data": {
@@ -121,8 +121,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 2.938673734664917,
       "data": {
@@ -132,8 +132,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 2.94016170501709,
       "data": {
@@ -143,8 +143,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.0351219177246094,
       "data": {
@@ -154,8 +154,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.036437749862671,
       "data": {
@@ -165,8 +165,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.1350278854370117,
       "data": {
@@ -176,8 +176,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.136373519897461,
       "data": {
@@ -187,8 +187,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.236140727996826,
       "data": {
@@ -198,8 +198,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.2375569343566895,
       "data": {
@@ -209,8 +209,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.33522891998291,
       "data": {
@@ -220,8 +220,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.336676836013794,
       "data": {
@@ -231,8 +231,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.438394784927368,
       "data": {
@@ -242,8 +242,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.439915180206299,
       "data": {
@@ -253,8 +253,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.5351855754852295,
       "data": {
@@ -264,8 +264,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.536628007888794,
       "data": {
@@ -275,8 +275,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.635040760040283,
       "data": {
@@ -286,8 +286,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.6364145278930664,
       "data": {
@@ -297,8 +297,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.734933853149414,
       "data": {
@@ -308,8 +308,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.7363104820251465,
       "data": {
@@ -319,8 +319,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.836066722869873,
       "data": {
@@ -330,8 +330,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.837545156478882,
       "data": {
@@ -341,8 +341,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 3.9383316040039062,
       "data": {
@@ -352,8 +352,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 3.939840316772461,
       "data": {
@@ -363,8 +363,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 4.034934997558594,
       "data": {
@@ -374,8 +374,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 4.03634786605835,
       "data": {
@@ -385,8 +385,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 4.135061025619507,
       "data": {
@@ -396,8 +396,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 4.136459589004517,
       "data": {
@@ -407,8 +407,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "write",
       "time": 4.235012054443359,
       "data": {
@@ -418,8 +418,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "analyze",
       "time": 4.2364821434021,
       "data": {
@@ -429,8 +429,8 @@
     }
   },
   {
-    "__type": "Event",
-    "Event": {
+    "__type": "CamEvent",
+    "CamEvent": {
       "event_type": "flush",
       "time": 4.256786584854126,
       "data": null
