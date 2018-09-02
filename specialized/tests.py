@@ -1,5 +1,6 @@
 import unittest
 from plugins.base import ProcessPack, Process, PluginProcessBase
+from plugins.decorators import make_plugin
 from plugins.processes_host import ProcessesHost
 from specialized.plugin_media_manager import MediaManagerPlugin, MediaReceiver, MEDIA_MANAGER_PLUGIN_NAME
 from Pyro4 import expose as pyro_expose
@@ -7,6 +8,9 @@ import tempfile
 import os
 from threading import Event
 import time
+from specialized.plugin_picamera import PiCameraProcessBase, PICAMERA_ROOT_PLUGIN_NAME, PiCameraRootPlugin
+from misc.cam_replay import PiCameraReplay, load_demo_events
+from plugins.processes_host import find_plugin
 
 
 class RemoteMediaManager(MediaManagerPlugin):
@@ -88,6 +92,88 @@ class TestMediaManager(unittest.TestCase):
                 self.assertTrue(os.path.isfile(path))
                 media_rcv.let_media_go()
                 self.retry_until_timeout(lambda: not os.path.isfile(path))
+
+
+@make_plugin('TestCam', Process.CAMERA)
+class TestCam(PiCameraProcessBase):
+    def __init__(self):
+        self._num_writes = 0
+        self._num_flushes = 0
+        self._num_analysis = 0
+
+    @pyro_expose
+    @property
+    def num_writes(self):
+        return self._num_writes
+
+    @pyro_expose
+    @property
+    def num_flushes(self):
+        return self._num_flushes
+
+    @pyro_expose
+    @property
+    def num_analysis(self):
+        return self._num_analysis
+
+    def write(self, data):
+        self._num_writes += 1
+
+    def flush(self):
+        self._num_flushes += 1
+
+    def analyze(self, array):
+        self._num_analysis += 1
+
+
+@make_plugin('InjectDemoData', Process.CAMERA)
+class InjectDemoData(PluginProcessBase):
+    def __init__(self):
+        self._replay = None
+
+    @pyro_expose
+    def wait_for_completion(self):
+        self._replay.has_stopped.wait()
+
+    def __enter__(self):
+        events = load_demo_events()
+        camera = find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera.camera
+        self._replay = PiCameraReplay(events, camera)
+        self._replay.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._replay.__exit__(exc_type, exc_val, exc_tb)
+        self._replay = None
+
+
+class TestPicameraPlugin(unittest.TestCase):
+
+    def test_simple(self):
+        plugins = {PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin)}
+        with ProcessesHost(plugins):
+            pass
+
+    def test_with_another_plugin(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            'TestCam': ProcessPack(camera=TestCam)
+        }
+        with ProcessesHost(plugins):
+            pass
+
+    def test_with_demo_data(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            'TestCam': ProcessPack(camera=TestCam),
+            'InjectDemoData': ProcessPack(camera=InjectDemoData)
+        }
+        with ProcessesHost(plugins) as host:
+            injector = host.plugin_instances['InjectDemoData'].camera
+            test_cam_plugin = host.plugin_instances['TestCam'].camera
+            injector.wait_for_completion()
+            self.assertGreater(test_cam_plugin.num_writes, 0)
+            self.assertGreater(test_cam_plugin.num_flushes, 0)
+            self.assertGreater(test_cam_plugin.num_analysis, 0)
 
 
 if __name__ == '__main__':  # pragma: no cover
