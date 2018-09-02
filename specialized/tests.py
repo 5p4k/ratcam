@@ -149,6 +149,10 @@ class TestCam(PiCameraProcessBase):
         self._num_analysis = 0
 
     @pyro_expose
+    def get_picamera_root_plugin_id(self):
+        return id(self.picamera_root_plugin)
+
+    @pyro_expose
     @property
     def num_writes(self):
         return self._num_writes
@@ -205,8 +209,11 @@ class TestPicameraPlugin(unittest.TestCase):
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
             'TestCam': ProcessPack(camera=TestCam)
         }
-        with ProcessesHost(plugins):
-            pass
+        with ProcessesHost(plugins) as host:
+            picamera_plugin = host.plugin_instances[PICAMERA_ROOT_PLUGIN_NAME].camera
+            testcam_plugin = host.plugin_instances['TestCam'].camera
+            # Test that they agree on who is who
+            self.assertEqual(picamera_plugin.get_remote_id(), testcam_plugin.get_picamera_root_plugin_id())
 
     def test_with_demo_data(self):
         plugins = {
