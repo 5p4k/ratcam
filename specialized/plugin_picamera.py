@@ -38,7 +38,7 @@ class PiCameraProcessBase(PluginProcessBase):
         pass
 
 
-def _cam_dispatch(self, method_name, *args, **kwargs):
+def _cam_dispatch(method_name, *args, **kwargs):
     for plugin_name, plugin in active_plugins().items():
         # TODO Make sure it's ready to receive data
         if plugin.camera is None or not isinstance(plugin.camera, PiCameraProcessBase):
