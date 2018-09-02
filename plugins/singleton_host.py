@@ -1,6 +1,5 @@
 import os
 import logging
-import pickle
 from Pyro4 import expose as pyro_expose, Daemon as PyroDaemon, Proxy as PyroProxy, oneway as pyro_oneway
 import Pyro4
 from plugins.comm import create_sync_pair
@@ -52,10 +51,6 @@ class SingletonHost:
             del self._hosted_singletons[:]
 
         @pyro_expose
-        def register_marshal(self, pickled_singleton):
-            return self.register(pickle.loads(pickled_singleton))
-
-        @pyro_expose
         def register(self, singleton_cls):
             uri = self._daemon.register(self._instantiate(singleton_cls), singleton_cls.__name__)
             _log.debug('%s: serving at %s', self._name, uri)
@@ -76,7 +71,7 @@ class SingletonHost:
 
         @staticmethod
         def server_main(socket, transmit_sync, name='SingletonServer'):
-            if os.path.exists(socket):
+            if os.path.exists(socket):  # pragma: no cover
                 os.remove(socket)
             daemon = PyroDaemon(unixsocket=socket)
             uri = daemon.register(SingletonHost._SingletonServer(daemon, name=name), name)
@@ -103,8 +98,7 @@ class SingletonHost:
         uri = receiver.receive()
         self._instance = PyroProxy(uri)
         # Default serpent serializer does not trasmit a class
-        if self._instance._pyroSerializer != 'pickle':
-            self._instance._pyroSerializer = 'marshal'
+        self._instance._pyroSerializer = 'pickle'
         _log.debug('%s: obtained proxy at %s', self._name, uri)
         return self
 
@@ -129,15 +123,15 @@ class SingletonHost:
             os.remove(self._socket)
 
     def __call__(self, singleton_cls):
-        if self._instance is None:
+        if self._instance is None:  # pragma: no cover
             raise RuntimeError('You must __enter__ into a %s.' % self.__class__.__name__)
-        # We cannot send a custom class except through Pickle, but we can't use pickle in Pyro because it's unsafe.
-        # So we pickle the object and send it over marshal (because serpent does not serialize correctly bytes too)
-        assert self._instance._pyroSerializer in ['marshal', 'pickle']
-        if self._instance._pyroSerializer == 'marshal':
-            return PyroProxy(self._instance.register_marshal(pickle.dumps(singleton_cls)))
-        elif self._instance._pyroSerializer == 'pickle':
-            return PyroProxy(self._instance.register(singleton_cls))
+        # We cannot send a custom class except through Pickle. We can't even pickle it and send the bytes through
+        # serpent (at the best we could send them over with marshal). So let's just do pickle. We're trasmitting over
+        # a local socket.
+        if self._instance._pyroSerializer != 'pickle':  # pragma: no cover
+            raise RuntimeError('Cannot transmit classes to create through %s. Please use pickle' %
+                               str(self._instance._pyroSerializer))
+        return PyroProxy(self._instance.register(singleton_cls))
 
     def __init__(self, socket, name=None):
         self._socket = socket
