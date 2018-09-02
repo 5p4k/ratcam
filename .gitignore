@@ -13,3 +13,4 @@ ratcam.log
 cam_replay.json.gz
 cam_replay.json
 *.old
+coverage.xml
