@@ -46,6 +46,32 @@ class TestSingletonHosts(unittest.TestCase):
                 args = (1, 33)
                 self.assertEqual(instance.do_math(*args), TestSingletonHosts.MathTest.static_do_math(*args))
 
+    class ExposeLocalSingletons:
+        @pyro_expose
+        def get_id(self):
+            return id(self)
+
+        @pyro_expose
+        def get_local_singletons_by_id(self):
+            return list(SingletonHost.local_singletons_by_id().keys())
+
+        @pyro_expose
+        def get_local_singletons_by_name(self):
+            return list(SingletonHost.local_singletons_by_name().keys())
+
+    def test_local_singletons(self):
+        with TemporaryDirectory() as temp_dir:
+            socket = os.path.join(temp_dir, 'test_local_singletons.sock')
+            with SingletonHost(socket, 'test_local_singletons') as host:
+                instance = host(TestSingletonHosts.ExposeLocalSingletons)
+                ids = instance.get_local_singletons_by_id()
+                names = instance.get_local_singletons_by_name()
+                instance_id = instance.get_id()
+                self.assertIn(instance_id, ids)
+                self.assertIn(TestSingletonHosts.ExposeLocalSingletons.__name__, names)
+                self.assertEqual(len(ids), 1)
+                self.assertEqual(len(names), 1)
+
 
 class TestProcessPack(unittest.TestCase):
     def test_querying_with_process(self):
