@@ -68,16 +68,20 @@ class TestPluginProcess(unittest.TestCase):
         PLUGIN_NAME = 'main'
 
         @classmethod
+        def process(cls):
+            return active_process()
+
+        @classmethod
         def plugin_name(cls):
             return cls.PLUGIN_NAME
 
         @pyro_expose
-        def get_process(self):
-            return active_process(), os.getpid()
+        def get_remote_pid(self):
+            return os.getpid()
 
         @pyro_expose
         def get_sibling_pid_set(self):
-            return set([instance.get_process()[1] for instance in find_plugin(self).values() if instance is not None])
+            return set([instance.get_remote_pid() for instance in find_plugin(self).values() if instance is not None])
 
     def test_process_host(self):
         plugins = {
@@ -91,7 +95,8 @@ class TestPluginProcess(unittest.TestCase):
             for process, instance in instance_pack.items():
                 self.assertIsNotNone(instance)
                 if instance is not None:
-                    process_in_instance, pid_in_instance = instance.get_process()
+                    process_in_instance = instance.get_remote_process()
+                    pid_in_instance = instance.get_remote_pid()
                     self.assertIsNotNone(process_in_instance)
                     self.assertIsNotNone(pid_in_instance)
                     self.assertNotEqual(pid_in_instance, os.getpid())
