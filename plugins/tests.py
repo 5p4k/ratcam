@@ -153,6 +153,54 @@ class TestPluginDecorator(unittest.TestCase):
             # Dummy usage
             NotAPlugin()  # pragma: no cover
 
+    def test_process(self):
+        with self.assertRaises(ValueError):
+            @make_plugin('A')
+            class NotAPlugin(PluginProcessBase):
+                pass
+            # Dummy usage
+            NotAPlugin()  # pragma: no cover
+        with self.assertRaises(ValueError):
+            @make_plugin('A', Process.MAIN)
+            class NotAPlugin(PluginProcessBase):
+                @classmethod
+                def process(cls):
+                    return Process.CAMERA
+            # Dummy usage
+            NotAPlugin()  # pragma: no cover
+
+        @make_plugin('A')
+        class APlugin(PluginProcessBase):
+            @classmethod
+            def process(cls):
+                return Process.CAMERA
+        # Dummy usage
+        APlugin()  # pragma: no cover
+
+    def test_plugin_name(self):
+        with self.assertRaises(ValueError):
+            @make_plugin(process=Process.MAIN)
+            class NotAPlugin(PluginProcessBase):
+                pass
+            # Dummy usage
+            NotAPlugin()  # pragma: no cover
+        with self.assertRaises(ValueError):
+            @make_plugin('A', Process.MAIN)
+            class NotAPlugin(PluginProcessBase):
+                @classmethod
+                def plugin_name(cls):
+                    return 'B'
+            # Dummy usage
+            NotAPlugin()  # pragma: no cover
+
+        @make_plugin(process=Process.MAIN)
+        class APlugin(PluginProcessBase):
+            @classmethod
+            def plugin_name(cls):
+                return 'APlugin'
+        # Dummy usage
+        APlugin()  # pragma: no cover
+
 
 class TestPluginLookup(unittest.TestCase):
     @make_plugin('TestPluginTable', Process.MAIN)
