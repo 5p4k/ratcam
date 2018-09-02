@@ -4,7 +4,7 @@ from misc.extended_json_codec import make_custom_serializable, ExtendedJSONCodec
 import json
 from datetime import datetime
 from misc.dotdict import DotDict
-from misc.cam_replay import CamEventType, CamEvent, PicameraReplay, PiMotionAnalysisMockup
+from misc.cam_replay import CamEventType, CamEvent, PiCameraReplay, PiMotionAnalysisMockup
 import numpy as np
 import io
 
@@ -120,7 +120,7 @@ class TestPicameraReplay(unittest.TestCase):
             CamEvent(0.5, CamEventType.FLUSH, None),
         ]
         collected_evt_types = []
-        with PicameraReplay(events) as sim:
+        with PiCameraReplay(events) as sim:
             sim.camera.start_recording(VideoEventCollector(collected_evt_types),
                                        motion_output=MotionEventCollector(collected_evt_types))
             sim.has_stopped.wait()
@@ -135,7 +135,7 @@ class TestPicameraReplay(unittest.TestCase):
             CamEvent(0.5, CamEventType.FLUSH, None),
         ]
         collected_evt_types = []
-        with PicameraReplay(events):
+        with PiCameraReplay(events):
             pass
         self.assertEqual(len(collected_evt_types), 0)
 
@@ -144,7 +144,7 @@ class TestPicameraReplay(unittest.TestCase):
             CamEvent(0, CamEventType.WRITE, None)
         ]
         collected_evt_types = []
-        with PicameraReplay(events):
+        with PiCameraReplay(events):
             pass
         self.assertEqual(len(collected_evt_types), 0)
 

@@ -4,6 +4,9 @@ from misc.extended_json_codec import make_custom_serializable
 import numpy as np
 import io
 from threading import Thread, Event
+import json
+import os
+from misc.extended_json_codec import ExtendedJSONCodec
 
 try:
     from picamera.array import PiMotionAnalysis
@@ -168,7 +171,7 @@ class PiCameraMockup:  # pragma: no cover
         self._recording = False
 
 
-class PicameraReplay:
+class PiCameraReplay:
     def __init__(self, events, camera=PiCameraMockup()):
         # Partial copy
         self._events = sorted([CamEvent(e.time, e.event_type, e.data) for e in events])
@@ -218,3 +221,8 @@ class PicameraReplay:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._stop_event.set()
         self._replay_thread.join()
+
+
+def load_demo_events():
+    with open(os.path.join(os.path.dirname(__file__), 'cam_demo.json')) as fp:
+        return json.load(fp, object_hook=ExtendedJSONCodec.hook)
