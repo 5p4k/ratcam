@@ -6,7 +6,6 @@ from datetime import datetime
 from misc.dotdict import DotDict
 from misc.cam_replay import CamEventType, CamEvent, PiCameraReplay, PiMotionAnalysisMockup
 import numpy as np
-import io
 
 
 def through_json(obj):
