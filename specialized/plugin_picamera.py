@@ -12,10 +12,10 @@ ensure_logging_setup()
 _log = logging.getLogger(PICAMERA_ROOT_PLUGIN_NAME.lower())
 
 
-try:
+try:  # pragma: no cover
     from picamera import PiCamera
     from picamera.array import PiMotionAnalysis
-except (ImportError, OSError) as e:
+except (ImportError, OSError) as e:  # pragma: no cover
     from misc.cam_replay import PiCameraMockup as PiCamera, PiMotionAnalysisMockup as PiMotionAnalysis
     if isinstance(e, ImportError):
         _log.warning('Detected missing PiCamera package, running mockup.')
@@ -28,13 +28,13 @@ class PiCameraProcessBase(PluginProcessBase):
     def picamera_root_plugin(self):
         return find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera
 
-    def write(self, data):
+    def write(self, data):  # pragma: no cover
         pass
 
-    def flush(self):
+    def flush(self):  # pragma: no cover
         pass
 
-    def analyze(self, array):
+    def analyze(self, array):  # pragma: no cover
         pass
 
 
@@ -47,7 +47,7 @@ def _cam_dispatch(method_name, *args, **kwargs):
         assert method is not None and callable(method), 'Calling a method undefined in PiCameraProcessBase?'
         try:
             method(*args, **kwargs)
-        except Exception as exc:
+        except Exception as exc:  # pragma: no cover
             _log.error('Plugin %s has triggered an exception during %s: %s',
                        plugin_name, method_name, str(exc))
 
@@ -102,7 +102,7 @@ class PiCameraRootPlugin(PluginProcessBase):
 
     @pyro_expose
     @framerate.setter
-    def framerate(self, value):
+    def framerate(self, value):  # pragma: no cover
         self.camera.framerate = value
 
     @pyro_expose
@@ -112,7 +112,7 @@ class PiCameraRootPlugin(PluginProcessBase):
 
     @pyro_expose
     @resolution.setter
-    def resolution(self, value):
+    def resolution(self, value):  # pragma: no cover
         self.camera.resolution = value
 
     @pyro_expose
@@ -122,7 +122,7 @@ class PiCameraRootPlugin(PluginProcessBase):
 
     @pyro_expose
     @bitrate.setter
-    def bitrate(self, value):
+    def bitrate(self, value):  # pragma: no cover
         if self.camera.recording:
             # TODO: possibly stop and restart recording?
             raise RuntimeError('Unable to set bitrate while recording')
