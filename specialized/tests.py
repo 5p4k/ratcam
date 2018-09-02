@@ -2,7 +2,7 @@ import unittest
 from plugins.base import ProcessPack, Process, PluginProcessBase
 from plugins.decorators import make_plugin
 from plugins.processes_host import ProcessesHost
-from specialized.plugin_media_manager import MediaManagerPlugin, MediaReceiver, MEDIA_MANAGER_PLUGIN_NAME
+from specialized.plugin_media_manager import MediaManagerPlugin, MediaReceiver, MEDIA_MANAGER_PLUGIN_NAME, Media
 from Pyro4 import expose as pyro_expose
 import tempfile
 import os
@@ -11,6 +11,7 @@ import time
 from specialized.plugin_picamera import PiCameraProcessBase, PICAMERA_ROOT_PLUGIN_NAME, PiCameraRootPlugin
 from misc.cam_replay import PiCameraReplay, load_demo_events
 from plugins.processes_host import find_plugin
+from uuid import UUID
 
 
 class RemoteMediaManager(MediaManagerPlugin):
@@ -69,6 +70,27 @@ class TestMediaManager(unittest.TestCase):
             self._media = None
             self._let_go_of_media = Event()
 
+    def test_spurious_consume_calls(self):
+        plugins = {
+            MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(main=MediaManagerPlugin)
+        }
+        dummy_media = Media(
+            UUID('4b878c8a-de5a-402b-9f9b-127f5a3a78de'),
+            Process.MAIN,
+            None,
+            None,
+            None
+        )
+        with ProcessesHost(plugins) as phost:
+            media_mgr = phost.plugin_instances[MEDIA_MANAGER_PLUGIN_NAME].main
+            # Nothing should happen here
+            media_mgr.consume_media(dummy_media, Process.MAIN)
+            media_mgr.consume_media(dummy_media, Process.CAMERA)
+            another_dummy_media = Media(dummy_media.uuid, Process.TELEGRAM, None, None, None)
+            media_mgr.consume_media(another_dummy_media, Process.TELEGRAM)
+            media_mgr.consume_media(another_dummy_media, Process.MAIN)
+            media_mgr.consume_media(another_dummy_media, Process.CAMERA)
+
     def test_media_dispatch(self):
         plugins = {
             TestMediaManager.ControlledMediaReceiver.plugin_name():
@@ -92,6 +114,31 @@ class TestMediaManager(unittest.TestCase):
                 self.assertTrue(os.path.isfile(path))
                 media_rcv.let_media_go()
                 self.retry_until_timeout(lambda: not os.path.isfile(path))
+
+    def test_manual_dispatch(self):
+        plugins = {
+            TestMediaManager.ControlledMediaReceiver.plugin_name():
+                ProcessPack(main=TestMediaManager.ControlledMediaReceiver),
+            MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(main=MediaManagerPlugin)
+        }
+        dummy_media = Media(
+            UUID('4b878c8a-de5a-402b-9f9b-127f5a3a78de'),
+            Process.CAMERA,
+            'KIND',
+            'PATH',
+            'INFO'
+        )
+        with ProcessesHost(plugins) as phost:
+            media_mgr = phost.plugin_instances[MEDIA_MANAGER_PLUGIN_NAME].main
+            media_rcv = phost.plugin_instances[TestMediaManager.ControlledMediaReceiver.plugin_name()].main
+            media_mgr.dispatch_media(dummy_media)
+            # Make sure it gets delivered
+            if self.retry_until_timeout(lambda: media_rcv.media is not None):
+                self.assertEqual(media_rcv.media.path, 'PATH')
+                self.assertEqual(media_rcv.media.kind, 'KIND')
+                self.assertEqual(media_rcv.media.info, 'INFO')
+                self.assertEqual(media_rcv.media.owning_process, Process.CAMERA)
+                media_rcv.let_media_go()
 
 
 @make_plugin('TestCam', Process.CAMERA)

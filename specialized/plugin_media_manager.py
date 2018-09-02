@@ -100,7 +100,7 @@ class MediaManagerPlugin(PluginProcessBase):
                 try:
                     os.remove(media.path)
                     _log.info('Removed media %s at %s', str(media.uuid), media.path)
-                except OSError as e:
+                except OSError as e:  # pragma: no cover
                     _log.error('Could not remove %s, error: %s', os.path.abspath(media.path), e.strerror)
 
     def __enter__(self):
@@ -116,7 +116,7 @@ class MediaManagerPlugin(PluginProcessBase):
         self._dispatch_thread_stop.set()
         self._dispatch_thread_wake.set()
         self._dispatch_thread.join(1.)
-        if self._dispatch_thread.is_alive():
+        if self._dispatch_thread.is_alive():  # pragma: no cover
             _log.warning('The dispatching thread on process %s did not join within 1s.', active_process().value)
             self._dispatch_thread.join()
             _log.info('The dispatching thread on process %s finally joined.', active_process().value)
