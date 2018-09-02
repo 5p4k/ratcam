@@ -6,6 +6,8 @@ from datetime import datetime
 from misc.dotdict import DotDict
 from misc.cam_replay import CamEventType, CamEvent, PiCameraReplay, PiMotionAnalysisMockup
 import numpy as np
+import tempfile
+from misc.settings import save_settings
 
 
 def through_json(obj):
@@ -156,6 +158,14 @@ class TestPicameraReplay(unittest.TestCase):
         ]
         events_copy = through_json(events)
         self.assertEqual(events, events_copy)
+
+
+class TestSettings(unittest.TestCase):
+    def test_save(self):
+        # Just test that the settings are saved without any exc
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            path = temp_file.name
+        save_settings(path)
 
 
 if __name__ == '__main__':  # pragma: no cover

@@ -10,7 +10,7 @@ SETTINGS = DotDict({})
 def load_settings(path, log=None):
     global SETTINGS
 
-    def _discard_data():
+    def _discard_data():  # pragma: no cover
         if log:
             log.error('Data will be discarded.')
         # noinspection PyBroadException
@@ -25,10 +25,10 @@ def load_settings(path, log=None):
             with open(path, 'r') as fp:
                 json_data = json.load(fp, object_hook=ExtendedJSONCodec.hook)
             SETTINGS = DotDict(json_data)
-        except OSError as exc:
+        except OSError as exc:  # pragma: no cover
             if log:
                 log.warning('Could not load settings file %s, error: %s', path, exc.strerror)
-        except json.JSONDecodeError as exc:
+        except json.JSONDecodeError as exc:  # pragma: no cover
             if log:
                 log.error('Malformed JSON settings file %s:%d:d, error: %s', path, exc.lineno, exc.colno, exc.msg)
             _discard_data()
@@ -41,7 +41,7 @@ def save_settings(path, log=None):
     try:
         with open(path, 'w') as fp:
             json.dump(SETTINGS.to_dict_tree(), fp, cls=ExtendedJSONCodec, indent=2)
-    except OSError as exc:
+    except OSError as exc:  # pragma: no cover
         if log:
             log.warning('Could not write to settings file %s, error: %s', path, exc.strerror)
 
