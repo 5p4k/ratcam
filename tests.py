@@ -7,6 +7,8 @@ from misc.logging import ensure_logging_setup
 import logging
 
 
-if __name__ == '__main__':
-    ensure_logging_setup(logging.DEBUG, True)
+ensure_logging_setup(logging.DEBUG, True)
+
+
+if __name__ == '__main__':  # pragma: no cover
     unittest.main()
