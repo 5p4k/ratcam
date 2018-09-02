@@ -24,6 +24,13 @@ class HandlersTestCase(unittest.TestCase):
         self.assertEqual(len(handlers), 1)
         self.assertEqual(handlers[0](), ('something', 3387))
 
+    def test_nonbinding_handler(self):
+        @make_handler(HandlersTestCase.Handler, 'something')
+        def bar():  # pragma: no cover
+            return 3387
+
+        self.assertIs(bar.handler, bar().method)
+
     def test_manual_override_of_handlers_prop(self):
         with self.assertRaises(RuntimeError):
             class TestHandlerClsFailing(HandlerBase):

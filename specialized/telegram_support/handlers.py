@@ -10,10 +10,9 @@ class DelayedHandlerConstructor:
             if handler_target:
                 return types.MethodType(self.handler, handler_target)
             return self.handler
-        elif isinstance(self.handler, str) and handler_target:
-            return getattr(handler_target, self.handler)
         raise RuntimeError('Unable to bind or to use specified handler {} on '
-                           'target {}.'.format(self.handler, handler_target), self.handler, handler_target)
+                           'target {}.'.format(self.handler, handler_target), self.handler,
+                           handler_target)  # pragma: no cover
 
     def __call__(self, handler_target=None):
         return self.handler_cls(handler_target, self.get_handler_method(handler_target), *self.args, **self.kwargs)
