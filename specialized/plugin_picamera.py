@@ -93,6 +93,7 @@ class PiCameraRootPlugin(PluginProcessBase):
         super(PiCameraRootPlugin, self).__init__()
         self._camera = PiCamera()
         self._bitrate = SETTINGS.camera.bitrate
+        self.framerate = SETTINGS.camera.framerate
         self._warmup_thread = Thread(target=self._warmup, name='PiCamera warmup thread')
 
     def __enter__(self):
