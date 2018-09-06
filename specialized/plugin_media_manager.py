@@ -67,6 +67,7 @@ class MediaManagerPlugin(PluginProcessBase):
         # Dispatch to all the other media managers.
         for media_mgr in media_mgr_pack.nonempty_values():
             media_mgr.dispatch_media(media)
+        return media
 
     def _pop_media_to_delete(self):
         with self._media_lock:
