@@ -95,7 +95,12 @@ class MediaManagerPlugin(PluginProcessBase):
                 media = self._dispatch_thread_queue.get_nowait()
                 for media_receiver in MediaManagerPlugin.active_local_media_receivers():
                     media_receiver.handle_media(media)
-                find_plugin(self, media.owning_process).consume_media(media, active_process())
+                owning_manager = find_plugin(self, media.owning_process)
+                if owning_manager is None:
+                    _log.warning('Could not consume media %s at %s, no media manager on process %s', str(media.uuid),
+                                 media.path, media.owning_process.value.upper())
+                else:
+                    owning_manager.consume_media(media, active_process())
             for media in self._pop_media_to_delete():
                 try:
                     os.remove(media.path)
