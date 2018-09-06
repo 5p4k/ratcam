@@ -4,6 +4,9 @@
     "auth_file": "telegram_auth.json"
   },
   "camera": {
-    "bitrate": 750000
+    "bitrate": 750000,
+    "framerate": 30,
+    "buffer": 2.0,
+    "clip_length_tolerance": 1.0
   }
 }
