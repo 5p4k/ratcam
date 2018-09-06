@@ -144,6 +144,7 @@ class TestMediaManager(unittest.TestCase):
 @make_plugin('TestCam', Process.CAMERA)
 class TestCam(PiCameraProcessBase):
     def __init__(self):
+        super(TestCam, self).__init__()
         self._num_writes = 0
         self._num_flushes = 0
         self._num_analysis = 0

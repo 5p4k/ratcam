@@ -24,6 +24,19 @@ except (ImportError, OSError) as e:  # pragma: no cover
 
 
 class PiCameraProcessBase(PluginProcessBase):
+    def __init__(self):
+        self._ready = False
+
+    def __enter__(self):
+        self._ready = True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._ready = False
+
+    @property
+    def ready(self):
+        return self._ready
+
     @property
     def picamera_root_plugin(self):
         return find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera
@@ -40,8 +53,9 @@ class PiCameraProcessBase(PluginProcessBase):
 
 def _cam_dispatch(method_name, *args, **kwargs):
     for plugin_name, plugin in active_plugins().items():
-        # TODO Make sure it's ready to receive data
         if plugin.camera is None or not isinstance(plugin.camera, PiCameraProcessBase):
+            continue
+        if not plugin.camera.ready:
             continue
         method = getattr(plugin.camera, method_name, None)
         assert method is not None and callable(method), 'Calling a method undefined in PiCameraProcessBase?'
