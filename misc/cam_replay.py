@@ -129,7 +129,7 @@ class PiCameraMockup:  # pragma: no cover
 
     @resolution.setter
     def resolution(self, value):
-        assert value == self._resolution, 'Unsupported'
+        pass
 
     @property
     def framerate(self):
@@ -137,7 +137,7 @@ class PiCameraMockup:  # pragma: no cover
 
     @framerate.setter
     def framerate(self, value):
-        assert value == self._framerate, 'Unsupported'
+        pass
 
     @property
     def bitrate(self):
