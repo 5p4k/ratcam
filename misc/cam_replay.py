@@ -167,6 +167,9 @@ class PiCameraMockup:  # pragma: no cover
         self._motion_output = motion_output
         self._recording = True
 
+    def start_preview(self, *_, **__):
+        pass
+
     def stop_recording(self):
         self._recording = False
 

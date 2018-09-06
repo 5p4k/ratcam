@@ -5,7 +5,12 @@ from Pyro4 import expose as pyro_expose
 import logging
 from misc.logging import ensure_logging_setup
 from misc.settings import SETTINGS
+from time import sleep
+from threading import Thread
 
+
+_WARMUP_THREAD_TIME = 2.  # seconds
+_WARMUP_THREAD_LEASE_TIME = _WARMUP_THREAD_TIME * 1.1
 
 PICAMERA_ROOT_PLUGIN_NAME = 'Picamera'
 ensure_logging_setup()
@@ -88,22 +93,35 @@ class PiCameraRootPlugin(PluginProcessBase):
         super(PiCameraRootPlugin, self).__init__()
         self._camera = PiCamera()
         self._bitrate = SETTINGS.camera.bitrate
+        self._warmup_thread = Thread(target=self._warmup, name='PiCamera warmup thread')
 
     def __enter__(self):
         super(PiCameraRootPlugin, self).__enter__()
+        self._warmup_thread.start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        super(PiCameraRootPlugin, self).__exit__(exc_type, exc_val, exc_tb)
+        self._warmup_thread.join(_WARMUP_THREAD_LEASE_TIME)
+        if self._warmup_thread.is_alive():  # pragma: no cover
+            _log.warning('The warmup thread did not join within %0.1fs.', _WARMUP_THREAD_LEASE_TIME)
+            self._warmup_thread.join()
+            _log.info('The warmup thread finally joined.')
+        _log.info('Stopping streaming data...')
+        self.camera.stop_recording()
+        _log.info('Stopped')
+
+    def _warmup(self):
+        _log.info('Warming up (%0.fs).', _WARMUP_THREAD_TIME)
+        self._camera.start_preview()
+        sleep(_WARMUP_THREAD_TIME)
         _log.info('Beginning streaming data at bitrate %s, framerate %s and resolution %s.',
                   str(self.bitrate), str(self.framerate), str(self.resolution))
-        self.camera.start_recording(
+        self._camera.start_recording(
             _CameraPluginVideoDispatcher(),
             format='h264',
             motion_output=_CameraPluginMotionDispatcher(self.camera),
             quality=None,
             bitrate=self.bitrate)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        super(PiCameraRootPlugin, self).__exit__(exc_type, exc_val, exc_tb)
-        self.camera.stop_recording()
-        _log.info('Stopping streaming data.')
 
     @property
     def camera(self):
