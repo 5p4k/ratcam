@@ -61,6 +61,7 @@ class TemporaryMP4Muxer:
         self._temp_file = None
         self._muxer = None
         self._age = None
+        self._last_frame_is_complete = False
 
     def __enter__(self):
         self._setup_new_temp()
@@ -96,6 +97,8 @@ class TemporaryMP4Muxer:
         return self._temp_file.name
 
     def rewind(self):
+        if not self._last_frame_is_complete:
+            raise RuntimeError('Rewinding before the last frame is complete will corrupt the media.')
         self._temp_file.seek(0)
         # Need to create new because it will seek to the mdat offset for finalizing the mp4
         self._muxer = MP4StreamMuxer(self._temp_file)
@@ -107,6 +110,8 @@ class TemporaryMP4Muxer:
         Finalized the current MP4 and returns the file name.
         Continues recording on another temporary file
         """
+        if not self._last_frame_is_complete:
+            raise RuntimeError('Finalizing before the last frame is complete will corrupt the media.')
         old_temp_file, old_muxer = self._temp_file, self._muxer
         self._setup_new_temp()
         # Now we can work safely with the old muxer and temp files
@@ -121,6 +126,7 @@ class TemporaryMP4Muxer:
         self._muxer.append(data, frame_is_sps_header, frame_is_complete)
         if frame_is_complete and not frame_is_sps_header:
             self._age += 1
+        self._last_frame_is_complete = frame_is_complete
 
 
 class DualBufferedMP4:
@@ -128,6 +134,7 @@ class DualBufferedMP4:
         self._old = TemporaryMP4Muxer()
         self._new = TemporaryMP4Muxer()
         self._is_recording = False
+        self._total_age = 0
 
     @property
     def buffer_age(self):
@@ -138,8 +145,15 @@ class DualBufferedMP4:
         return self._old.age
 
     @property
+    def total_age(self):
+        return self._total_age
+
+    @property
     def is_recording(self):
         return self._is_recording
+
+    def record(self):
+        self._is_recording = True
 
     def rewind_buffer(self):
         if self.is_recording:
@@ -151,11 +165,17 @@ class DualBufferedMP4:
     def append(self, data, frame_is_sps_header, frame_is_complete):
         self._old.append(data, frame_is_sps_header, frame_is_complete)
         self._new.append(data, frame_is_sps_header, frame_is_complete)
+        if not frame_is_sps_header and frame_is_complete:
+            self._total_age += 1
 
-    def finalize(self, framerate, resolution):
+    def stop_and_finalize(self, framerate, resolution):
         self._is_recording = False
         self._old, self._new = self._new, self._old
         return self._new.finalize(framerate, resolution)
+
+    def stop_and_discard(self):
+        self._is_recording = False
+        self.rewind_buffer()
 
     def __enter__(self):
         self._old.__enter__()
