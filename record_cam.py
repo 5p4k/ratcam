@@ -27,7 +27,7 @@ def format_size(sz):
 
 def main(args):
     camera = PiCamera()
-    rec = Recorder()
+    rec = Recorder(camera)
     camera.framerate = args.framerate
     camera.resolution = args.resolution
     logging.info('Starting warmup (2s). Recording %dx%d at %d fps, crf=%d.',
@@ -35,7 +35,7 @@ def main(args):
     camera.start_preview()
     sleep(2)
     logging.info('Will record (roughly) %d seconds.', args.duration)
-    camera.start_recording(VideoRecorder(rec), format='h264', motion_output=MotionRecorder(rec, camera), quality=26)
+    camera.start_recording(VideoRecorder(rec), format='h264', motion_output=MotionRecorder(rec), quality=26)
     try:
         sleep(args.duration)
         camera.stop_recording()

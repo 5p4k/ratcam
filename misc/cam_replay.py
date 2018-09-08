@@ -8,12 +8,47 @@ import json
 import os
 from misc.extended_json_codec import ExtendedJSONCodec
 
+_PI_VIDEO_FRAME_FIELDS = ['index', 'frame_type', 'frame_size', 'video_size', 'split_size', 'timestamp', 'complete']
+
 try:
     from picamera.array import PiMotionAnalysis
+    from picamera.frames import PiVideoFrameType, PiVideoFrame
+
+    assert PiVideoFrameType.frame == 0, 'Please update the except clause to reflect the changes in Picamera!'
+    assert PiVideoFrameType.key_frame == 1, 'Please update the except clause to reflect the changes in Picamera!'
+    assert PiVideoFrameType.sps_header == 2, 'Please update the except clause to reflect the changes in Picamera!'
+    assert PiVideoFrameType.motion_data == 3, 'Please update the except clause to reflect the changes in Picamera!'
+
+    # If the assertion right above triggers, please copy PiVideoFrameType in the except clause wuch that the unit tests
+    # can still be run
 except (ImportError, OSError):
+    from collections import namedtuple
+
     class PiMotionAnalysis:
-        def __init__(self, _, __=None):
-            pass
+        def __init__(self, camera, *_, __=None):
+            self.camera = camera
+
+    class PiVideoFrameType:
+        frame = 0
+        key_frame = 1
+        sps_header = 2
+        motion_data = 3
+
+    PiVideoFrame = namedtuple('PiVideoFrame', _PI_VIDEO_FRAME_FIELDS)
+
+
+# Monkey patch PiVideoFrame to be serializable
+def _pi_video_frame_to_json(self_frame):
+    return {key: getattr(self_frame, key) for key in _PI_VIDEO_FRAME_FIELDS}
+
+
+def _pi_video_frame_from_json(cls_frame, payload):
+    return cls_frame(**{key: value for key, value in payload.items() if key in _PI_VIDEO_FRAME_FIELDS})
+
+
+PiVideoFrame.to_json = _pi_video_frame_to_json
+PiVideoFrame.from_json = classmethod(_pi_video_frame_from_json)
+PiVideoFrame = make_custom_serializable(PiVideoFrame)
 
 
 @make_custom_serializable
@@ -25,9 +60,10 @@ class CamEventType(Enum):
 
 @make_custom_serializable
 class CamEvent:
-    def __init__(self, time, event_type, data):
+    def __init__(self, time, event_type, frame, data):
         self.time = time
         self.event_type = event_type
+        self.frame = frame
         self.data = data
 
     def _encode_data(self):
@@ -51,12 +87,13 @@ class CamEvent:
             return None
 
     def to_json(self):
-        return {'time': self.time, 'event_type': self.event_type.value, 'data': self._encode_data()}
+        return {'time': self.time, 'event_type': self.event_type.value, 'frame': self.frame,
+                'data': self._encode_data()}
 
     @classmethod
     def from_json(cls, payload):
         event_type = CamEventType(payload['event_type'])
-        return cls(payload['time'], event_type, cls._decode_data(event_type, payload['data']))
+        return cls(payload['time'], event_type, payload['frame'], cls._decode_data(event_type, payload['data']))
 
     def __lt__(self, other):  # pragma: no cover
         return self.time < other.time
@@ -84,10 +121,11 @@ class CamEvent:
 
 class Recorder:  # pragma: no cover
     def record_event(self, event_type, data=None):
-        self.data.append(CamEvent(now() - self.start_time, event_type, data))
+        self.data.append(CamEvent(now() - self.start_time, event_type, self.camera.frame, data))
 
-    def __init__(self):
+    def __init__(self, camera):
         self.start_time = now()
+        self.camera = camera
         self.data = []
 
 
@@ -95,8 +133,8 @@ class MotionRecorder(PiMotionAnalysis):  # pragma: no cover
     def analyze(self, array):
         self._recorder.record_event(CamEventType.ANALYZE, array)
 
-    def __init__(self, recorder, cam):
-        super(MotionRecorder, self).__init__(cam)
+    def __init__(self, recorder):
+        super(MotionRecorder, self).__init__(recorder.camera)
         self._recorder = recorder
 
 
@@ -122,6 +160,7 @@ class PiCameraMockup:  # pragma: no cover
         self._resolution = (320, 240)
         self._output = None
         self._motion_output = None
+        self._frame = None
 
     @property
     def resolution(self):
@@ -148,6 +187,10 @@ class PiCameraMockup:  # pragma: no cover
         pass
 
     @property
+    def frame(self):
+        return self._frame
+
+    @property
     def recording(self):
         return self._recording
 
@@ -158,6 +201,7 @@ class PiCameraMockup:  # pragma: no cover
             self._output.flush()
         elif event.event_type is CamEventType.ANALYZE and self._motion_output is not None:
             self._motion_output.analyze(event.data)
+        self._frame = event.frame
 
     def start_recording(self, output, format='h264', resize=None, splitter_port=1, motion_output=None, **_):
         assert resize is None, 'Unsupported'
@@ -177,7 +221,7 @@ class PiCameraMockup:  # pragma: no cover
 class PiCameraReplay:
     def __init__(self, events, camera=PiCameraMockup()):
         # Partial copy
-        self._events = sorted([CamEvent(e.time, e.event_type, e.data) for e in events])
+        self._events = sorted([CamEvent(e.time, e.event_type, e.frame, e.data) for e in events])
         if len(self._events) == 0:  # pragma: no cover
             raise ValueError('You must provide at least one event')
         self._camera = camera

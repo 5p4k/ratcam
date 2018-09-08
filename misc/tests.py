@@ -116,9 +116,9 @@ class MotionEventCollector(PiMotionAnalysisMockup):
 class TestPicameraReplay(unittest.TestCase):
     def test_replay(self):
         events = [
-            CamEvent(0.0, CamEventType.WRITE, None),
-            CamEvent(0.25, CamEventType.ANALYZE, None),
-            CamEvent(0.5, CamEventType.FLUSH, None),
+            CamEvent(0.0, CamEventType.WRITE, None, None),
+            CamEvent(0.25, CamEventType.ANALYZE, None, None),
+            CamEvent(0.5, CamEventType.FLUSH, None, None),
         ]
         collected_evt_types = []
         with PiCameraReplay(events) as sim:
@@ -131,9 +131,9 @@ class TestPicameraReplay(unittest.TestCase):
 
     def test_abort_replay(self):
         events = [
-            CamEvent(0.1, CamEventType.WRITE, None),
-            CamEvent(0.25, CamEventType.ANALYZE, None),
-            CamEvent(0.5, CamEventType.FLUSH, None),
+            CamEvent(0.1, CamEventType.WRITE, None, None),
+            CamEvent(0.25, CamEventType.ANALYZE, None, None),
+            CamEvent(0.5, CamEventType.FLUSH, None, None),
         ]
         collected_evt_types = []
         with PiCameraReplay(events):
@@ -142,7 +142,7 @@ class TestPicameraReplay(unittest.TestCase):
 
     def test_zero_wait_time(self):
         events = [
-            CamEvent(0, CamEventType.WRITE, None)
+            CamEvent(0, CamEventType.WRITE, None, None)
         ]
         collected_evt_types = []
         with PiCameraReplay(events):
@@ -151,10 +151,10 @@ class TestPicameraReplay(unittest.TestCase):
 
     def test_event_json(self):
         events = [
-            CamEvent(0.1, CamEventType.WRITE, b'hellow'),
-            CamEvent(0.25, CamEventType.ANALYZE, np.array([(0, 0, 0), (0, 0, 0), (0, 0, 0)],
-                                                          dtype=[('x', '|i1'), ('y', '|i1'), ('sad', '<u2')])),
-            CamEvent(0.5, CamEventType.FLUSH, None)
+            CamEvent(0.1, CamEventType.WRITE, b'hellow', None),
+            CamEvent(0.25, CamEventType.ANALYZE, None, np.array([(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+                                                                dtype=[('x', '|i1'), ('y', '|i1'), ('sad', '<u2')])),
+            CamEvent(0.5, CamEventType.FLUSH, None, None)
         ]
         events_copy = through_json(events)
         self.assertEqual(events, events_copy)
