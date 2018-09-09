@@ -196,6 +196,9 @@ class PiCameraMockup:  # pragma: no cover
     def request_key_frame(self):
         pass
 
+    def capture(self, *_, **__):
+        pass
+
 
 class PiCameraReplay:
     DEFAULT_TIME_FACTOR = 1.
