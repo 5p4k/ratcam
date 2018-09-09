@@ -17,7 +17,7 @@ class PluginLookupDict(dict):
     def __getitem__(self, item):
         retval = self.get(item, None)
         if retval is None:
-            return self.get(self.__class__.extract_plugin_name(item))
+            return self.get(self.__class__.extract_plugin_name(item), None)
         return retval
 
     __getattr__ = __getitem__
@@ -27,7 +27,10 @@ class PluginLookupTable:
     def __getitem__(self, item):
         if isinstance(item, tuple):
             if len(item) == 2:
-                return self[item[0]][item[1]]
+                first_level = self[item[0]]
+                if first_level is not None:
+                    return first_level[item[1]]
+                return None
             elif len(item) == 1:
                 item = item[0]
             else:
@@ -36,7 +39,7 @@ class PluginLookupTable:
         if isinstance(item, Process) or item in AVAILABLE_PROCESSES:
             return self._plugins_by_process[Process(item)]
         # It must be a plugin name
-        return self._plugins[PluginLookupDict.extract_plugin_name(item)]
+        return self._plugins.get(PluginLookupDict.extract_plugin_name(item), None)
 
     __getattr__ = __getitem__
 

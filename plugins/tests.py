@@ -285,17 +285,10 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIn((name, pack), table.items())
         self.assertIn(name, table.keys())
 
-        possible_results = []
+        self.assertIsNone(table[123, 123])
+        self.assertIsNone(table[123, Process.MAIN])
         with self.assertRaises(KeyError):
-            possible_results.append(table[123, 123])
-
-        with self.assertRaises(KeyError):
-            possible_results.append(table[123, Process.MAIN])
-
-        with self.assertRaises(KeyError):
-            possible_results.append(table[1, 2, 3])
-
-        self.assertEqual(len(possible_results), 0)
+            _ = table[1, 2, 3]
 
 
 if __name__ == '__main__':  # pragma: no cover
