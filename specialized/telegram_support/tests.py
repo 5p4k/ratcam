@@ -37,7 +37,3 @@ class HandlersTestCase(unittest.TestCase):
                 _HANDLERS = 'SOME STRING'
             # Dummy
             TestHandlerClsFailing()  # pragma: no cover
-
-
-if __name__ == '__main__':  # pragma: no cover
-    unittest.main()

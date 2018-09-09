@@ -17,4 +17,4 @@ misc.cam_replay.PiCameraReplay.DEFAULT_TIME_FACTOR = 10.
 
 
 if __name__ == '__main__':  # pragma: no cover
-    unittest.main()
+    unittest.main(verbosity=2)

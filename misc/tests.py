@@ -177,7 +177,3 @@ class TestSettings(unittest.TestCase):
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             path = temp_file.name
         save_settings(path)
-
-
-if __name__ == '__main__':  # pragma: no cover
-    unittest.main()

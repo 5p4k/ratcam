@@ -349,7 +349,3 @@ class TestBufferedRecorder(RatcamUnitTestCase):
             self.assertLessEqual(max_footage_age, buffered_recorder.total_age)
             self.assertLessEqual(max_buffer_age, max_sps_age)
             self.assertLessEqual(max_footage_age, max_sps_age)
-
-
-if __name__ == '__main__':  # pragma: no cover
-    unittest.main()

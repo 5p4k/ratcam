@@ -289,7 +289,3 @@ class TestPluginLookup(unittest.TestCase):
         self.assertIsNone(table[123, Process.MAIN])
         with self.assertRaises(KeyError):
             _ = table[1, 2, 3]
-
-
-if __name__ == '__main__':  # pragma: no cover
-    unittest.main()
