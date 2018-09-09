@@ -62,7 +62,7 @@ class MediaManagerPlugin(PluginProcessBase):
             media = Media(uuid, active_process(), kind, path, info)
             self._media[uuid] = media
             # Assume not necessarily we have a media manager on every single process. This makes easier testing.
-            self._media_in_use[uuid] = ProcessPack([entry is not None for entry in media_mgr_pack.values()])
+            self._media_in_use[uuid] = ProcessPack(*[entry is not None for entry in media_mgr_pack.values()])
             _log.info('Dispatching media %s at path %s.', str(media.uuid), os.path.abspath(media.path))
         # Dispatch to all the other media managers.
         for media_mgr in media_mgr_pack.nonempty_values():
