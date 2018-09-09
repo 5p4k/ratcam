@@ -10,6 +10,7 @@ from misc.logging import ensure_logging_setup
 from datetime import datetime
 from misc.settings import SETTINGS
 from safe_picamera import PiVideoFrameType
+from threading import Lock
 
 
 BUFFERED_RECORDER_PLUGIN_NAME = 'BufferedRecorder'
@@ -26,8 +27,11 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         self._record_user_info = None
         self._is_recording = False
         self._keep_media = True
+        self._flush_lock = Lock()
+        self._has_just_flushed = False
 
     def __enter__(self):
+        self._has_just_flushed = True
         self._recorder.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -59,14 +63,15 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
             if self._keep_media:
                 media_mgr = find_plugin(MEDIA_MANAGER_PLUGIN_NAME, Process.CAMERA)
                 if not media_mgr:
-                    _log.error('No media manager is running on the CAMERA process. Media will be dropped.')
+                    _log.error('No media manager is running on the CAMERA process.')
+                    _log.info('Discarding media with info %s.', str(self._record_user_info))
                     self._recorder.stop_and_discard()
                 else:
                     file_name = self._recorder.stop_and_finalize(self._camera.framerate, self._camera.resolution)
                     media = media_mgr.deliver_media(file_name, 'mp4', self._record_user_info)
-                    _log.info('Media %s was delivered. User info: %s.', str(media.uuid), str(self._record_user_info))
+                    _log.info('Media %s with info %s was delivered.', str(media.uuid), str(self._record_user_info))
             else:
-                _log.info('Discarding media. User info: %s.', str(self._record_user_info))
+                _log.info('Discarding media with info %s.', str(self._record_user_info))
                 self._recorder.stop_and_discard()
             self._record_user_info = None
         if self._recorder.buffer_age > self._buffer_max_age:
@@ -76,6 +81,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
 
     @pyro_expose
     def record(self, info=None):
+        _log.info('Requested media with info %s', str(info))
         self._keep_media = True
         self._is_recording = True
         self._record_user_info = info
@@ -91,17 +97,25 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def is_finalizing(self):
         return self._recorder.is_recording and self._keep_media and not self._is_recording
 
+    def _stop_and(self, finalize):
+        self._is_recording = False
+        self._keep_media = finalize
+        with self._flush_lock:
+            # This is the only other split point at which we are sure that an SPS will have to follow
+            if self._has_just_flushed:
+                self._handle_split_point()
+
     @pyro_expose
     def stop_and_discard(self):
-        self._is_recording = False
-        self._keep_media = False
+        self._stop_and(finalize=False)
 
     @pyro_expose
     def stop_and_finalize(self):
-        self._is_recording = False
-        self._keep_media = True
+        self._stop_and(finalize=True)
 
     def write(self, data):
+        with self._flush_lock:
+            self._has_just_flushed = False
         # Update annotation
         self._camera.annotate_text = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         # If it's a split point, one can stop
@@ -113,3 +127,8 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         # Do we need to request a new sps_header
         if self._last_sps_header_age > self._sps_header_max_age:
             self._camera.request_key_frame()
+
+    def flush(self):
+        with self._flush_lock:
+            self._has_just_flushed = True
+            self._handle_split_point()

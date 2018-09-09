@@ -256,6 +256,11 @@ class TestBufferedRecorder(unittest.TestCase):
             buffered_recorder = host.plugin_instances[BUFFERED_RECORDER_PLUGIN_NAME].camera
             buffered_recorder.record(12345)
             injector.wait_for_completion()
+            buffered_recorder.stop_and_discard()
+            buffered_recorder.record(54321)
+            injector.replay()
+            injector.wait_for_completion()
+            buffered_recorder.stop_and_finalize()
 
 
 if __name__ == '__main__':  # pragma: no cover
