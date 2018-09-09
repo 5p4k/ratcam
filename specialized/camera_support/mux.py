@@ -4,6 +4,9 @@ import logging
 from safe_picamera import MP4Muxer
 
 
+_log = logging.getLogger('mp4_muxer')
+
+
 class MP4StreamMuxer(MP4Muxer):
     """
     Simple MP4 muxer wrapper that writes and seeks on a stream.
@@ -36,7 +39,7 @@ class TemporaryMP4Muxer:
 
     def _setup_new_temp(self):
         self._temp_file = NamedTemporaryFile(delete=False)
-        logging.debug('Using new temporary MP4 %s', self._temp_file.name)
+        _log.debug('Using new temporary MP4 %s', self._temp_file.name)
         self._muxer = MP4StreamMuxer(self._temp_file)
         self._muxer.begin()
         self._age = 0
@@ -45,11 +48,11 @@ class TemporaryMP4Muxer:
         self._temp_file.close()
         self._muxer = None
         if os.path.isfile(self._temp_file.name):
-            logging.debug('Dropping temporary MP4 %s', self._temp_file.name)
+            _log.debug('Dropping temporary MP4 %s', self._temp_file.name)
             try:
                 os.remove(self._temp_file.name)
             except OSError as e:  # pragma: no cover
-                logging.error('Unable to remove {}, error: {}'.format(self._temp_file.name, e.strerror))
+                _log.error('Unable to remove {}, error: {}'.format(self._temp_file.name, e.strerror))
         self._temp_file = None
         self._muxer = None
         self._age = None
@@ -88,7 +91,7 @@ class TemporaryMP4Muxer:
         old_temp_file.truncate()
         old_muxer.end(framerate, resolution)
         old_temp_file.close()
-        logging.debug('Finalized MP4 file %s' % old_temp_file.name)
+        _log.debug('Finalized MP4 file %s' % old_temp_file.name)
         return old_temp_file.name
 
     def append(self, data, frame_is_sps_header, frame_is_complete):
