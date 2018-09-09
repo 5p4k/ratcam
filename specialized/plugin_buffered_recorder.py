@@ -29,6 +29,8 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         self._keep_media = True
         self._flush_lock = Lock()
         self._has_just_flushed = False
+        self._buffer_max_age = None
+        self._sps_header_max_age = None
 
     def __enter__(self):
         super(BufferedRecorderPlugin, self).__enter__()
@@ -44,6 +46,16 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def footage_age(self):
         return self._recorder.footage_age
 
+    @pyro_expose
+    @property
+    def buffer_age(self):
+        return self._recorder.buffer_age
+
+    @pyro_expose
+    @property
+    def total_age(self):
+        return self._recorder.total_age
+
     @property
     def _camera(self):
         return self.picamera_root_plugin.camera
@@ -52,13 +64,31 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def _last_frame(self):
         return self._camera.frame
 
+    @pyro_expose
     @property
-    def _buffer_max_age(self):
-        return 2 * self._camera.framerate * max(1., SETTINGS.camera.buffer)
+    def buffer_max_age(self):
+        if self._buffer_max_age is None:
+            # Lazily load this value, because we must be sure that a camera is instantiated
+            self._buffer_max_age = 2 * self._camera.framerate * max(1., SETTINGS.camera.buffer)
+        return self._buffer_max_age
 
+    @pyro_expose
+    @buffer_max_age.setter
+    def buffer_max_age(self, value):
+        self._buffer_max_age = max(self._camera.framerate * 0.5, 1, value)
+
+    @pyro_expose
     @property
-    def _sps_header_max_age(self):
-        return self._camera.framerate * max(1., SETTINGS.camera.clip_length_tolerance)
+    def sps_header_max_age(self):
+        if self._buffer_max_age is None:
+            # Lazily load this value, because we must be sure that a camera is instantiated
+            self._sps_header_max_age = self._camera.framerate * max(1., SETTINGS.camera.clip_length_tolerance)
+        return self._sps_header_max_age
+
+    @pyro_expose
+    @sps_header_max_age.setter
+    def sps_header_max_age(self, value):
+        self._sps_header_max_age = max(self._camera.framerate * 0.5, 1, value)
 
     @property
     def _last_sps_header_age(self):
@@ -81,7 +111,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
                 _log.info('Discarding media with info %s.', str(self._record_user_info))
                 self._recorder.stop_and_discard()
             self._record_user_info = None
-        if self._recorder.buffer_age > self._buffer_max_age:
+        if self._recorder.buffer_age > self.buffer_max_age:
             self._recorder.rewind_buffer()
         # Update the sps header age
         self._last_sps_header_stamp = self._recorder.total_age
@@ -132,7 +162,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         else:
             self._recorder.append(data, False, self._last_frame.complete)
         # Do we need to request a new sps_header
-        if self._last_sps_header_age > self._sps_header_max_age:
+        if self._last_sps_header_age > min(self.sps_header_max_age, self.buffer_max_age):
             self._camera.request_key_frame()
 
     def flush(self):
