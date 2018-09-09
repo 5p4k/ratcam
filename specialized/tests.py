@@ -249,6 +249,14 @@ class TestBufferedRecorder(RatcamUnitTestCase):
         with ProcessesHost(plugins):
             pass
 
+    def retry_until_footage_age_changes(self, buffered_recorder, timeout=2., sleep_time=None):
+        if sleep_time is None:
+            sleep_time = max(0.01, 1. / InjectDemoData.DEMO_DATA['framerate'])
+
+        def make_wait_fn(old_footage_age):
+            return lambda: buffered_recorder.footage_age != old_footage_age
+        self.retry_until_timeout(make_wait_fn(buffered_recorder.footage_age), timeout, sleep_time)
+
     def test_runs_with_demo_data(self):
         plugins = {
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
@@ -259,14 +267,21 @@ class TestBufferedRecorder(RatcamUnitTestCase):
             injector = host.plugin_instances['InjectDemoData'].camera
             buffered_recorder = host.plugin_instances[BUFFERED_RECORDER_PLUGIN_NAME].camera
             buffered_recorder.record(12345)
+            self.assertTrue(buffered_recorder.is_recording)
             injector.wait_for_completion()
             self.assertGreater(buffered_recorder.footage_age, 0)
             buffered_recorder.stop_and_discard()
             buffered_recorder.record(54321)
             injector.replay()
-            injector.wait_for_completion()
+            # Wait until the buffer is cleared
+            self.retry_until_footage_age_changes(buffered_recorder)
+            # Wait until at least one frame is recorded
+            self.retry_until_footage_age_changes(buffered_recorder)
+            self.assertTrue(buffered_recorder.is_recording)
             self.assertGreater(buffered_recorder.footage_age, 0)
             buffered_recorder.stop_and_finalize()
+            self.assertTrue(buffered_recorder.is_finalizing)
+            injector.wait_for_completion()
 
     def test_dispatches_media(self):
         plugins = {
@@ -297,7 +312,7 @@ class TestBufferedRecorder(RatcamUnitTestCase):
         # Identify the max age of a split point
         max_sps_age = 0
         age = 0
-        for evt in InjectDemoData.DEMO_DATA['events']:
+        for evt in InjectDemoData.DEMO_DATA['events']:  # pragma: no cover
             if evt.frame is None:
                 continue
             elif evt.frame.frame_type == PiVideoFrameType.sps_header:
@@ -307,6 +322,7 @@ class TestBufferedRecorder(RatcamUnitTestCase):
                 age += 1
         # We will play in a loop
         max_sps_age = max(age, max_sps_age)
+        self.assertGreater(max_sps_age, 0)
         del age
         plugins = {
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
