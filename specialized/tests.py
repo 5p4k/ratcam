@@ -12,6 +12,7 @@ from specialized.plugin_picamera import PiCameraProcessBase, PICAMERA_ROOT_PLUGI
 from misc.cam_replay import PiCameraReplay, load_demo_events
 from plugins.processes_host import find_plugin
 from uuid import UUID
+from specialized.plugin_buffered_recorder import BufferedRecorderPlugin, BUFFERED_RECORDER_PLUGIN_NAME
 
 
 class RemoteMediaManager(MediaManagerPlugin):
@@ -229,6 +230,28 @@ class TestPicameraPlugin(unittest.TestCase):
             self.assertGreater(test_cam_plugin.num_writes, 0)
             self.assertGreater(test_cam_plugin.num_flushes, 0)
             self.assertGreater(test_cam_plugin.num_analysis, 0)
+
+
+class TestBufferedRecorder(unittest.TestCase):
+    def test_simple(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            BUFFERED_RECORDER_PLUGIN_NAME: ProcessPack(camera=BufferedRecorderPlugin)
+        }
+        with ProcessesHost(plugins):
+            pass
+
+    def test_demo_data(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            BUFFERED_RECORDER_PLUGIN_NAME: ProcessPack(camera=BufferedRecorderPlugin),
+            'InjectDemoData': ProcessPack(camera=InjectDemoData)
+        }
+        with ProcessesHost(plugins) as host:
+            injector = host.plugin_instances['InjectDemoData'].camera
+            buffered_recorder = host.plugin_instances[BUFFERED_RECORDER_PLUGIN_NAME].camera
+            buffered_recorder.record(12345)
+            injector.wait_for_completion()
 
 
 if __name__ == '__main__':  # pragma: no cover

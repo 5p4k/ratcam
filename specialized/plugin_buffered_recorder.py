@@ -3,13 +3,13 @@ from specialized.plugin_picamera import PiCameraProcessBase
 from plugins.decorators import make_plugin
 from specialized.camera_support.mux import DualBufferedMP4
 from specialized.plugin_media_manager import MEDIA_MANAGER_PLUGIN_NAME
-from picamera.frames import PiVideoFrameType
 from plugins.processes_host import find_plugin
 from Pyro4 import expose as pyro_expose
 import logging
 from misc.logging import ensure_logging_setup
 from datetime import datetime
 from misc.settings import SETTINGS
+from safe_picamera import PiVideoFrameType
 
 
 BUFFERED_RECORDER_PLUGIN_NAME = 'BufferedRecorder'

@@ -7,48 +7,8 @@ from threading import Thread, Event
 import json
 import os
 from misc.extended_json_codec import ExtendedJSONCodec
-try:
-    from specialized.camera_support.mux import MP4StreamMuxer
-except ImportError:
-    class MP4StreamMuxer:
-        def __init__(self, stream):
-            self.stream = stream
-
-        def append(self, *_, **__):
-            pass
-
-        def begin(self, *_, **__):
-            pass
-
-        def end(self, *_, **__):
-            pass
-
-try:
-    from picamera.array import PiMotionAnalysis
-    from picamera.frames import PiVideoFrameType, PiVideoFrame
-
-    assert PiVideoFrameType.frame == 0, 'Please update the except clause to reflect the changes in Picamera!'
-    assert PiVideoFrameType.key_frame == 1, 'Please update the except clause to reflect the changes in Picamera!'
-    assert PiVideoFrameType.sps_header == 2, 'Please update the except clause to reflect the changes in Picamera!'
-    assert PiVideoFrameType.motion_data == 3, 'Please update the except clause to reflect the changes in Picamera!'
-
-    # If the assertion right above triggers, please copy PiVideoFrameType in the except clause wuch that the unit tests
-    # can still be run
-except (ImportError, OSError):
-    from collections import namedtuple
-
-    class PiMotionAnalysis:
-        def __init__(self, camera, *_, __=None):
-            self.camera = camera
-
-    class PiVideoFrameType:
-        frame = 0
-        key_frame = 1
-        sps_header = 2
-        motion_data = 3
-
-    PiVideoFrame = namedtuple('PiVideoFrame', ['index', 'frame_type', 'frame_size', 'video_size', 'split_size',
-                                               'timestamp', 'complete'])
+from safe_picamera import PiMotionAnalysis, PiVideoFrame, PiVideoFrameType
+from specialized.camera_support.mux import MP4StreamMuxer
 
 
 make_custom_serializable(PiVideoFrame)

@@ -1,4 +1,4 @@
-from picamera import PiCamera
+from picamera import PiCamera  # Real PiCamera, this will work only on a RPi
 from misc.cam_replay import VideoRecorder, MotionRecorder, Recorder
 from time import sleep
 from misc.extended_json_codec import ExtendedJSONCodec

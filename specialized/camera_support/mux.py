@@ -1,39 +1,7 @@
 from tempfile import NamedTemporaryFile
 import os
 import logging
-
-try:
-    from picamera.mp4 import MP4Muxer
-except OSError as os_import_error:
-    logging.warning('You have a Picamera install, but it seems it has failed to import.')
-    logging.warning('I am assuming you patched Picamera for local install, e.g. for testing.')
-    logging.warning('I will import MP4Muxer form Picamera bypassing picamera/__init__.py.')
-    logging.debug('This hack is ugly as.')
-    import importlib.util
-    picamera_mod = importlib.util.find_spec('picamera')
-    if picamera_mod is None:
-        logging.error('Cannot find picamera via importlib. Will raise the import error.')
-        raise os_import_error
-    location_of_picamera_mp4 = None
-    for location in picamera_mod.submodule_search_locations:
-        if os.path.isfile(os.path.join(location, 'mp4.py')):
-            location_of_picamera_mp4 = location
-            break
-    if location_of_picamera_mp4 is None:
-        logging.error('Cannot find picamera.mp4 via importlib and manual lookup. Is MP4Muxer still in mp4.py?'
-                      ' Will raise the import error.')
-        raise os_import_error
-    logging.warning('Found submodule search path as %s', location_of_picamera_mp4)
-    import sys
-    sys.path.insert(0, location_of_picamera_mp4)
-    try:
-        from mp4 import MP4Muxer
-        logging.warning('I managed to import MP4Muxer with a broken Picamera install :)')
-    except Exception as probably_newer_muxer:
-        logging.error('I did not manage to import MP4Muxer, error: %s', str(probably_newer_muxer))
-        raise os_import_error
-    finally:
-        sys.path.remove(location_of_picamera_mp4)
+from safe_picamera import MP4Muxer
 
 
 class MP4StreamMuxer(MP4Muxer):
