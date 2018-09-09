@@ -84,12 +84,16 @@ class CamEvent:
 
 class Recorder:  # pragma: no cover
     def record_event(self, event_type, data=None):
-        self.data.append(CamEvent(now() - self.start_time, event_type, self.camera.frame, data))
+        self.events.append(CamEvent(now() - self.start_time, event_type, self.camera.frame, data))
+
+    @property
+    def events(self):
+        return self.data['events']
 
     def __init__(self, camera):
         self.start_time = now()
         self.camera = camera
-        self.data = []
+        self.data = dict(framerate=int(self.camera.framerate), resolution=list(self.camera.resolution), events=[])
 
 
 class MotionRecorder(PiMotionAnalysis):  # pragma: no cover
@@ -140,7 +144,7 @@ class PiCameraMockup:  # pragma: no cover
 
     @resolution.setter
     def resolution(self, value):
-        pass
+        self._resolution = value
 
     @property
     def framerate(self):
@@ -148,7 +152,7 @@ class PiCameraMockup:  # pragma: no cover
 
     @framerate.setter
     def framerate(self, value):
-        pass
+        self._framerate = value
 
     @property
     def bitrate(self):
@@ -156,7 +160,7 @@ class PiCameraMockup:  # pragma: no cover
 
     @bitrate.setter
     def bitrate(self, value):
-        pass
+        self._bitrate = value
 
     @property
     def frame(self):
@@ -196,12 +200,14 @@ class PiCameraMockup:  # pragma: no cover
 class PiCameraReplay:
     DEFAULT_TIME_FACTOR = 1.
 
-    def __init__(self, events, camera=PiCameraMockup()):
+    def __init__(self, replay_data, camera=PiCameraMockup()):
         # Partial copy
-        self._events = sorted([CamEvent(e.time, e.event_type, e.frame, e.data) for e in events])
+        self._camera = camera
+        self._camera.resolution = replay_data.get('resolution', (320, 240))
+        self._camera.framerate = replay_data.get('framerate', 10)
+        self._events = sorted([CamEvent(e.time, e.event_type, e.frame, e.data) for e in replay_data.get('events', [])])
         if len(self._events) == 0:  # pragma: no cover
             raise ValueError('You must provide at least one event')
-        self._camera = camera
         self._replay_thread = None
         self._stop_event = Event()
         self._replace_time_with_wait_time()

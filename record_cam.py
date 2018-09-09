@@ -44,7 +44,7 @@ def main(args):
     except KeyboardInterrupt:
         camera.stop_recording()
     path = os.path.abspath(args.output.strip())
-    logging.info('Collected %d events. Dumping to: %s', len(rec.data), path)
+    logging.info('Collected %d events. Dumping to: %s', len(rec.events), path)
     if os.path.isfile(path):
         logging.warning('File %s exists! Moving to .old', path)
         os.rename(path, path + '.old')

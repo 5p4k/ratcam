@@ -126,37 +126,37 @@ class TestPicameraReplay(unittest.TestCase):
         self.assertEqual(frame, through_json(frame))
 
     def test_replay(self):
-        events = [
+        replay_data = dict(events=[
             CamEvent(0.0, CamEventType.WRITE, None, None),
             CamEvent(0.25, CamEventType.ANALYZE, None, None),
             CamEvent(0.5, CamEventType.FLUSH, None, None),
-        ]
+        ])
         collected_evt_types = []
-        with PiCameraReplay(events) as sim:
+        with PiCameraReplay(replay_data) as sim:
             sim.camera.start_recording(VideoEventCollector(collected_evt_types),
                                        motion_output=MotionEventCollector(collected_evt_types))
             sim.has_stopped.wait()
         self.assertEqual(len(collected_evt_types), 3)
-        for i in range(0, len(events)):
-            self.assertEqual(events[i].event_type, collected_evt_types[i])
+        for i, evt in enumerate(replay_data['events']):
+            self.assertEqual(evt.event_type, collected_evt_types[i])
 
     def test_abort_replay(self):
-        events = [
+        replay_data = dict(events=[
             CamEvent(0.1, CamEventType.WRITE, None, None),
             CamEvent(0.25, CamEventType.ANALYZE, None, None),
             CamEvent(0.5, CamEventType.FLUSH, None, None),
-        ]
+        ])
         collected_evt_types = []
-        with PiCameraReplay(events):
+        with PiCameraReplay(replay_data):
             pass
         self.assertEqual(len(collected_evt_types), 0)
 
     def test_zero_wait_time(self):
-        events = [
+        replay_data = dict(events=[
             CamEvent(0, CamEventType.WRITE, None, None)
-        ]
+        ])
         collected_evt_types = []
-        with PiCameraReplay(events):
+        with PiCameraReplay(replay_data):
             pass
         self.assertEqual(len(collected_evt_types), 0)
 
