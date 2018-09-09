@@ -7,6 +7,21 @@ from threading import Thread, Event
 import json
 import os
 from misc.extended_json_codec import ExtendedJSONCodec
+try:
+    from specialized.camera_support.mux import MP4StreamMuxer
+except ImportError:
+    class MP4StreamMuxer:
+        def __init__(self, stream):
+            self.stream = stream
+
+        def append(self, *_, **__):
+            pass
+
+        def begin(self, *_, **__):
+            pass
+
+        def end(self, *_, **__):
+            pass
 
 _PI_VIDEO_FRAME_FIELDS = ['index', 'frame_type', 'frame_size', 'video_size', 'split_size', 'timestamp', 'complete']
 
@@ -141,12 +156,20 @@ class MotionRecorder(PiMotionAnalysis):  # pragma: no cover
 class VideoRecorder:  # pragma: no cover
     def write(self, data):
         self._recorder.record_event(CamEventType.WRITE, data)
+        self._muxer.append(data, self._recorder.camera.frame.frame_type == PiVideoFrameType.sps_header,
+                           self._recorder.camera.frame.complete)
 
     def flush(self):
         self._recorder.record_event(CamEventType.FLUSH)
+        self._muxer.end(self._recorder.camera.framerate, self._recorder.camera.resolution)
+
+    def dump_mp4(self, fp):
+        fp.write(self._muxer.stream.getvalue())
 
     def __init__(self, recorder):
         self._recorder = recorder
+        self._muxer = MP4StreamMuxer(io.BytesIO())
+        self._muxer.begin()
 
 
 PiMotionAnalysisMockup = PiMotionAnalysis

@@ -28,6 +28,8 @@ def format_size(sz):
 def main(args):
     camera = PiCamera()
     rec = Recorder(camera)
+    vrec = VideoRecorder(rec)
+    mrec = MotionRecorder(rec)
     camera.framerate = args.framerate
     camera.resolution = args.resolution
     logging.info('Starting warmup (2s). Recording %dx%d at %d fps, crf=%d.',
@@ -35,7 +37,7 @@ def main(args):
     camera.start_preview()
     sleep(2)
     logging.info('Will record (roughly) %d seconds.', args.duration)
-    camera.start_recording(VideoRecorder(rec), format='h264', motion_output=MotionRecorder(rec), quality=26)
+    camera.start_recording(vrec, format='h264', motion_output=mrec, quality=26)
     try:
         sleep(args.duration)
         camera.stop_recording()
@@ -56,12 +58,22 @@ def main(args):
         with open(args.output, 'w') as fp:
             json.dump(rec.data, fp, cls=ExtendedJSONCodec, indent=2)
     logging.info('Done, total file size: %s', format_size(os.path.getsize(path)))
+    if args.mp4_output is not None:
+        if os.path.isfile(args.mp4_output):
+            logging.warning('File %s exists! Moving to .old', args.mp4_output)
+            os.rename(path, path + '.old')
+        try:
+            with open(args.mp4_output, 'wb') as fp:
+                vrec.dump_mp4(fp)
+        except OSError as e:
+            logging.error('Cannot write to %s, error: ', args.mp4_output, str(e))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', '-o', type=str, required=False, default='cam_replay.json.gz',
                         help='json[.gz] output file.')
+    parser.add_argument('--mp4-output', '-v', type=str, required=False, default=None, help='Write also an mp4 here.')
     parser.add_argument('--resolution', '-r', default=(320, 240), type=resolution, required=False,
                         help='Resolution in pixels WxH')
     parser.add_argument('--duration', '-d', default=2., type=float, required=False, help='Duration in seconds.')
