@@ -31,11 +31,18 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         self._has_just_flushed = False
 
     def __enter__(self):
+        super(BufferedRecorderPlugin, self).__enter__()
         self._has_just_flushed = True
         self._recorder.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._recorder.__exit__(exc_type, exc_val, exc_tb)
+        super(BufferedRecorderPlugin, self).__exit__(exc_type, exc_val, exc_tb)
+
+    @pyro_expose
+    @property
+    def footage_age(self):
+        return self._recorder.footage_age
 
     @property
     def _camera(self):
