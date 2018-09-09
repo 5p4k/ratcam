@@ -1,3 +1,4 @@
 Pyro4>=4.73
 coverage>=4.5.1
 numpy>=1.13.1
+https://github.com/LizardM4/picamera/archive/mp4_nonrpi.zip
