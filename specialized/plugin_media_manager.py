@@ -93,7 +93,7 @@ class MediaManagerPlugin(PluginProcessBase):
         while not self._dispatch_thread_stop.is_set():
             self._dispatch_thread_wake.wait()
             self._dispatch_thread_wake.clear()
-            while not self._dispatch_thread_queue.empty():
+            while not self._dispatch_thread_queue.empty() and not self._dispatch_thread_stop.is_set():
                 media = self._dispatch_thread_queue.get_nowait()
                 for media_receiver in MediaManagerPlugin.active_local_media_receivers():
                     media_receiver.handle_media(media)
