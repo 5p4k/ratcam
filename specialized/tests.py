@@ -188,6 +188,10 @@ class InjectDemoData(PluginProcessBase):
     def wait_for_completion(self):
         self._replay.has_stopped.wait()
 
+    @pyro_expose
+    def replay(self):
+        self._replay.replay()
+
     def __enter__(self):
         events = load_demo_events()
         camera = find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera.camera

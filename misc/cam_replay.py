@@ -241,11 +241,16 @@ class PiCameraReplay:
     def has_stopped(self):
         return self._has_stopped
 
+    def replay(self):
+        if self._has_stopped.is_set():
+            self._stop_event.clear()
+            self._has_stopped.clear()
+            self._replay_thread = Thread(target=self._replay)
+            self._replay_thread.start()
+
     def __enter__(self):
-        self._stop_event.clear()
-        self._has_stopped.clear()
-        self._replay_thread = Thread(target=self._replay)
-        self._replay_thread.start()
+        self._has_stopped.set()
+        self.replay()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
