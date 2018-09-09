@@ -190,6 +190,8 @@ class PiCameraMockup:  # pragma: no cover
 
 
 class PiCameraReplay:
+    DEFAULT_TIME_FACTOR = 1.
+
     def __init__(self, events, camera=PiCameraMockup()):
         # Partial copy
         self._events = sorted([CamEvent(e.time, e.event_type, e.frame, e.data) for e in events])
@@ -200,6 +202,8 @@ class PiCameraReplay:
         self._stop_event = Event()
         self._replace_time_with_wait_time()
         self._has_stopped = Event()
+        self._time_factor = 1.
+        self.time_factor = self.__class__.DEFAULT_TIME_FACTOR
 
     def _replace_time_with_wait_time(self):
         for i in range(len(self._events) - 1, 0, -1):
@@ -215,11 +219,19 @@ class PiCameraReplay:
                     return False
             return not self._stop_event.is_set()
         evt_idx = 0
-        while evt_idx < len(self._events) and _wait(self._events[evt_idx].time):
+        while evt_idx < len(self._events) and _wait(self._events[evt_idx].time / self.time_factor):
             if self._camera.recording:
                 self._camera.mock_event(self._events[evt_idx])
                 evt_idx += 1
         self._has_stopped.set()
+
+    @property
+    def time_factor(self):
+        return self._time_factor
+
+    @time_factor.setter
+    def time_factor(self, value):
+        self._time_factor = max(0.01, value)
 
     @property
     def camera(self):
