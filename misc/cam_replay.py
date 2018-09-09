@@ -23,8 +23,6 @@ except ImportError:
         def end(self, *_, **__):
             pass
 
-_PI_VIDEO_FRAME_FIELDS = ['index', 'frame_type', 'frame_size', 'video_size', 'split_size', 'timestamp', 'complete']
-
 try:
     from picamera.array import PiMotionAnalysis
     from picamera.frames import PiVideoFrameType, PiVideoFrame
@@ -49,21 +47,11 @@ except (ImportError, OSError):
         sps_header = 2
         motion_data = 3
 
-    PiVideoFrame = namedtuple('PiVideoFrame', _PI_VIDEO_FRAME_FIELDS)
+    PiVideoFrame = namedtuple('PiVideoFrame', ['index', 'frame_type', 'frame_size', 'video_size', 'split_size',
+                                               'timestamp', 'complete'])
 
 
-# Monkey patch PiVideoFrame to be serializable
-def _pi_video_frame_to_json(self_frame):
-    return {key: getattr(self_frame, key) for key in _PI_VIDEO_FRAME_FIELDS}
-
-
-def _pi_video_frame_from_json(cls_frame, payload):
-    return cls_frame(**{key: value for key, value in payload.items() if key in _PI_VIDEO_FRAME_FIELDS})
-
-
-PiVideoFrame.to_json = _pi_video_frame_to_json
-PiVideoFrame.from_json = classmethod(_pi_video_frame_from_json)
-PiVideoFrame = make_custom_serializable(PiVideoFrame)
+make_custom_serializable(PiVideoFrame)
 
 
 @make_custom_serializable
