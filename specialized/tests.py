@@ -15,13 +15,7 @@ from uuid import UUID
 from specialized.plugin_buffered_recorder import BufferedRecorderPlugin, BUFFERED_RECORDER_PLUGIN_NAME
 
 
-class RemoteMediaManager(MediaManagerPlugin):
-    @pyro_expose
-    def test_deliver_media(self, path, kind=None, info=None):
-        self.deliver_media(path, kind, info)
-
-
-class TestMediaManager(unittest.TestCase):
+class RatcamUnitTestCase(unittest.TestCase):
     def retry_until_timeout(self, fn, timeout=1., sleep_step=0.001):  # pragma: no cover
         sleep_time = sleep_step
         start_time = time.time()
@@ -32,6 +26,42 @@ class TestMediaManager(unittest.TestCase):
             sleep_time += sleep_step
         self.fail()
 
+
+class RemoteMediaManager(MediaManagerPlugin):
+    @pyro_expose
+    def test_deliver_media(self, path, kind=None, info=None):
+        self.deliver_media(path, kind, info)
+
+
+class ControlledMediaReceiver(PluginProcessBase, MediaReceiver):
+    @classmethod
+    def plugin_name(cls):  # pragma: no cover
+        return 'ControlledMediaReceiver'
+
+    @classmethod
+    def process(cls):  # pragma: no cover
+        return Process.MAIN
+
+    def handle_media(self, media):
+        self._media = media
+        self._let_go_of_media.wait()
+
+    @pyro_expose
+    def let_media_go(self):
+        self._let_go_of_media.set()
+
+    @pyro_expose
+    @property
+    def media(self):
+        return self._media
+
+    def __init__(self):
+        self._media = None
+        self._let_go_of_media = Event()
+        self._let_go_of_media.clear()
+
+
+class TestMediaManager(RatcamUnitTestCase):
     def test_simple(self):
         with ProcessesHost({MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(main=RemoteMediaManager)}) as phost:
             self.assertIn(MEDIA_MANAGER_PLUGIN_NAME, phost.plugin_instances)
@@ -44,32 +74,6 @@ class TestMediaManager(unittest.TestCase):
             assert os.path.isfile(path)
             phost.plugin_instances[MEDIA_MANAGER_PLUGIN_NAME].main.test_deliver_media(path, None)
         self.assertFalse(os.path.isfile(path))
-
-    class ControlledMediaReceiver(PluginProcessBase, MediaReceiver):
-        @classmethod
-        def plugin_name(cls):  # pragma: no cover
-            return 'ControlledMediaReceiver'
-
-        @classmethod
-        def process(cls):  # pragma: no cover
-            return Process.MAIN
-
-        def handle_media(self, media):
-            self._media = media
-            self._let_go_of_media.wait()
-
-        @pyro_expose
-        def let_media_go(self):
-            self._let_go_of_media.set()
-
-        @pyro_expose
-        @property
-        def media(self):
-            return self._media
-
-        def __init__(self):
-            self._media = None
-            self._let_go_of_media = Event()
 
     def test_spurious_consume_calls(self):
         plugins = {
@@ -94,15 +98,14 @@ class TestMediaManager(unittest.TestCase):
 
     def test_media_dispatch(self):
         plugins = {
-            TestMediaManager.ControlledMediaReceiver.plugin_name():
-                ProcessPack(main=TestMediaManager.ControlledMediaReceiver),
+            ControlledMediaReceiver.plugin_name(): ProcessPack(main=ControlledMediaReceiver),
             MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(main=RemoteMediaManager)
         }
         with ProcessesHost(plugins) as phost:
             with tempfile.NamedTemporaryFile(delete=False) as media_file:
                 path = media_file.name
             media_mgr = phost.plugin_instances[MEDIA_MANAGER_PLUGIN_NAME].main
-            media_rcv = phost.plugin_instances[TestMediaManager.ControlledMediaReceiver.plugin_name()].main
+            media_rcv = phost.plugin_instances[ControlledMediaReceiver.plugin_name()].main
             media_mgr.test_deliver_media(path, 'mp4', 45)
             # Make sure it gets delivered
             if self.retry_until_timeout(lambda: media_rcv.media is not None):
@@ -118,8 +121,7 @@ class TestMediaManager(unittest.TestCase):
 
     def test_manual_dispatch(self):
         plugins = {
-            TestMediaManager.ControlledMediaReceiver.plugin_name():
-                ProcessPack(main=TestMediaManager.ControlledMediaReceiver),
+            ControlledMediaReceiver.plugin_name(): ProcessPack(main=ControlledMediaReceiver),
             MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(main=MediaManagerPlugin)
         }
         dummy_media = Media(
@@ -131,7 +133,7 @@ class TestMediaManager(unittest.TestCase):
         )
         with ProcessesHost(plugins) as phost:
             media_mgr = phost.plugin_instances[MEDIA_MANAGER_PLUGIN_NAME].main
-            media_rcv = phost.plugin_instances[TestMediaManager.ControlledMediaReceiver.plugin_name()].main
+            media_rcv = phost.plugin_instances[ControlledMediaReceiver.plugin_name()].main
             media_mgr.dispatch_media(dummy_media)
             # Make sure it gets delivered
             if self.retry_until_timeout(lambda: media_rcv.media is not None):
@@ -236,7 +238,7 @@ class TestPicameraPlugin(unittest.TestCase):
             self.assertGreater(test_cam_plugin.num_analysis, 0)
 
 
-class TestBufferedRecorder(unittest.TestCase):
+class TestBufferedRecorder(RatcamUnitTestCase):
     def test_simple(self):
         plugins = {
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
@@ -245,7 +247,7 @@ class TestBufferedRecorder(unittest.TestCase):
         with ProcessesHost(plugins):
             pass
 
-    def test_demo_data(self):
+    def test_runs_with_demo_data(self):
         plugins = {
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
             BUFFERED_RECORDER_PLUGIN_NAME: ProcessPack(camera=BufferedRecorderPlugin),
