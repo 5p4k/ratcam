@@ -258,11 +258,38 @@ class TestBufferedRecorder(RatcamUnitTestCase):
             buffered_recorder = host.plugin_instances[BUFFERED_RECORDER_PLUGIN_NAME].camera
             buffered_recorder.record(12345)
             injector.wait_for_completion()
+            self.assertGreater(buffered_recorder.footage_age, 0)
+            buffered_recorder.stop_and_discard()
+            buffered_recorder.record(54321)
+            injector.replay()
+            injector.wait_for_completion()
+            self.assertGreater(buffered_recorder.footage_age, 0)
+            buffered_recorder.stop_and_finalize()
+
+    def test_dispatches_media(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            BUFFERED_RECORDER_PLUGIN_NAME: ProcessPack(camera=BufferedRecorderPlugin),
+            'InjectDemoData': ProcessPack(camera=InjectDemoData),
+            ControlledMediaReceiver.plugin_name(): ProcessPack(camera=ControlledMediaReceiver),
+            MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(camera=MediaManagerPlugin)
+        }
+        with ProcessesHost(plugins) as host:
+            injector = host.plugin_instances['InjectDemoData'].camera
+            buffered_recorder = host.plugin_instances[BUFFERED_RECORDER_PLUGIN_NAME].camera
+            media_rcv = host.plugin_instances[ControlledMediaReceiver.plugin_name()].camera
+            buffered_recorder.record(12345)
+            injector.wait_for_completion()
             buffered_recorder.stop_and_discard()
             buffered_recorder.record(54321)
             injector.replay()
             injector.wait_for_completion()
             buffered_recorder.stop_and_finalize()
+            self.assertTrue(os.path.isfile(media_rcv.media.path))
+            self.assertEqual(media_rcv.media.kind, 'mp4')
+            self.assertEqual(media_rcv.media.info, 54321)
+            media_rcv.let_media_go()
+            self.retry_until_timeout(lambda: not os.path.isfile(media_rcv.media.path))
 
 
 if __name__ == '__main__':  # pragma: no cover
