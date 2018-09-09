@@ -54,7 +54,7 @@ class ExtendedJSONCodec(JSONEncoder):
             return False
         return isinstance(obj, is_cls)
 
-    def iterencode(self, o, _one_shot=False):
+    def iterencode(self, o, _one_shot=False):  # pragma: no cover
         """Encode the given object and yield each string
         representation as available.
 
@@ -63,6 +63,7 @@ class ExtendedJSONCodec(JSONEncoder):
             for chunk in JSONEncoder().iterencode(bigobject):
                 mysocket.write(chunk)
 
+        This method is identical to json.JSONEncoder.iterencode, except that one shot is ignored.
         """
         if self.check_circular:
             markers = {}

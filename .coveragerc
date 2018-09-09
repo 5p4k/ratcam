@@ -5,3 +5,4 @@ omit =
     legacy
     srgb
     venv*
+    safe_picamera.py

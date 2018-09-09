@@ -47,7 +47,7 @@ class TemporaryMP4Muxer:
             logging.debug('Dropping temporary MP4 %s', self._temp_file.name)
             try:
                 os.remove(self._temp_file.name)
-            except OSError as e:
+            except OSError as e:  # pragma: no cover
                 logging.error('Unable to remove {}, error: {}'.format(self._temp_file.name, e.strerror))
         self._temp_file = None
         self._muxer = None
@@ -65,7 +65,7 @@ class TemporaryMP4Muxer:
         return self._temp_file.name
 
     def rewind(self):
-        if not self._last_frame_is_complete:
+        if not self._last_frame_is_complete:  # pragma: no cover
             raise RuntimeError('Rewinding before the last frame is complete will corrupt the media.')
         self._temp_file.seek(0)
         # Need to create new because it will seek to the mdat offset for finalizing the mp4
@@ -78,7 +78,7 @@ class TemporaryMP4Muxer:
         Finalized the current MP4 and returns the file name.
         Continues recording on another temporary file
         """
-        if not self._last_frame_is_complete:
+        if not self._last_frame_is_complete:  # pragma: no cover
             raise RuntimeError('Finalizing before the last frame is complete will corrupt the media.')
         old_temp_file, old_muxer = self._temp_file, self._muxer
         self._setup_new_temp()
