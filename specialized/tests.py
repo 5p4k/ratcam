@@ -13,6 +13,7 @@ from misc.cam_replay import PiCameraReplay, load_demo_events
 from plugins.processes_host import find_plugin
 from uuid import UUID
 from specialized.plugin_buffered_recorder import BufferedRecorderPlugin, BUFFERED_RECORDER_PLUGIN_NAME
+from safe_picamera import PiVideoFrameType
 
 
 class RatcamUnitTestCase(unittest.TestCase):
@@ -183,21 +184,22 @@ class TestCam(PiCameraProcessBase):
 
 @make_plugin('InjectDemoData', Process.CAMERA)
 class InjectDemoData(PluginProcessBase):
+    DEMO_DATA = load_demo_events()
+
     def __init__(self):
         self._replay = None
 
     @pyro_expose
-    def wait_for_completion(self):
-        self._replay.has_stopped.wait()
+    def wait_for_completion(self, timeout=None):
+        return self._replay.has_stopped.wait(timeout=timeout)
 
     @pyro_expose
     def replay(self):
         self._replay.replay()
 
     def __enter__(self):
-        replay_data = load_demo_events()
         camera = find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera.camera
-        self._replay = PiCameraReplay(replay_data, camera)
+        self._replay = PiCameraReplay(self.__class__.DEMO_DATA, camera)
         self._replay.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -290,6 +292,47 @@ class TestBufferedRecorder(RatcamUnitTestCase):
             self.assertEqual(media_rcv.media.info, 54321)
             media_rcv.let_media_go()
             self.retry_until_timeout(lambda: not os.path.isfile(media_rcv.media.path))
+
+    def test_rewinds(self):
+        # Identify the max age of a split point
+        max_sps_age = 0
+        age = 0
+        for evt in InjectDemoData.DEMO_DATA['events']:
+            if evt.frame is None:
+                continue
+            elif evt.frame.frame_type == PiVideoFrameType.sps_header:
+                max_sps_age = max(max_sps_age, age)
+                age = 0
+            elif evt.frame.frame_type == PiVideoFrameType.key_frame or evt.frame.frame_type == PiVideoFrameType.frame:
+                age += 1
+        # We will play in a loop
+        max_sps_age = max(age, max_sps_age)
+        del age
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            BUFFERED_RECORDER_PLUGIN_NAME: ProcessPack(camera=BufferedRecorderPlugin),
+            'InjectDemoData': ProcessPack(camera=InjectDemoData)
+        }
+        with ProcessesHost(plugins) as host:
+            buffered_recorder = host.plugin_instances[BUFFERED_RECORDER_PLUGIN_NAME].camera
+            # Patch the recorder to prevent frames to get too old
+            buffered_recorder.sps_header_max_age = max_sps_age / 2
+            buffered_recorder.buffer_max_age = max_sps_age / 2
+            injector = host.plugin_instances['InjectDemoData'].camera
+            max_buffer_age = 0
+            max_footage_age = 0
+            while not injector.wait_for_completion(0.1):
+                max_buffer_age = max(buffered_recorder.buffer_age, max_buffer_age)
+                max_footage_age = max(buffered_recorder.buffer_age, max_footage_age)
+            injector.replay()
+            while not injector.wait_for_completion(0.1):
+                max_buffer_age = max(buffered_recorder.buffer_age, max_buffer_age)
+                max_footage_age = max(buffered_recorder.buffer_age, max_footage_age)
+            # On average we must not exceed by that much the max allowed buffer length
+            self.assertLessEqual(max_buffer_age, buffered_recorder.total_age)
+            self.assertLessEqual(max_footage_age, buffered_recorder.total_age)
+            self.assertLessEqual(max_buffer_age, max_sps_age)
+            self.assertLessEqual(max_footage_age, max_sps_age)
 
 
 if __name__ == '__main__':  # pragma: no cover
