@@ -131,7 +131,8 @@ class PiCameraMockup:  # pragma: no cover
         self._resolution = (320, 240)
         self._output = None
         self._motion_output = None
-        self._frame = None
+        self._frame = PiVideoFrame(index=0, frame_type=None, frame_size=0, video_size=0, split_size=0, timestamp=0,
+                                   complete=False)
 
     @property
     def resolution(self):
@@ -187,6 +188,9 @@ class PiCameraMockup:  # pragma: no cover
 
     def stop_recording(self):
         self._recording = False
+
+    def request_key_frame(self):
+        pass
 
 
 class PiCameraReplay:
