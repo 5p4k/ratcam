@@ -6,7 +6,7 @@ from specialized.plugin_media_manager import MEDIA_MANAGER_PLUGIN_NAME
 from plugins.processes_host import find_plugin
 from Pyro4 import expose as pyro_expose
 import logging
-from misc.logging import ensure_logging_setup
+from misc.logging import ensure_logging_setup, camel_to_snake
 from datetime import datetime
 from misc.settings import SETTINGS
 from safe_picamera import PiVideoFrameType
@@ -15,7 +15,7 @@ from threading import Lock
 
 BUFFERED_RECORDER_PLUGIN_NAME = 'BufferedRecorder'
 ensure_logging_setup()
-_log = logging.getLogger(BUFFERED_RECORDER_PLUGIN_NAME.lower())
+_log = logging.getLogger(camel_to_snake(BUFFERED_RECORDER_PLUGIN_NAME))
 
 
 @make_plugin(BUFFERED_RECORDER_PLUGIN_NAME, Process.CAMERA)

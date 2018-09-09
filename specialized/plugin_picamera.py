@@ -3,7 +3,7 @@ from plugins.decorators import make_plugin
 from plugins.processes_host import find_plugin, active_plugins
 from Pyro4 import expose as pyro_expose
 import logging
-from misc.logging import ensure_logging_setup
+from misc.logging import ensure_logging_setup, camel_to_snake
 from misc.settings import SETTINGS
 from time import sleep
 from threading import Thread
@@ -12,9 +12,9 @@ from threading import Thread
 _WARMUP_THREAD_TIME = 2.  # seconds
 _WARMUP_THREAD_LEASE_TIME = _WARMUP_THREAD_TIME * 1.1
 
-PICAMERA_ROOT_PLUGIN_NAME = 'Picamera'
+PICAMERA_ROOT_PLUGIN_NAME = 'PiCamera'
 ensure_logging_setup()
-_log = logging.getLogger(PICAMERA_ROOT_PLUGIN_NAME.lower())
+_log = logging.getLogger(camel_to_snake(PICAMERA_ROOT_PLUGIN_NAME))
 
 
 try:  # pragma: no cover

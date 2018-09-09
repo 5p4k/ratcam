@@ -8,10 +8,11 @@ from uuid import uuid4
 from queue import Queue
 from threading import Thread, Event, Lock
 import os
+from misc.logging import camel_to_snake
 
 
 MEDIA_MANAGER_PLUGIN_NAME = 'MediaManager'
-_log = logging.getLogger(MEDIA_MANAGER_PLUGIN_NAME.lower())
+_log = logging.getLogger(camel_to_snake(MEDIA_MANAGER_PLUGIN_NAME))
 
 
 class Media(namedtuple('_Media', ['uuid', 'owning_process', 'kind', 'path', 'info'])):
