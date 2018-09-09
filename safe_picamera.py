@@ -1,5 +1,10 @@
 import logging
 import os
+from misc.logging import ensure_logging_setup
+
+
+ensure_logging_setup()
+
 
 try:
     from picamera.array import PiMotionAnalysis
