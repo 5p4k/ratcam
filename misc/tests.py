@@ -4,10 +4,11 @@ from misc.extended_json_codec import make_custom_serializable, ExtendedJSONCodec
 import json
 from datetime import datetime
 from misc.dotdict import DotDict
-from misc.cam_replay import CamEventType, CamEvent, PiCameraReplay, PiMotionAnalysisMockup
+from misc.cam_replay import CamEventType, CamEvent, PiCameraReplay, PiMotionAnalysisMockup, PiVideoFrame
 import numpy as np
 import tempfile
 from misc.settings import save_settings
+from collections import namedtuple
 
 
 def through_json(obj):
@@ -15,6 +16,11 @@ def through_json(obj):
 
 
 class TestCustomSerialization(unittest.TestCase):
+    def test_serialize_namedtuple(self):
+        MyTpl = make_custom_serializable(namedtuple('MyTpl', ['a', 'b']))
+        my_tpl = MyTpl(1, 2)
+        self.assertEqual(my_tpl, through_json(my_tpl))
+
     def test_serialize_enum(self):
         @make_custom_serializable
         class TestEnum(Enum):
@@ -114,6 +120,11 @@ class MotionEventCollector(PiMotionAnalysisMockup):
 
 
 class TestPicameraReplay(unittest.TestCase):
+    def test_serialize_frame(self):
+        frame = PiVideoFrame(0, 1, 2, 3, 4, 5, 6)
+        self.assertIsInstance(through_json(frame), PiVideoFrame)
+        self.assertEqual(frame, through_json(frame))
+
     def test_replay(self):
         events = [
             CamEvent(0.0, CamEventType.WRITE, None, None),

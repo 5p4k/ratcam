@@ -1,7 +1,13 @@
 from datetime import datetime
 from json import JSONEncoder
+from json.encoder import encode_basestring_ascii, encode_basestring, INFINITY, _make_iterencode
 from enum import Enum
 from base64 import b64encode, b64decode
+
+
+def _is_namedtuple(typ):
+    return issubclass(typ, tuple) and \
+           getattr(typ, '_fields', None) is not None
 
 
 def make_custom_serializable(typ):
@@ -15,6 +21,10 @@ def make_custom_serializable(typ):
         if issubclass(typ, Enum):
             typ.to_json = lambda self: self.value
             typ.from_json = classmethod(lambda cls, payload: cls(payload))
+        elif _is_namedtuple(typ):
+            typ.to_json = lambda self: dict({k: getattr(self, k) for k in typ._fields})
+            typ.from_json = classmethod(lambda cls, payload: cls(**{k: v for k, v in payload.items() if
+                                                                    k in typ._fields}))
         else:
             def typ_from_json(cls, payload):
                 obj = cls()
@@ -38,8 +48,61 @@ class ExtendedJSONCodec(JSONEncoder):
     def _can_be_custom_deserialized(cls, payload):
         return callable(getattr(cls.ACCEPTED_CLASSES.get(payload.get(cls.TYPE_KEY)), 'from_json', None))
 
+    @classmethod
+    def _isinstance(cls, obj, is_cls):
+        if obj.__class__ in cls.ACCEPTED_CLASSES.values():
+            return False
+        return isinstance(obj, is_cls)
+
+    def iterencode(self, o, _one_shot=False):
+        """Encode the given object and yield each string
+        representation as available.
+
+        For example::
+
+            for chunk in JSONEncoder().iterencode(bigobject):
+                mysocket.write(chunk)
+
+        """
+        if self.check_circular:
+            markers = {}
+        else:
+            markers = None
+        if self.ensure_ascii:
+            _encoder = encode_basestring_ascii
+        else:
+            _encoder = encode_basestring
+
+        def floatstr(oo, allow_nan=self.allow_nan,
+                     _repr=float.__repr__, _inf=INFINITY, _neginf=-INFINITY):
+            # Check for specials.  Note that this type of test is processor
+            # and/or platform-specific, so do tests which don't depend on the
+            # internals.
+
+            if oo != oo:
+                text = 'NaN'
+            elif oo == _inf:
+                text = 'Infinity'
+            elif oo == _neginf:
+                text = '-Infinity'
+            else:
+                return _repr(oo)
+
+            if not allow_nan:
+                raise ValueError(
+                    "Out of range float values are not JSON compliant: " +
+                    repr(o))
+
+            return text
+
+        # Force using _make_iterencode with custom isinstance fn
+        _iterencode = _make_iterencode(
+            markers, self.default, _encoder, self.indent, floatstr,
+            self.key_separator, self.item_separator, self.sort_keys,
+            self.skipkeys, False, isinstance=self.__class__._isinstance)
+        return _iterencode(o, 0)
+
     def default(self, obj):
-        # Manually add support for bytes and datetime
         if isinstance(obj, datetime):
             return {self.__class__.TYPE_KEY: obj.__class__.__name__, obj.__class__.__name__: obj.timestamp()}
         elif isinstance(obj, bytes):
