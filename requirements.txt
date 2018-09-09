@@ -1,4 +1,4 @@
-git+https://github.com/LizardM4/picamera.git@mp4
+https://github.com/LizardM4/picamera/archive/mp4.zip
 numpy>=1.13.1
 python-telegram-bot>=8.0
 Pillow>=4.3.0
