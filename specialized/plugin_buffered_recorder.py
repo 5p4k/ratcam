@@ -80,7 +80,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     @pyro_expose
     @property
     def sps_header_max_age(self):
-        if self._buffer_max_age is None:
+        if self._sps_header_max_age is None:
             # Lazily load this value, because we must be sure that a camera is instantiated
             self._sps_header_max_age = self._camera.framerate * max(1., SETTINGS.camera.clip_length_tolerance)
         return self._sps_header_max_age
