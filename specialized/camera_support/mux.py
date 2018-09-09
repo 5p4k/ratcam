@@ -29,13 +29,14 @@ class TemporaryMP4Muxer:
         self._temp_file = None
         self._muxer = None
         self._age = None
-        self._last_frame_is_complete = False
+        self._last_frame_is_complete = True
 
     def __enter__(self):
         self._setup_new_temp()
 
     def _setup_new_temp(self):
         self._temp_file = NamedTemporaryFile(delete=False)
+        logging.debug('Using new temporary MP4 %s', self._temp_file.name)
         self._muxer = MP4StreamMuxer(self._temp_file)
         self._muxer.begin()
         self._age = 0
