@@ -14,6 +14,7 @@ from plugins.processes_host import find_plugin
 from uuid import UUID
 from specialized.plugin_buffered_recorder import BufferedRecorderPlugin, BUFFERED_RECORDER_PLUGIN_NAME
 from safe_picamera import PiVideoFrameType
+from specialized.plugin_still import StillPlugin, STILL_PLUGIN_NAME
 
 
 class RatcamUnitTestCase(unittest.TestCase):
@@ -349,3 +350,40 @@ class TestBufferedRecorder(RatcamUnitTestCase):
             self.assertLessEqual(max_footage_age, buffered_recorder.total_age)
             self.assertLessEqual(max_buffer_age, max_sps_age)
             self.assertLessEqual(max_footage_age, max_sps_age)
+
+
+class TestStillPlugin(RatcamUnitTestCase):
+    def test_simple(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            STILL_PLUGIN_NAME: ProcessPack(camera=StillPlugin)
+        }
+        with ProcessesHost(plugins):
+            pass
+
+    def test_runs_with_demo_data(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            STILL_PLUGIN_NAME: ProcessPack(camera=StillPlugin)
+        }
+        with ProcessesHost(plugins) as host:
+            still = host.plugin_instances[STILL_PLUGIN_NAME].camera
+            still.take_picture()
+
+    def test_dispatches_media(self):
+        plugins = {
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            STILL_PLUGIN_NAME: ProcessPack(camera=StillPlugin),
+            ControlledMediaReceiver.plugin_name(): ProcessPack(camera=ControlledMediaReceiver),
+            MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(camera=MediaManagerPlugin)
+        }
+        with ProcessesHost(plugins) as host:
+            media_rcv = host.plugin_instances[ControlledMediaReceiver.plugin_name()].camera
+            still = host.plugin_instances[STILL_PLUGIN_NAME].camera
+            still.take_picture(123)
+            self.retry_until_timeout(lambda: media_rcv.media is not None)
+            self.assertTrue(os.path.isfile(media_rcv.media.path))
+            self.assertEqual(media_rcv.media.kind, 'jpeg')
+            self.assertEqual(media_rcv.media.info, 123)
+            media_rcv.let_media_go()
+            self.retry_until_timeout(lambda: not os.path.isfile(media_rcv.media.path))

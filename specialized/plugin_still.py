@@ -67,7 +67,7 @@ class StillPlugin(PluginProcessBase):
                 with NamedTemporaryFile(delete=False) as temp_file:
                     media_path = temp_file.name
                     _log.info('Taking still picture with info %s to %s.', str(info), media_path)
-                    camera.capture(media_path, format='jpeg', use_video_port=True, quality=self.jpeg_quality)
+                    camera.camera.capture(media_path, format='jpeg', use_video_port=True, quality=self.jpeg_quality)
                     temp_file.flush()
                     temp_file.close()
                 media_mgr = find_plugin(MEDIA_MANAGER_PLUGIN_NAME, Process.CAMERA)
@@ -86,3 +86,4 @@ class StillPlugin(PluginProcessBase):
     def take_picture(self, info=None):
         _log.info('Requested media with info %s', str(info))
         self._still_thread_queue.put(info)
+        self._still_thread_wake.set()
