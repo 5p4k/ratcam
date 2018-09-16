@@ -187,6 +187,15 @@ class PiCameraMockup:  # pragma: no cover
         self._motion_output = motion_output
         self._recording = True
 
+    def capture(self, output, format=None, use_video_port=False, resize=None, splitter_port=0, bayer=False, **_):
+        assert format is None or format == 'jpeg', 'Unsupported'
+        assert use_video_port, 'Unsupported'
+        assert resize is None, 'Unsupported'
+        assert splitter_port == 0, 'Unsupported'
+        assert not bayer, 'Unsupported'
+        with open(output, 'wb') as fp:
+            fp.write(load_demo_image())
+
     def start_preview(self, *_, **__):
         pass
 
@@ -194,9 +203,6 @@ class PiCameraMockup:  # pragma: no cover
         self._recording = False
 
     def request_key_frame(self):
-        pass
-
-    def capture(self, *_, **__):
         pass
 
 
@@ -274,3 +280,8 @@ class PiCameraReplay:
 def load_demo_events():
     with open(os.path.join(os.path.dirname(__file__), 'cam_demo.json')) as fp:
         return json.load(fp, object_hook=ExtendedJSONCodec.hook)
+
+
+def load_demo_image():
+    with open(os.path.join(os.path.dirname(__file__), 'cam_demo.jpg'), 'rb') as fp:
+        return fp.read()
