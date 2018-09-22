@@ -5,10 +5,10 @@ from collections import namedtuple
 from plugins.processes_host import active_process, find_plugin, active_plugins
 import logging
 from uuid import uuid4
-from queue import Queue
-from threading import Thread, Event, Lock
+from threading import Lock
 import os
 from misc.logging import camel_to_snake
+from specialized.support.thread_host import CallbackQueueThreadHost
 
 
 MEDIA_MANAGER_PLUGIN_NAME = 'MediaManager'
@@ -37,8 +37,7 @@ class MediaManagerPlugin(PluginProcessBase):
     @pyro_expose
     @pyro_oneway
     def dispatch_media(self, media):
-        self._dispatch_thread_queue.put_nowait(media)
-        self._dispatch_thread_wake.set()
+        self._dispatch_and_delete_thread.push_operation(media)
 
     @pyro_expose
     @pyro_oneway
@@ -52,7 +51,7 @@ class MediaManagerPlugin(PluginProcessBase):
             if not any(self._media_in_use[media.uuid].values()):
                 _log.debug('Media %s at %s is ready for deletion.', str(media.uuid), os.path.abspath(media.path))
                 # Mark for deletion
-                self._dispatch_thread_wake.set()
+                self._dispatch_and_delete_thread.wake()
 
     def deliver_media(self, path, kind, info=None):
         media_mgr_pack = find_plugin(self)
@@ -89,53 +88,38 @@ class MediaManagerPlugin(PluginProcessBase):
                 continue
             yield plugin
 
-    def _dispatch_thread_main(self):
-        while not self._dispatch_thread_stop.is_set():
-            self._dispatch_thread_wake.wait()
-            self._dispatch_thread_wake.clear()
-            while not self._dispatch_thread_queue.empty() and not self._dispatch_thread_stop.is_set():
-                media = self._dispatch_thread_queue.get_nowait()
-                for media_receiver in MediaManagerPlugin.active_local_media_receivers():
-                    media_receiver.handle_media(media)
-                owning_manager = find_plugin(self, media.owning_process)
-                if owning_manager is None:
-                    _log.warning('Could not consume media %s at %s, no media manager on process %s', str(media.uuid),
-                                 media.path, media.owning_process.value.upper())
-                else:
-                    owning_manager.consume_media(media, active_process())
-            for media in self._pop_media_to_delete():
-                try:
-                    os.remove(media.path)
-                    _log.info('Removed media %s at %s', str(media.uuid), media.path)
-                except OSError as e:  # pragma: no cover
-                    _log.error('Could not remove %s, error: %s', os.path.abspath(media.path), e.strerror)
+    def _dispatch_media_locally(self, media):
+        for media_receiver in MediaManagerPlugin.active_local_media_receivers():
+            media_receiver.handle_media(media)
+        owning_manager = find_plugin(self, media.owning_process)
+        if owning_manager is None:
+            _log.warning('Could not consume media %s at %s, no media manager on process %s', str(media.uuid),
+                         media.path, media.owning_process.value.upper())
+        else:
+            owning_manager.consume_media(media, active_process())
+
+    def _delete_media_locally(self):
+        for media in self._pop_media_to_delete():
+            try:
+                os.remove(media.path)
+                _log.info('Removed media %s at %s', str(media.uuid), media.path)
+            except OSError as e:  # pragma: no cover
+                _log.error('Could not remove %s, error: %s', os.path.abspath(media.path), e.strerror)
 
     def __enter__(self):
-        self._dispatch_thread_queue = Queue()
-        self._dispatch_thread_wake.clear()
-        self._dispatch_thread_stop.clear()
         self._media.clear()
         self._media_in_use.clear()
-        self._dispatch_thread = Thread(target=self._dispatch_thread_main, name='media_dispatcher')
-        self._dispatch_thread.start()
+        self._dispatch_and_delete_thread.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._dispatch_thread_stop.set()
-        self._dispatch_thread_wake.set()
-        self._dispatch_thread.join(1.)
-        if self._dispatch_thread.is_alive():  # pragma: no cover
-            _log.warning('The dispatching thread on process %s did not join within 1s.', active_process().value)
-            self._dispatch_thread.join()
-            _log.info('The dispatching thread on process %s finally joined.', active_process().value)
+        self._dispatch_and_delete_thread.__exit__(exc_type, exc_val, exc_tb)
 
     def __init__(self):
         self._media = {}
         self._media_in_use = {}
         self._media_lock = Lock()
-        self._dispatch_thread = None
-        self._dispatch_thread_queue = None
-        self._dispatch_thread_wake = Event()
-        self._dispatch_thread_stop = Event()
+        self._dispatch_and_delete_thread = CallbackQueueThreadHost(
+            'media_dispatch_thread', self._dispatch_media_locally, self._delete_media_locally)
 
 
 # Have a media manager on all procs
