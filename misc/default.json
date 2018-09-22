@@ -9,5 +9,10 @@
     "buffer": 2.0,
     "clip_length_tolerance": 1.0,
     "jpeg_quality": 0.5
+  },
+  "detector": {
+    "trigger_thresholds": [80, 20],
+    "trigger_area_fractions": [0.0001, 0.00002],
+    "time_window": 2.0
   }
 }
