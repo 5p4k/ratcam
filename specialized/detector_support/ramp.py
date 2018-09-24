@@ -1,4 +1,4 @@
-from srgb.srgb_gamma import srgb_to_linear_rgb, linear_rgb_to_srgb
+from srgb.srgb_gamma import srgb_to_linear_rgb as s2l, linear_rgb_to_srgb as l2s
 
 
 def clamp(v, min_, max_):
@@ -27,9 +27,9 @@ def fill_linear_rgb_lut(val_and_color):
             if n_steps <= 0:
                 continue
             for j in range(n_steps):
-                yield lval + j, tuple(map(round, linear_blend(rcolor, lcolor, j / n_steps)))
+                yield tuple(map(round, linear_blend(rcolor, lcolor, j / n_steps)))
         lval, lcolor = rval, rcolor
-    yield lval, lcolor
+    yield lcolor
 
 
 def normalize_linear_rgb_gradient(gradient):
@@ -52,6 +52,4 @@ def normalize_linear_rgb_gradient(gradient):
 
 
 def make_rgb_lut(gradient):
-    yield from [(val, linear_rgb_to_srgb(color))
-                for val, color in fill_linear_rgb_lut([(v, srgb_to_linear_rgb(rgb))
-                                                       for v, rgb in normalize_linear_rgb_gradient(gradient)])]
+    yield from map(l2s, fill_linear_rgb_lut([(v, s2l(rgb)) for v, rgb in normalize_linear_rgb_gradient(gradient)]))

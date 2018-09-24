@@ -94,7 +94,7 @@ class TestLUTHelper(unittest.TestCase):
         exp_r = list(range(127)) + list(range(127, 256))
         exp_g = list(range(64, 192)) + list(range(192, 63, -1))
         exp_b = list(range(128, 0, -1)) + list(range(128))
-        exp = list(enumerate(map(linear_rgb_to_srgb, zip(exp_r, exp_g, exp_b))))
+        exp = list(map(linear_rgb_to_srgb, zip(exp_r, exp_g, exp_b)))
         self.assertEqual(exp, list(make_rgb_lut(ramp)))
 
     def test_mismatch_dim_in_blend(self):
