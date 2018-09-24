@@ -15,6 +15,8 @@ from uuid import UUID
 from specialized.plugin_buffered_recorder import BufferedRecorderPlugin, BUFFERED_RECORDER_PLUGIN_NAME
 from safe_picamera import PiVideoFrameType
 from specialized.plugin_still import StillPlugin, STILL_PLUGIN_NAME
+from specialized.plugin_motion_detector import MotionDetectorResponder, MotionDetectorCameraPlugin, \
+    MotionDetectorMainPlugin, MOTION_DETECTOR_PLUGIN_NAME
 
 
 class RatcamUnitTestCase(unittest.TestCase):
@@ -387,3 +389,55 @@ class TestStillPlugin(RatcamUnitTestCase):
             self.assertEqual(media_rcv.media.info, 123)
             media_rcv.let_media_go()
             self.retry_until_timeout(lambda: not os.path.isfile(media_rcv.media.path))
+
+
+class TestMotionDetectorPlugin(unittest.TestCase):
+    class TestMovementResponder(MotionDetectorResponder):
+        def __init__(self):
+            self._num_distinct_movements = 0
+            self._num_wrong_changed_events = 0
+            self._last_changed_event = None
+
+        @classmethod
+        def plugin_name(cls):  # pragma: no cover
+            return 'InjectDemoData'
+
+        @pyro_expose
+        @property
+        def num_distinct_movements(self):
+            return self._num_distinct_movements
+
+        @pyro_expose
+        @property
+        def num_wrong_changed_events(self):
+            return self._num_wrong_changed_events
+
+        def _motion_status_changed_internal(self, is_moving):
+            if is_moving == self._last_changed_event:
+                self._num_wrong_changed_events += 1
+            self._last_changed_event = is_moving
+            if is_moving:
+                self._num_distinct_movements += 1
+
+    def test_simple(self):
+        plugins = {
+            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin, main=MotionDetectorMainPlugin),
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            'InjectDemoData': ProcessPack(camera=InjectDemoData)
+        }
+        with ProcessesHost(plugins) as host:
+            injector = host.plugin_instances['InjectDemoData'].camera
+            injector.wait_for_completion()
+
+    def test_motion_reported(self):
+        plugins = {
+            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin, main=MotionDetectorMainPlugin),
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            'InjectDemoData': ProcessPack(camera=InjectDemoData, main=TestMotionDetectorPlugin.TestMovementResponder)
+        }
+        with ProcessesHost(plugins) as host:
+            injector = host.plugin_instances['InjectDemoData'].camera
+            responder = host.plugin_instances['InjectDemoData'].main
+            injector.wait_for_completion()
+            self.assertGreater(responder.num_distinct_movements, 0)
+            self.assertEqual(responder.num_wrong_changed_events, 0)
