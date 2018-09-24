@@ -10,6 +10,7 @@ from math import log, exp
 from specialized.detector_support.imaging import get_denoised_motion_vector_norm
 import numpy as np
 from specialized.support.thread_host import CallbackThreadHost
+import traceback
 
 
 MOTION_DETECTOR_PLUGIN_NAME = 'MotionDetector'
@@ -29,25 +30,25 @@ class MotionDetectorResponder(PluginProcessBase):
     def _motion_status_changed_internal(self, is_moving):
         pass
 
-    @pyro_oneway
     @pyro_expose
+    @pyro_oneway
     def motion_status_changed(self, is_moving):
         self._motion_status_changed_internal(is_moving)
 
 
 @make_plugin(MOTION_DETECTOR_PLUGIN_NAME, Process.MAIN)
-class PluginMotionDetectorMainComp(PiCameraProcessBase):
+class MotionDetectorMainPlugin(PiCameraProcessBase):
     def __init__(self):
-        super(PluginMotionDetectorMainComp, self).__init__()
+        super(MotionDetectorMainPlugin, self).__init__()
         self._notify_thread = CallbackThreadHost('notify_movement_thread', self._notify_movement)
 
     def __enter__(self):
-        super(PluginMotionDetectorMainComp, self).__enter__()
+        super(MotionDetectorMainPlugin, self).__enter__()
         self._notify_thread.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._notify_thread.__exit__(exc_type, exc_val, exc_tb)
-        super(PluginMotionDetectorMainComp, self).__exit__(exc_type, exc_val, exc_tb)
+        super(MotionDetectorMainPlugin, self).__exit__(exc_type, exc_val, exc_tb)
 
     def _notify_movement(self):
         value = find_plugin(self, Process.CAMERA).triggered
@@ -55,10 +56,12 @@ class PluginMotionDetectorMainComp(PiCameraProcessBase):
             if plugin.main is None or not isinstance(plugin.main, MotionDetectorResponder):
                 continue
             try:
-                plugin.motion_status_changed(value)
+                plugin.main.motion_status_changed(value)
             except Exception as exc:  # pragma: no cover
-                _log.error('Plugin %s has triggered an exception during motion_status_changed: %s',
-                           plugin_name, str(exc))
+                _log.error('Plugin %s has triggered an exception during motion_status_changed: %s, %s',
+                           plugin_name, exc.__class__.__name__, str(exc))
+                for line in traceback.format_exc().splitlines(keepends=False):
+                    _log.error(line)
 
     @pyro_oneway
     @pyro_expose
@@ -67,9 +70,9 @@ class PluginMotionDetectorMainComp(PiCameraProcessBase):
 
 
 @make_plugin(MOTION_DETECTOR_PLUGIN_NAME, Process.CAMERA)
-class PluginMotionDetectorCameraComp(PiCameraProcessBase):
+class MotionDetectorCameraPlugin(PiCameraProcessBase):
     def __init__(self):
-        super(PluginMotionDetectorCameraComp, self).__init__()
+        super(MotionDetectorCameraPlugin, self).__init__()
         self._trigger_thresholds = None
         self._trigger_area_fractions = None
         self._time_window = None
