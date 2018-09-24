@@ -1,7 +1,8 @@
 python_unittest:
   image: python:3.6.6-alpine
   before_script:
-  - apk add gcc gfortran musl-dev  # Needed for numpy
+  - apk add --no-cache gcc gfortran musl-dev  # Needed for numpy
+  - apk add --no-cache jpeg-dev zlib-dev      # Needed for Pillow
   - pip install -r requirements-ut.txt
   script:
   - coverage run tests.py
