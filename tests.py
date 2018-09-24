@@ -3,6 +3,7 @@ from misc.tests import *
 from plugins.tests import *
 from specialized.tests import *
 from specialized.telegram_support.tests import *
+from specialized.detector_support.tests import *
 from misc.logging import ensure_logging_setup
 import logging
 import specialized.plugin_picamera
