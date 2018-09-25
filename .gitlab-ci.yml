@@ -1,4 +1,6 @@
 python_unittest:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
   image: python:3.6.6-alpine
   before_script:
   - apk add --no-cache gcc gfortran musl-dev  # Needed for numpy
