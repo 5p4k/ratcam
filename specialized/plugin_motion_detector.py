@@ -22,12 +22,12 @@ ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(MOTION_DETECTOR_PLUGIN_NAME))
 
 
-MOTION_COLOR_RAMP = make_rgb_lut([
+MOTION_COLOR_RAMP = list(make_rgb_lut([
     (0.00, (255, 255, 255)),
     (0.25,  (66, 134, 244)),
     (0.75, (193,  65, 244)),
     (1.00, (255,   0, 246))
-])
+]))
 
 
 class MotionDetectorResponder(PluginProcessBase):
@@ -91,7 +91,7 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
         self._accumulator = None
         self._triggered = False
         self._cached_video_frame = None
-        self._capture_thread = CallbackQueueThreadHost('capture_motion_image_thread', self._take_motion_still_with_info)
+        self._capture_thread = CallbackQueueThreadHost('capture_motion_image_thread', self._take_motion_image_with_info)
         # Load settings' defaults
         self.trigger_thresholds = SETTINGS.detector.trigger_thresholds
         self.trigger_area_fractions = SETTINGS.detector.trigger_area_fractions
@@ -166,7 +166,7 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
         if self._cached_video_frame is None:
             self._cached_video_frame = np.empty((self._resolution[1], self._resolution[0], 3), dtype=np.uint8)
 
-    def _take_motion_still_with_info(self, info):
+    def _take_motion_image_with_info(self, info):
         self._prepare_video_frame_cache()
         with NamedTemporaryFile(delete=False) as temp_file:
             media_path = temp_file.name
@@ -189,7 +189,7 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
             _log.info('Dispatched motion image %s with info %s at %s.', str(media.uuid), str(media.info), media.path)
 
     @pyro_expose
-    def take_picture(self, info=None):
+    def take_motion_picture(self, info=None):
         _log.info('Requested motion image with info %s', str(info))
         self._capture_thread.push_operation(info)
 

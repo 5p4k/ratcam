@@ -391,7 +391,7 @@ class TestStillPlugin(RatcamUnitTestCase):
             self.retry_until_timeout(lambda: not os.path.isfile(media_rcv.media.path))
 
 
-class TestMotionDetectorPlugin(unittest.TestCase):
+class TestMotionDetectorPlugin(RatcamUnitTestCase):
     class TestMovementResponder(MotionDetectorResponder):
         def __init__(self):
             self._num_distinct_movements = 0
@@ -441,3 +441,24 @@ class TestMotionDetectorPlugin(unittest.TestCase):
             injector.wait_for_completion()
             self.assertGreater(responder.num_distinct_movements, 0)
             self.assertEqual(responder.num_wrong_changed_events, 0)
+
+    def test_take_motion_image(self):
+        plugins = {
+            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin, main=MotionDetectorMainPlugin),
+            PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
+            'InjectDemoData': ProcessPack(camera=InjectDemoData),
+            ControlledMediaReceiver.plugin_name(): ProcessPack(camera=ControlledMediaReceiver),
+            MEDIA_MANAGER_PLUGIN_NAME: ProcessPack(camera=MediaManagerPlugin)
+        }
+        with ProcessesHost(plugins) as host:
+            injector = host.plugin_instances['InjectDemoData'].camera
+            detector = host.plugin_instances[MOTION_DETECTOR_PLUGIN_NAME].camera
+            media_rcv = host.plugin_instances[ControlledMediaReceiver.plugin_name()].camera
+            injector.wait_for_completion()
+            detector.take_motion_picture(123)
+            self.retry_until_timeout(lambda: media_rcv.media is not None)
+            self.assertTrue(os.path.isfile(media_rcv.media.path))
+            self.assertEqual(media_rcv.media.kind, 'jpeg')
+            self.assertEqual(media_rcv.media.info, 123)
+            media_rcv.let_media_go()
+            self.retry_until_timeout(lambda: not os.path.isfile(media_rcv.media.path))
