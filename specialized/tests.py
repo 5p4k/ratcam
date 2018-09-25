@@ -77,7 +77,7 @@ class TestMediaManager(RatcamUnitTestCase):
                 path = media_file.name
             assert os.path.isfile(path)
             phost.plugin_instances[MEDIA_MANAGER_PLUGIN_NAME].main.test_deliver_media(path, None)
-        self.assertFalse(os.path.isfile(path))
+        self.retry_until_timeout(lambda: not os.path.isfile(path))
 
     def test_spurious_consume_calls(self):
         plugins = {
