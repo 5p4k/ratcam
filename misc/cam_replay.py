@@ -9,9 +9,15 @@ import os
 from misc.extended_json_codec import ExtendedJSONCodec
 from safe_picamera import PiMotionAnalysis, PiVideoFrame, PiVideoFrameType
 from specialized.camera_support.mux import MP4StreamMuxer
+from PIL import Image
 
 
 make_custom_serializable(PiVideoFrame)
+
+
+DEMO_IMAGE_PATH = os.path.join(os.path.dirname(__file__), 'cam_demo.jpg')
+DEMO_DATA_PATH = os.path.join(os.path.dirname(__file__), 'cam_demo.json')
+
 
 
 @make_custom_serializable
@@ -188,13 +194,19 @@ class PiCameraMockup:  # pragma: no cover
         self._recording = True
 
     def capture(self, output, format=None, use_video_port=False, resize=None, splitter_port=0, bayer=False, **_):
-        assert format is None or format == 'jpeg', 'Unsupported'
         assert use_video_port, 'Unsupported'
         assert resize is None, 'Unsupported'
         assert splitter_port == 0, 'Unsupported'
         assert not bayer, 'Unsupported'
-        with open(output, 'wb') as fp:
-            fp.write(load_demo_image())
+        if format == 'jpeg' and isinstance(output, str):
+            with open(output, 'wb') as fp:
+                fp.write(load_demo_image_data())
+        elif format == 'rgb' and isinstance(output, np.ndarray):
+            np.copyto(output, np.asarray(load_demo_image().convert('RGB')))
+        else:  # pragma: no cover
+            raise RuntimeWarning(
+                'Currently PiCameraMockup can only either write to file paths in JPEG format, or to preallocated numpy'
+                ' arrays in RGB format.')
 
     def start_preview(self, *_, **__):
         pass
@@ -278,10 +290,14 @@ class PiCameraReplay:
 
 
 def load_demo_events():
-    with open(os.path.join(os.path.dirname(__file__), 'cam_demo.json')) as fp:
+    with open(DEMO_DATA_PATH) as fp:
         return json.load(fp, object_hook=ExtendedJSONCodec.hook)
 
 
-def load_demo_image():
-    with open(os.path.join(os.path.dirname(__file__), 'cam_demo.jpg'), 'rb') as fp:
+def load_demo_image_data():
+    with open(DEMO_IMAGE_PATH, 'rb') as fp:
         return fp.read()
+
+
+def load_demo_image():
+    return Image.open(DEMO_IMAGE_PATH)
