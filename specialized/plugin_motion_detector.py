@@ -7,15 +7,27 @@ from misc.logging import ensure_logging_setup, camel_to_snake
 from misc.settings import SETTINGS
 from specialized.plugin_picamera import PiCameraProcessBase
 from math import log, exp
-from specialized.detector_support.imaging import get_denoised_motion_vector_norm
+from specialized.detector_support.imaging import get_denoised_motion_vector_norm, overlay_motion_vector_to_image
+from specialized.detector_support.ramp import make_rgb_lut, clamp
 import numpy as np
-from specialized.support.thread_host import CallbackThreadHost
+from specialized.support.thread_host import CallbackThreadHost, CallbackQueueThreadHost
+from tempfile import NamedTemporaryFile
+from specialized.plugin_media_manager import MEDIA_MANAGER_PLUGIN_NAME
 import traceback
+import os
 
 
 MOTION_DETECTOR_PLUGIN_NAME = 'MotionDetector'
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(MOTION_DETECTOR_PLUGIN_NAME))
+
+
+MOTION_COLOR_RAMP = make_rgb_lut([
+    (0.00, (255, 255, 255)),
+    (0.25,  (66, 134, 244)),
+    (0.75, (193,  65, 244)),
+    (1.00, (255,   0, 246))
+])
 
 
 class MotionDetectorResponder(PluginProcessBase):
@@ -78,10 +90,21 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
         self._time_window = None
         self._accumulator = None
         self._triggered = False
+        self._cached_video_frame = None
+        self._capture_thread = CallbackQueueThreadHost('capture_motion_image_thread', self._take_motion_still_with_info)
         # Load settings' defaults
         self.trigger_thresholds = SETTINGS.detector.trigger_thresholds
         self.trigger_area_fractions = SETTINGS.detector.trigger_area_fractions
         self.time_window = SETTINGS.detector.time_window
+        self._jpeg_quality = clamp(int(100 * SETTINGS.camera.jpeg_quality), 0, 100)
+
+    def __enter__(self):
+        self._capture_thread.__enter__()
+        super(MotionDetectorCameraPlugin, self).__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        super(MotionDetectorCameraPlugin, self).__exit__(exc_type, exc_val, exc_tb)
+        self._capture_thread.__exit__(exc_type, exc_val, exc_tb)
 
     @pyro_expose
     @property
@@ -131,9 +154,44 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
         return exp(-8 * log(2) / (self.time_window * self.picamera_root_plugin.camera.framerate))
 
     @property
+    def _resolution(self):
+        return self.picamera_root_plugin.camera.resolution
+
+    @property
     def _frame_area(self):
-        w, h = self.picamera_root_plugin.camera.resolution
+        w, h = self._resolution
         return w * h
+
+    def _prepare_video_frame_cache(self):
+        if self._cached_video_frame is None:
+            self._cached_video_frame = np.empty((self._resolution[1], self._resolution[0], 3), dtype=np.uint8)
+
+    def _take_motion_still_with_info(self, info):
+        self._prepare_video_frame_cache()
+        with NamedTemporaryFile(delete=False) as temp_file:
+            media_path = temp_file.name
+            _log.info('Taking motion image with info %s to %s.', str(info), media_path)
+            self.picamera_root_plugin.camera.capture(self._cached_video_frame, format='rgb', use_video_port=True)
+            image = overlay_motion_vector_to_image(self._cached_video_frame, self._accumulator, MOTION_COLOR_RAMP)
+            image.save(temp_file, format='jpeg', quality=self._jpeg_quality)
+            temp_file.flush()
+            temp_file.close()
+        media_mgr = find_plugin(MEDIA_MANAGER_PLUGIN_NAME, Process.CAMERA)
+        if media_mgr is None:
+            _log.error('Could not find a media manager on the CAMERA thread.')
+            _log.warning('Discarding motion image with info %s at %s', str(info), media_path)
+            try:
+                os.remove(media_path)
+            except OSError as e:
+                _log.error('Could not delete %s, error: %s', media_path, e.strerror)
+        else:
+            media = media_mgr.deliver_media(media_path, 'jpeg', info)
+            _log.info('Dispatched motion image %s with info %s at %s.', str(media.uuid), str(media.info), media.path)
+
+    @pyro_expose
+    def take_picture(self, info=None):
+        _log.info('Requested motion image with info %s', str(info))
+        self._capture_thread.push_operation(info)
 
     def _updated_trigger_status(self):
         threshold = self.trigger_thresholds[1 if self.triggered else 0]
