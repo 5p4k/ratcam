@@ -10,6 +10,7 @@ from specialized.telegram_support.format import user_to_str
 from specialized.telegram_support.handlers import make_handler as _make_handler, HandlerBase
 from misc.settings import SETTINGS
 from misc.logging import ensure_logging_setup, camel_to_snake
+from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 
 
 TELEGRAM_PLUGIN_NAME = 'RatcamBot'
@@ -68,9 +69,38 @@ class TelegramProcess(TelegramProcessBase):
             cnt += 1
         return cnt
 
+    def _broadcast(self, method, *args, **kwargs):
+        for chat in self._auth_storage.authorized_chats:
+            method(chat.chat_id, *args, **kwargs)
+
     @property
     def auth_filters(self):
         return self._auth_filters
+
+    @pyro_expose
+    @property
+    def authorized_chat_ids(self):
+        return list(map(lambda chat: chat.chat_id, self._auth_storage.authorized_chats))
+
+    @pyro_expose
+    @pyro_oneway
+    def send_photo(self, *args, **kwargs):
+        self._updater.bot.send_photo(*args, **kwargs)
+
+    @pyro_expose
+    @pyro_oneway
+    def send_message(self, *args, **kwargs):
+        self._updater.bot.send_message(*args, **kwargs)
+
+    @pyro_expose
+    @pyro_oneway
+    def broadcast_photo(self, *args, **kwargs):
+        self._broadcast(self._updater.bot.send_photo, *args, **kwargs)
+
+    @pyro_expose
+    @pyro_oneway
+    def broadcast_message(self, *args, **kwargs):
+        self._broadcast(self._updater.bot.send_message, *args, **kwargs)
 
     def __init__(self):
         super(TelegramProcess, self).__init__()

@@ -113,6 +113,10 @@ class ChatAuthStorage:
             self._storage[chat_id] = ChatAuthStatus(chat_id)
         return self._storage[chat_id]
 
+    @property
+    def authorized_chats(self):
+        yield from filter(lambda chat: chat.status == AuthStatus.AUTHORIZED, self._storage.values())
+
     def to_json(self):
         return list(self._storage.values())
 
