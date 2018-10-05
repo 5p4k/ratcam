@@ -45,6 +45,10 @@ def handle_message(filters=None, auth_status=AuthStatus.AUTHORIZED):
 
 
 class TelegramProcessBase(PluginProcessBase, HandlerBase):
+    @classmethod
+    def process(cls):  # pragma: no cover
+        return Process.TELEGRAM
+
     @property
     def root_telegram_plugin(self):
         return find_plugin(TELEGRAM_PLUGIN_NAME).telegram

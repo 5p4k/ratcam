@@ -29,6 +29,10 @@ except (ImportError, OSError) as e:  # pragma: no cover
 
 
 class PiCameraProcessBase(PluginProcessBase):
+    @classmethod
+    def process(cls):  # pragma: no cover
+        return Process.CAMERA
+
     def __init__(self):
         self._ready = False
 
