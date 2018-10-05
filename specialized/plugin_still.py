@@ -25,6 +25,7 @@ class StillPlugin(PluginProcessBase):
 
     def __enter__(self):
         self._capture_thread.__enter__()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._capture_thread.__exit__(exc_type, exc_val, exc_tb)

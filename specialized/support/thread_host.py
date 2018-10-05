@@ -15,6 +15,7 @@ class ThreadHost:
         self._thread_stop.clear()
         self._thread = Thread(target=self._thread_main, name=self._thread_name)
         self._thread.start()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._thread_stop.set()

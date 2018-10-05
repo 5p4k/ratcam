@@ -38,6 +38,7 @@ class PiCameraProcessBase(PluginProcessBase):
 
     def __enter__(self):
         self._ready = True
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._ready = False
@@ -103,6 +104,7 @@ class PiCameraRootPlugin(PluginProcessBase):
     def __enter__(self):
         super(PiCameraRootPlugin, self).__enter__()
         self._warmup_thread.start()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         super(PiCameraRootPlugin, self).__exit__(exc_type, exc_val, exc_tb)

@@ -59,6 +59,7 @@ class MotionDetectorDispatcherPlugin(PluginProcessBase):
 
     def __enter__(self):
         self._notify_thread.__enter__()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._notify_thread.__exit__(exc_type, exc_val, exc_tb)
@@ -113,6 +114,7 @@ class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcess
         self._capture_thread.__enter__()
         MotionDetectorDispatcherPlugin.__enter__(self)
         PiCameraProcessBase.__enter__(self)
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         PiCameraProcessBase.__exit__(self, exc_type, exc_val, exc_tb)

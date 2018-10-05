@@ -36,6 +36,7 @@ class TemporaryMP4Muxer:
 
     def __enter__(self):
         self._setup_new_temp()
+        return self
 
     def _setup_new_temp(self):
         self._temp_file = NamedTemporaryFile(delete=False)
@@ -153,6 +154,7 @@ class DualBufferedMP4:
         self._old.__enter__()
         self._new.__enter__()
         self._is_recording = False
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._new.__exit__(exc_type, exc_val, exc_tb)

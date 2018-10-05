@@ -110,6 +110,7 @@ class MediaManagerPlugin(PluginProcessBase):
         self._media.clear()
         self._media_in_use.clear()
         self._dispatch_and_delete_thread.__enter__()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._dispatch_and_delete_thread.__exit__(exc_type, exc_val, exc_tb)

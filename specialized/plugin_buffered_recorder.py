@@ -36,6 +36,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         super(BufferedRecorderPlugin, self).__enter__()
         self._has_just_flushed = True
         self._recorder.__enter__()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._recorder.__exit__(exc_type, exc_val, exc_tb)

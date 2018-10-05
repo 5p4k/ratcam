@@ -204,6 +204,7 @@ class InjectDemoData(PluginProcessBase):
         camera = find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera.camera
         self._replay = PiCameraReplay(self.__class__.DEMO_DATA, camera)
         self._replay.__enter__()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._replay.__exit__(exc_type, exc_val, exc_tb)
