@@ -1,7 +1,7 @@
 import unittest
 from plugins.base import ProcessPack, Process, PluginProcessBase
 from plugins.decorators import make_plugin
-from plugins.processes_host import ProcessesHost
+from plugins.processes_host import ProcessesHost, active_process
 from specialized.plugin_media_manager import MediaManagerPlugin, MediaReceiver, MEDIA_MANAGER_PLUGIN_NAME, Media
 from Pyro4 import expose as pyro_expose
 import tempfile
@@ -16,7 +16,7 @@ from specialized.plugin_buffered_recorder import BufferedRecorderPlugin, BUFFERE
 from safe_picamera import PiVideoFrameType
 from specialized.plugin_still import StillPlugin, STILL_PLUGIN_NAME
 from specialized.plugin_motion_detector import MotionDetectorResponder, MotionDetectorCameraPlugin, \
-    MotionDetectorMainPlugin, MOTION_DETECTOR_PLUGIN_NAME
+    MotionDetectorDispatcherPlugin, MOTION_DETECTOR_PLUGIN_NAME
 
 
 class RatcamUnitTestCase(unittest.TestCase):
@@ -392,7 +392,7 @@ class TestStillPlugin(RatcamUnitTestCase):
 
 
 class TestMotionDetectorPlugin(RatcamUnitTestCase):
-    class TestMovementResponder(MotionDetectorResponder):
+    class TestMovementResponder(MotionDetectorResponder, PluginProcessBase):
         def __init__(self):
             self._num_distinct_movements = 0
             self._num_wrong_changed_events = 0
@@ -400,7 +400,11 @@ class TestMotionDetectorPlugin(RatcamUnitTestCase):
 
         @classmethod
         def plugin_name(cls):  # pragma: no cover
-            return 'InjectDemoData'
+            return 'TestMovementResponder'
+
+        @classmethod
+        def process(cls):  # pragma: no cover
+            return active_process()
 
         @pyro_expose
         @property
@@ -421,7 +425,8 @@ class TestMotionDetectorPlugin(RatcamUnitTestCase):
 
     def test_simple(self):
         plugins = {
-            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin, main=MotionDetectorMainPlugin),
+            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin,
+                                                     main=MotionDetectorDispatcherPlugin),
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
             'InjectDemoData': ProcessPack(camera=InjectDemoData)
         }
@@ -429,22 +434,39 @@ class TestMotionDetectorPlugin(RatcamUnitTestCase):
             injector = host.plugin_instances['InjectDemoData'].camera
             injector.wait_for_completion()
 
-    def test_motion_reported(self):
+    @staticmethod
+    def try_report_motion_on(process):
+        motion_detection_pack = ProcessPack(camera=MotionDetectorCameraPlugin)
+        if process != Process.CAMERA:
+            motion_detection_pack[process] = MotionDetectorDispatcherPlugin
+        responder_pack = ProcessPack()
+        responder_pack[process] = TestMotionDetectorPlugin.TestMovementResponder
         plugins = {
-            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin, main=MotionDetectorMainPlugin),
+            MOTION_DETECTOR_PLUGIN_NAME: motion_detection_pack,
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
-            'InjectDemoData': ProcessPack(camera=InjectDemoData, main=TestMotionDetectorPlugin.TestMovementResponder)
+            'InjectDemoData': ProcessPack(camera=InjectDemoData),
+            TestMotionDetectorPlugin.TestMovementResponder.plugin_name(): responder_pack
         }
         with ProcessesHost(plugins) as host:
             injector = host.plugin_instances['InjectDemoData'].camera
-            responder = host.plugin_instances['InjectDemoData'].main
+            responder = host.plugin_instances[TestMotionDetectorPlugin.TestMovementResponder.plugin_name()][process]
             injector.wait_for_completion()
-            self.assertGreater(responder.num_distinct_movements, 0)
-            self.assertEqual(responder.num_wrong_changed_events, 0)
+            return responder.num_distinct_movements, responder.num_wrong_changed_events
+
+    def test_motion_reported(self):
+        camera_num_mvmts, camera_num_wrong_evts = TestMotionDetectorPlugin.try_report_motion_on(Process.CAMERA)
+        self.assertGreater(camera_num_mvmts, 0)
+        self.assertEqual(camera_num_wrong_evts, 0)
+        telegram_num_mvmts, telegram_num_wrong_evts = TestMotionDetectorPlugin.try_report_motion_on(Process.TELEGRAM)
+        self.assertGreater(telegram_num_mvmts, 0)
+        self.assertEqual(telegram_num_wrong_evts, 0)
+        main_num_mvmts, main_num_wrong_evts = TestMotionDetectorPlugin.try_report_motion_on(Process.MAIN)
+        self.assertGreater(main_num_mvmts, 0)
+        self.assertEqual(main_num_wrong_evts, 0)
 
     def test_take_motion_image(self):
         plugins = {
-            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin, main=MotionDetectorMainPlugin),
+            MOTION_DETECTOR_PLUGIN_NAME: ProcessPack(camera=MotionDetectorCameraPlugin),
             PICAMERA_ROOT_PLUGIN_NAME: ProcessPack(camera=PiCameraRootPlugin),
             'InjectDemoData': ProcessPack(camera=InjectDemoData),
             ControlledMediaReceiver.plugin_name(): ProcessPack(camera=ControlledMediaReceiver),

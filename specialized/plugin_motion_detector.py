@@ -1,6 +1,6 @@
 from plugins.base import PluginProcessBase, Process
-from plugins.decorators import make_plugin
-from plugins.processes_host import find_plugin, active_plugins
+from plugins.decorators import register
+from plugins.processes_host import find_plugin, active_plugins, active_process
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 import logging
 from misc.logging import ensure_logging_setup, camel_to_snake
@@ -30,11 +30,7 @@ MOTION_COLOR_RAMP = list(make_rgb_lut([
 ]))
 
 
-class MotionDetectorResponder(PluginProcessBase):
-    @classmethod
-    def process(cls):  # pragma: no cover
-        return Process.MAIN
-
+class MotionDetectorResponder:
     @property
     def motion_detector_plugin(self):
         return find_plugin(MOTION_DETECTOR_PLUGIN_NAME).camera
@@ -48,27 +44,33 @@ class MotionDetectorResponder(PluginProcessBase):
         self._motion_status_changed_internal(is_moving)
 
 
-@make_plugin(MOTION_DETECTOR_PLUGIN_NAME, Process.MAIN)
-class MotionDetectorMainPlugin(PiCameraProcessBase):
+class MotionDetectorDispatcherPlugin(PluginProcessBase):
+    @classmethod
+    def plugin_name(cls):
+        return MOTION_DETECTOR_PLUGIN_NAME
+
+    @classmethod
+    def process(cls):  # pragma: no cover
+        # This plugin can run on any process
+        return active_process()
+
     def __init__(self):
-        super(MotionDetectorMainPlugin, self).__init__()
         self._notify_thread = CallbackThreadHost('notify_movement_thread', self._notify_movement)
 
     def __enter__(self):
-        super(MotionDetectorMainPlugin, self).__enter__()
         self._notify_thread.__enter__()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._notify_thread.__exit__(exc_type, exc_val, exc_tb)
-        super(MotionDetectorMainPlugin, self).__exit__(exc_type, exc_val, exc_tb)
 
     def _notify_movement(self):
         value = find_plugin(self, Process.CAMERA).triggered
+        proc = active_process()
         for plugin_name, plugin in active_plugins().items():
-            if plugin.main is None or not isinstance(plugin.main, MotionDetectorResponder):
+            if plugin[proc] is None or not isinstance(plugin[proc], MotionDetectorResponder):
                 continue
             try:
-                plugin.main.motion_status_changed(value)
+                plugin[proc].motion_status_changed(value)
             except Exception as exc:  # pragma: no cover
                 _log.error('Plugin %s has triggered an exception during motion_status_changed: %s, %s',
                            plugin_name, exc.__class__.__name__, str(exc))
@@ -81,10 +83,19 @@ class MotionDetectorMainPlugin(PiCameraProcessBase):
         self._notify_thread.wake()
 
 
-@make_plugin(MOTION_DETECTOR_PLUGIN_NAME, Process.CAMERA)
-class MotionDetectorCameraPlugin(PiCameraProcessBase):
+class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcessBase):
+    @classmethod
+    def plugin_name(cls):
+        return MOTION_DETECTOR_PLUGIN_NAME
+
+    @classmethod
+    def process(cls):  # pragma: no cover
+        # This plugin can run only on camera
+        return Process.CAMERA
+
     def __init__(self):
-        super(MotionDetectorCameraPlugin, self).__init__()
+        MotionDetectorDispatcherPlugin.__init__(self)
+        PiCameraProcessBase.__init__(self)
         self._trigger_thresholds = None
         self._trigger_area_fractions = None
         self._time_window = None
@@ -100,10 +111,12 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
 
     def __enter__(self):
         self._capture_thread.__enter__()
-        super(MotionDetectorCameraPlugin, self).__enter__()
+        MotionDetectorDispatcherPlugin.__enter__(self)
+        PiCameraProcessBase.__enter__(self)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        super(MotionDetectorCameraPlugin, self).__exit__(exc_type, exc_val, exc_tb)
+        PiCameraProcessBase.__exit__(self, exc_type, exc_val, exc_tb)
+        MotionDetectorDispatcherPlugin.__exit__(self, exc_type, exc_val, exc_tb)
         self._capture_thread.__exit__(exc_type, exc_val, exc_tb)
 
     @pyro_expose
@@ -199,7 +212,9 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
         movement_amount_above_thresholds = (np.sum(self._accumulator > threshold) >= min_area)
         if movement_amount_above_thresholds != self.triggered:
             self._triggered = movement_amount_above_thresholds
-            find_plugin(self, Process.MAIN).notify_movement_status_changed()
+            # Trigger all plugins
+            for plugin_instance in find_plugin(self).nonempty_values():
+                plugin_instance.notify_movement_status_changed()
 
     def analyze(self, array):  # pragma: no cover
         array = get_denoised_motion_vector_norm(array)
@@ -209,3 +224,9 @@ class MotionDetectorCameraPlugin(PiCameraProcessBase):
             self._accumulator *= self._decay_factor
             self._accumulator += array
         self._updated_trigger_status()
+
+
+# Have a motion detector dispatcher on all procs
+register(MotionDetectorDispatcherPlugin, MotionDetectorDispatcherPlugin.plugin_name(), Process.MAIN)
+register(MotionDetectorDispatcherPlugin, MotionDetectorDispatcherPlugin.plugin_name(), Process.TELEGRAM)
+register(MotionDetectorCameraPlugin, MotionDetectorCameraPlugin.plugin_name(), Process.CAMERA)
