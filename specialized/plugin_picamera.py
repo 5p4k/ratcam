@@ -12,7 +12,7 @@ from threading import Thread
 _WARMUP_THREAD_TIME = 2.  # seconds
 _WARMUP_THREAD_LEASE_TIME = _WARMUP_THREAD_TIME * 1.1
 
-PICAMERA_ROOT_PLUGIN_NAME = 'PiCamera'
+PICAMERA_ROOT_PLUGIN_NAME = 'PiCameraRoot'
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(PICAMERA_ROOT_PLUGIN_NAME))
 
@@ -48,7 +48,7 @@ class PiCameraProcessBase(PluginProcessBase):
         return self._ready
 
     @property
-    def picamera_root_plugin(self):
+    def root_picamera_plugin(self):
         return find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera
 
     def write(self, data):  # pragma: no cover

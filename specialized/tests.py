@@ -158,7 +158,7 @@ class TestCam(PiCameraProcessBase):
 
     @pyro_expose
     def get_picamera_root_plugin_id(self):
-        return id(self.picamera_root_plugin)
+        return id(self.root_picamera_plugin)
 
     @pyro_expose
     @property

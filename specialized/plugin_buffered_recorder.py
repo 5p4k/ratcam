@@ -59,7 +59,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
 
     @property
     def _camera(self):
-        return self.picamera_root_plugin.camera
+        return self.root_picamera_plugin.camera
 
     @property
     def _last_frame(self):

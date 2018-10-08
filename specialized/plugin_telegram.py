@@ -13,7 +13,7 @@ from misc.logging import ensure_logging_setup, camel_to_snake
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 
 
-TELEGRAM_PLUGIN_NAME = 'RatcamBot'
+TELEGRAM_PLUGIN_NAME = 'TelegramRoot'
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(TELEGRAM_PLUGIN_NAME))
 

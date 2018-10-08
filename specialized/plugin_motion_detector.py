@@ -32,7 +32,7 @@ MOTION_COLOR_RAMP = list(make_rgb_lut([
 
 class MotionDetectorResponder:
     @property
-    def motion_detector_plugin(self):
+    def root_motion_detector_plugin(self):
         return find_plugin(MOTION_DETECTOR_PLUGIN_NAME).camera
 
     def _motion_status_changed_internal(self, is_moving):
@@ -166,11 +166,11 @@ class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcess
     @property
     def _decay_factor(self):
         # Magic number that makes after n steps 256 decay exponentially below 1
-        return exp(-8 * log(2) / (self.time_window * self.picamera_root_plugin.camera.framerate))
+        return exp(-8 * log(2) / (self.time_window * self.root_picamera_plugin.camera.framerate))
 
     @property
     def _resolution(self):
-        return self.picamera_root_plugin.camera.resolution
+        return self.root_picamera_plugin.camera.resolution
 
     @property
     def _frame_area(self):
@@ -186,7 +186,7 @@ class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcess
         with NamedTemporaryFile(delete=False) as temp_file:
             media_path = temp_file.name
             _log.info('Taking motion image with info %s to %s.', str(info), media_path)
-            self.picamera_root_plugin.camera.capture(self._cached_video_frame, format='rgb', use_video_port=True)
+            self.root_picamera_plugin.camera.capture(self._cached_video_frame, format='rgb', use_video_port=True)
             image = overlay_motion_vector_to_image(self._cached_video_frame, self._accumulator, MOTION_COLOR_RAMP)
             image.save(temp_file, format='jpeg', quality=self._jpeg_quality)
             temp_file.flush()
