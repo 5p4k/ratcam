@@ -2,6 +2,7 @@ from plugins.base import PluginProcessBase, Process
 from plugins.decorators import make_plugin
 from plugins.processes_host import find_plugin, active_plugins
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import error as terr
 from specialized.telegram_support.auth import AuthStatus, AuthAttemptResult
 from specialized.telegram_support.auth_filter import AuthStatusFilter
 import logging
@@ -11,11 +12,13 @@ from specialized.telegram_support.handlers import make_handler as _make_handler,
 from misc.settings import SETTINGS
 from misc.logging import ensure_logging_setup, camel_to_snake
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
+from time import sleep
 
 
 TELEGRAM_PLUGIN_NAME = 'TelegramRoot'
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(TELEGRAM_PLUGIN_NAME))
+_TELEGRAM_RETRY_CAP_SECONDS = 10
 
 
 def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
@@ -55,7 +58,7 @@ class TelegramProcessBase(PluginProcessBase, HandlerBase):
 
 
 @make_plugin(TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)
-class TelegramProcess(TelegramProcessBase):
+class TelegramRootPlugin(TelegramProcessBase):
     def _save_chat_auth_storage(self):
         save_chat_auth_storage(SETTINGS.telegram.auth_file, self._auth_storage, log=_log)
 
@@ -73,9 +76,61 @@ class TelegramProcess(TelegramProcessBase):
             cnt += 1
         return cnt
 
-    def _broadcast(self, method, *args, **kwargs):
-        for chat in self._auth_storage.authorized_chats:
-            method(chat.chat_id, *args, **kwargs)
+    @staticmethod
+    def _broadcast_media(method, chat_ids, media_obj, *args, **kwargs):
+        retval = []
+        file_id = None
+        for chat_id in chat_ids:
+            _log.info('Sending media %s to %d.', str(media_obj), chat_id)
+            if file_id is None:
+                _log.info('Beginning upload of media %s...', str(media_obj))
+                msg = method(chat_id, media_obj, *args, **kwargs)
+                if msg:
+                    file_id = msg.effective_attachment.file_id
+                    _log.info('Media %s uploaded as file id %s...', str(media_obj), str(file_id))
+                else:
+                    _log.error('Unable to send media %s.', str(media_obj))
+                    return
+                retval.append(msg)
+            else:
+                retval.append(method(chat_id, media_obj, *args, **kwargs))
+        return retval
+
+    def _send(self, method, chat_id, *args, retries=3, **kwargs):
+        for i in range(retries):
+            try:
+                if i > 0:
+                    _log.info('Retrying %d/%d...', i + 1, retries)
+                return method(chat_id, *args, **kwargs)
+            except terr.TimedOut as e:
+                _log.error('Telegram timed out when executing %s: %s.', str(method), e.message)
+            except terr.RetryAfter as e:
+                _log.error('Telegram requested to retry %s in %d seconds.', str(method), e.retry_after)
+                if e.retry_after > _TELEGRAM_RETRY_CAP_SECONDS:
+                    _log.info('Will sleep for %d seconds only.', _TELEGRAM_RETRY_CAP_SECONDS)
+                sleep(min(_TELEGRAM_RETRY_CAP_SECONDS, e.retry_after))
+            except terr.InvalidToken:
+                _log.error('Invalid Telegram token. Will not retry %s.', str(method))
+                break
+            except terr.BadRequest as e:
+                _log.error('Bad request when performing %s: %s. Will not retry.', str(method), e.message)
+                break
+            except terr.NetworkError as e:
+                _log.error('Network error when running %s: %s.', str(method), e.message)
+                sleep(1)
+            except terr.Unauthorized as e:
+                _log.error('Not authorized to perform %s: %s. Will not retry.', str(method), e.message)
+                break
+            except terr.ChatMigrated as e:
+                _log.warning('Chat %d moved to new chat id %d. Will update and retry.', chat_id, e.new_chat_id)
+                self._auth_storage.replace_chat_id(chat_id, e.new_chat_id)
+                return self._send(method, e.new_chat_id, *args, retries=retries, **kwargs)
+            except terr.TelegramError as e:
+                _log.error('Generic Telegram error when performing %s: %s.', str(method), e.message)
+                sleep(1)
+            except Exception as e:
+                _log.error('Error when performing %s: %s.', str(method), str(e))
+        return None
 
     @property
     def auth_filters(self):
@@ -88,26 +143,36 @@ class TelegramProcess(TelegramProcessBase):
 
     @pyro_expose
     @pyro_oneway
-    def send_photo(self, *args, **kwargs):
-        self._updater.bot.send_photo(*args, **kwargs)
+    def send_photo(self, chat_id, photo, *args, retries=3, **kwargs):
+        return self._send(self._updater.bot.send_photo, chat_id, photo, *args, retries=retries, **kwargs)
 
     @pyro_expose
     @pyro_oneway
-    def send_message(self, *args, **kwargs):
-        self._updater.bot.send_message(*args, **kwargs)
+    def send_video(self, chat_id, video, *args, retries=3, **kwargs):
+        return self._send(self._updater.bot.send_video, chat_id, video, *args, retries=retries, **kwargs)
 
     @pyro_expose
     @pyro_oneway
-    def broadcast_photo(self, *args, **kwargs):
-        self._broadcast(self._updater.bot.send_photo, *args, **kwargs)
+    def send_message(self, chat_id, message, *args, retries=3, **kwargs):
+        return self._send(self._updater.bot.send_message, chat_id, message, *args, retries=retries, **kwargs)
 
     @pyro_expose
     @pyro_oneway
-    def broadcast_message(self, *args, **kwargs):
-        self._broadcast(self._updater.bot.send_message, *args, **kwargs)
+    def broadcast_photo(self, chat_ids, photo, *args, retries=3, **kwargs):
+        return TelegramRootPlugin._broadcast_media(self.send_photo, chat_ids, photo, *args, retries=retries, **kwargs)
+
+    @pyro_expose
+    @pyro_oneway
+    def broadcast_video(self, chat_ids, video, *args, retries=3, **kwargs):
+        return TelegramRootPlugin._broadcast_media(self.send_video, chat_ids, video, *args, retries=retries, **kwargs)
+
+    @pyro_expose
+    @pyro_oneway
+    def broadcast_message(self, chat_ids, message, *args, retries=3, **kwargs):
+        return list([self.send_message(chat_id, message, *args, retries=retries, **kwargs) for chat_id in chat_ids])
 
     def __init__(self):
-        super(TelegramProcess, self).__init__()
+        super(TelegramRootPlugin, self).__init__()
         self._updater = Updater(token=SETTINGS.telegram.token)
         self._auth_storage = load_chat_auth_storage(SETTINGS.telegram.auth_file, log=_log)
         self._auth_filters = dict({
@@ -115,7 +180,7 @@ class TelegramProcess(TelegramProcessBase):
         })
 
     def __enter__(self):
-        super(TelegramProcess, self).__enter__()
+        super(TelegramRootPlugin, self).__enter__()
         _log.info('Setting up Telegram handlers...')
         cnt_handlers = self._setup_handlers()
         if cnt_handlers is None:
@@ -127,7 +192,7 @@ class TelegramProcess(TelegramProcessBase):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        super(TelegramProcess, self).__exit__(exc_type, exc_val, exc_tb)
+        super(TelegramRootPlugin, self).__exit__(exc_type, exc_val, exc_tb)
         _log.info('Stopping serving Telegram bot...')
         self._updater.stop()
         _log.info('Telegram bot was stopped.')
