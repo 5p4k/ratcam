@@ -1,7 +1,9 @@
 {
   "telegram": {
     "token": null,
-    "auth_file": "telegram_auth.json"
+    "auth_file": "telegram_auth.json",
+    "photo_timeout": 20.0,
+    "video_timeout": 60.0
   },
   "camera": {
     "bitrate": 750000,
