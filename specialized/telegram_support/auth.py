@@ -24,11 +24,21 @@ class AuthAttemptResult(Enum):
 @make_custom_serializable
 class ChatAuthStatus:
     def __init__(self, chat_id=None, status=AuthStatus.UNKNOWN, user=None, date=None, transaction=None):
-        self.chat_id = chat_id
+        self._chat_id = chat_id
         self.user = user
         self.date = date
         self.status = status
         self.transaction = transaction
+
+    @property
+    def chat_id(self):
+        return self._chat_id
+
+    @chat_id.setter
+    def chat_id(self, new_chat_id):
+        self._chat_id = new_chat_id
+        if self.transaction is not None:
+            self.transaction.chat_id = new_chat_id
 
     def start_auth(self, user):
         assert self.status == AuthStatus.UNKNOWN and self.transaction is None
@@ -112,6 +122,14 @@ class ChatAuthStorage:
         if chat_id not in self._storage:
             self._storage[chat_id] = ChatAuthStatus(chat_id)
         return self._storage[chat_id]
+
+    def replace_chat_id(self, chat_id, new_chat_id):
+        if chat_id not in self._storage:
+            return
+        chat_auth_status = self._storage[chat_id]
+        del self._storage[chat_id]
+        chat_auth_status.chat_id = new_chat_id
+        self._storage[chat_auth_status.chat_id] = chat_auth_status
 
     @property
     def authorized_chats(self):
