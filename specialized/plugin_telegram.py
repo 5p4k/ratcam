@@ -7,12 +7,12 @@ from specialized.telegram_support.auth import AuthStatus, AuthAttemptResult
 from specialized.telegram_support.auth_filter import AuthStatusFilter
 import logging
 from specialized.telegram_support.auth_io import save_chat_auth_storage, load_chat_auth_storage
-from specialized.telegram_support.format import user_to_str
 from specialized.telegram_support.handlers import make_handler as _make_handler, HandlerBase
 from misc.settings import SETTINGS
 from misc.logging import ensure_logging_setup, camel_to_snake
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 from time import sleep
+from specialized.support.txtutils import user_desc
 
 
 TELEGRAM_PLUGIN_NAME = 'TelegramRoot'
@@ -223,17 +223,15 @@ class TelegramRootPlugin(TelegramProcessBase):
 
     @handle_command('start', auth_status=AuthStatus.UNKNOWN)
     def _bot_start_new_chat(self, upd):
-        user = user_to_str(upd.message.from_user)
-        _log.info('Access requested by %s', user)
-        password = self._auth_storage[upd.effective_chat.id].start_auth(user)
+        _log.info('Access requested by %s', user_desc(upd))
+        password = self._auth_storage[upd.effective_chat.id].start_auth(user_desc(upd))
         self._save_chat_auth_storage()
-        print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.effective_chat.id, user, password))
+        print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.effective_chat.id, user_desc(upd), password))
         self.send_message(chat_id=upd.effective_chat.id, text='Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.ONGOING)
     def _bot_start_resume_auth(self, upd):
-        _log.info('Authentication resumed for chat %d, user %s.', upd.effective_chat.id,
-                  user_to_str(upd.message.from_user))
+        _log.info('Authentication resumed for chat %d, user %s.', upd.effective_chat.id, user_desc(upd))
         self.send_message(chat_id=upd.effective_chat.id, text='Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.AUTHORIZED)
@@ -254,8 +252,8 @@ class TelegramRootPlugin(TelegramProcessBase):
             self.reply_message(upd, 'Your password expired.')
         elif result == AuthAttemptResult.TOO_MANY_RETRIES:
             self.reply_message(upd, 'Number of attempts exceeded.')
-        _log.info('Authentication attempt for chat %d, user %s, outcome: %s', upd.effective_chat.id,
-                  user_to_str(upd.message.from_user), result)
+        _log.info('Authentication attempt for chat %d, user %s, outcome: %s', upd.effective_chat.id, user_desc(upd),
+                  result)
 
     @handle_message(Filters.status_update.left_chat_member, auth_status=None)
     def _bot_user_left(self, upd):
