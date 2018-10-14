@@ -5,6 +5,7 @@ python_unittest:
   before_script:
   - apk add --no-cache gcc gfortran musl-dev  # Needed for numpy
   - apk add --no-cache jpeg-dev zlib-dev      # Needed for Pillow
+  - apk add --no-cache libffi-dev             # Needed for BCrypt
   - pip install -r requirements-ut.txt
   script:
   - coverage run tests.py
