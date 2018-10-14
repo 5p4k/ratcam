@@ -90,6 +90,9 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
         if self._motion_detection_enabled and not enabled:
             if self.buffered_recorder_plugin is not None and self.buffered_recorder_plugin.is_recording:
                 self.buffered_recorder_plugin.stop_and_discard()
+        elif enabled and self.motion_detector_plugin.triggered:
+            # Fetch the status and trigger
+            self.motion_status_changed(True)
         self._motion_detection_enabled = enabled
 
     @pyro_expose
