@@ -180,19 +180,19 @@ class TelegramRootPlugin(TelegramProcessBase):
     @pyro_expose
     @pyro_oneway
     def reply_message(self, update, message, *args, retries=3, **kwargs):
-        return self.send_message(update.message.chat_id, message, *args,
+        return self.send_message(update.effective_chat.id, message, *args,
                                  retries=retries, reply_to_message_id=update.message.message_id, **kwargs)
 
     @pyro_expose
     @pyro_oneway
     def reply_photo(self, update, photo, *args, retries=3, **kwargs):
-        return self.send_photo(update.message.chat_id, photo, *args,
+        return self.send_photo(update.effective_chat.id, photo, *args,
                                retries=retries, reply_to_message_id=update.message.message_id, **kwargs)
 
     @pyro_expose
     @pyro_oneway
     def reply_video(self, update, video, *args, retries=3, **kwargs):
-        return self.send_video(update.message.chat_id, video, *args,
+        return self.send_video(update.effective_chat.id, video, *args,
                                retries=retries, reply_to_message_id=update.message.message_id, **kwargs)
 
     def __init__(self):
@@ -225,41 +225,41 @@ class TelegramRootPlugin(TelegramProcessBase):
     def _bot_start_new_chat(self, upd):
         user = user_to_str(upd.message.from_user)
         _log.info('Access requested by %s', user)
-        password = self._auth_storage[upd.message.chat_id].start_auth(user)
+        password = self._auth_storage[upd.effective_chat.id].start_auth(user)
         self._save_chat_auth_storage()
-        print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.message.chat_id, user, password))
-        self.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
+        print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.effective_chat.id, user, password))
+        self.send_message(chat_id=upd.effective_chat.id, text='Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.ONGOING)
     def _bot_start_resume_auth(self, upd):
-        _log.info('Authentication resumed for chat %d, user %s.', upd.message.chat_id,
+        _log.info('Authentication resumed for chat %d, user %s.', upd.effective_chat.id,
                   user_to_str(upd.message.from_user))
-        self.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
+        self.send_message(chat_id=upd.effective_chat.id, text='Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.AUTHORIZED)
     def _bot_start(self, upd):
-        _log.info('Started on chat %d', upd.message.chat_id)
-        self.send_message(chat_id=upd.message.chat_id, text='Ratcam is active.')
+        _log.info('Started on chat %d', upd.effective_chat.id)
+        self.send_message(chat_id=upd.effective_chat.id, text='Ratcam is active.')
 
     @handle_message(Filters.text, auth_status=AuthStatus.ONGOING)
     def _bot_try_auth(self, upd):
         password = upd.message.text
-        result = self._auth_storage[upd.message.chat_id].try_auth(password)
+        result = self._auth_storage[upd.effective_chat.id].try_auth(password)
         self._save_chat_auth_storage()
         if result == AuthAttemptResult.AUTHENTICATED:
-            self.send_message(chat_id=upd.message.chat_id, text='Authenticated.')
+            self.reply_message(upd, 'Authenticated.')
         elif result == AuthAttemptResult.WRONG_TOKEN:
-            self.send_message(chat_id=upd.message.chat_id, text='Incorrect password.')
+            self.reply_message(upd, 'Incorrect password.')
         elif result == AuthAttemptResult.EXPIRED:
-            self.send_message(chat_id=upd.message.chat_id, text='Your password expired.')
+            self.reply_message(upd, 'Your password expired.')
         elif result == AuthAttemptResult.TOO_MANY_RETRIES:
-            self.send_message(chat_id=upd.message.chat_id, text='Number of attempts exceeded.')
-        _log.info('Authentication attempt for chat %d, user %s, outcome: %s', upd.message.chat_id,
+            self.reply_message(upd, 'Number of attempts exceeded.')
+        _log.info('Authentication attempt for chat %d, user %s, outcome: %s', upd.effective_chat.id,
                   user_to_str(upd.message.from_user), result)
 
     @handle_message(Filters.status_update.left_chat_member, auth_status=None)
     def _bot_user_left(self, upd):
-        if upd.message.chat.get_members_count() <= 1:
-            _log.info('Exiting chat %d (%s).', upd.message.chat_id, str(upd.message.chat.title))
-            self._auth_storage[upd.message.chat_id].revoke_auth()
+        if upd.effective_chat.get_members_count() <= 1:
+            _log.info('Exiting chat %d (%s).', upd.effective_chat.id, str(upd.effective_chat.title))
+            self._auth_storage[upd.effective_chat.id].revoke_auth()
             self._save_chat_auth_storage()
