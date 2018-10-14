@@ -174,6 +174,5 @@ class TestPicameraReplay(unittest.TestCase):
 class TestSettings(unittest.TestCase):
     def test_save(self):
         # Just test that the settings are saved without any exc
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            path = temp_file.name
-        save_settings(path)
+        with tempfile.NamedTemporaryFile(delete=True) as temp_file:
+            save_settings(temp_file.name)
