@@ -32,7 +32,10 @@ def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
 
 def handle_command(command, pass_args=False, filters=None, auth_status=AuthStatus.AUTHORIZED):
     def _make_command_handler(some_telegram_plugin_, callback_, command_, pass_args_, filters_, auth_status_):
-        return CommandHandler(command_, callback_,
+        # Enforce the handlers to use the RootTelegramPlugin, so that we get nicer error handling
+        def _drop_bot_in_call(update, _, *args, **kwargs):
+            return callback_(update, *args, **kwargs)
+        return CommandHandler(command_, _drop_bot_in_call,
                               filters=_normalize_filters(some_telegram_plugin_, filters_, auth_status=auth_status_),
                               pass_args=pass_args_)
 
@@ -41,8 +44,11 @@ def handle_command(command, pass_args=False, filters=None, auth_status=AuthStatu
 
 def handle_message(filters=None, auth_status=AuthStatus.AUTHORIZED):
     def _make_message_handler(some_telegram_plugin_, callback_, filters_, auth_status_):
+        # Enforce the handlers to use the RootTelegramPlugin, so that we get nicer error handling
+        def _drop_bot_in_call(update, _, *args, **kwargs):
+            return callback_(update, *args, **kwargs)
         return MessageHandler(_normalize_filters(some_telegram_plugin_, filters_, auth_status=auth_status_),
-                              callback_)
+                              _drop_bot_in_call)
 
     return _make_handler(_make_message_handler, filters, auth_status)
 
@@ -216,43 +222,43 @@ class TelegramRootPlugin(TelegramProcessBase):
         _log.info('Telegram bot was stopped.')
 
     @handle_command('start', auth_status=AuthStatus.UNKNOWN)
-    def _bot_start_new_chat(self, bot, upd):
+    def _bot_start_new_chat(self, upd):
         user = user_to_str(upd.message.from_user)
         _log.info('Access requested by %s', user)
         password = self._auth_storage[upd.message.chat_id].start_auth(user)
         self._save_chat_auth_storage()
         print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.message.chat_id, user, password))
-        bot.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
+        self.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.ONGOING)
-    def _bot_start_resume_auth(self, bot, upd):
+    def _bot_start_resume_auth(self, upd):
         _log.info('Authentication resumed for chat %d, user %s.', upd.message.chat_id,
                   user_to_str(upd.message.from_user))
-        bot.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
+        self.send_message(chat_id=upd.message.chat_id, text='Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.AUTHORIZED)
-    def _bot_start(self, bot, upd):
+    def _bot_start(self, upd):
         _log.info('Started on chat %d', upd.message.chat_id)
-        bot.send_message(chat_id=upd.message.chat_id, text='Ratcam is active.')
+        self.send_message(chat_id=upd.message.chat_id, text='Ratcam is active.')
 
     @handle_message(Filters.text, auth_status=AuthStatus.ONGOING)
-    def _bot_try_auth(self, bot, upd):
+    def _bot_try_auth(self, upd):
         password = upd.message.text
         result = self._auth_storage[upd.message.chat_id].try_auth(password)
         self._save_chat_auth_storage()
         if result == AuthAttemptResult.AUTHENTICATED:
-            bot.send_message(chat_id=upd.message.chat_id, text='Authenticated.')
+            self.send_message(chat_id=upd.message.chat_id, text='Authenticated.')
         elif result == AuthAttemptResult.WRONG_TOKEN:
-            bot.send_message(chat_id=upd.message.chat_id, text='Incorrect password.')
+            self.send_message(chat_id=upd.message.chat_id, text='Incorrect password.')
         elif result == AuthAttemptResult.EXPIRED:
-            bot.send_message(chat_id=upd.message.chat_id, text='Your password expired.')
+            self.send_message(chat_id=upd.message.chat_id, text='Your password expired.')
         elif result == AuthAttemptResult.TOO_MANY_RETRIES:
-            bot.send_message(chat_id=upd.message.chat_id, text='Number of attempts exceeded.')
+            self.send_message(chat_id=upd.message.chat_id, text='Number of attempts exceeded.')
         _log.info('Authentication attempt for chat %d, user %s, outcome: %s', upd.message.chat_id,
                   user_to_str(upd.message.from_user), result)
 
     @handle_message(Filters.status_update.left_chat_member, auth_status=None)
-    def _bot_user_left(self, _, upd):
+    def _bot_user_left(self, upd):
         if upd.message.chat.get_members_count() <= 1:
             _log.info('Exiting chat %d (%s).', upd.message.chat_id, str(upd.message.chat.title))
             self._auth_storage[upd.message.chat_id].revoke_auth()
