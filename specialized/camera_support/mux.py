@@ -2,6 +2,7 @@ from tempfile import NamedTemporaryFile
 import os
 import logging
 from safe_picamera import MP4Muxer
+from misc.settings import SETTINGS
 
 
 _log = logging.getLogger('mp4_muxer')
@@ -39,7 +40,7 @@ class TemporaryMP4Muxer:
         return self
 
     def _setup_new_temp(self):
-        self._temp_file = NamedTemporaryFile(delete=False)
+        self._temp_file = NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder)
         _log.debug('Using new temporary MP4 %s', self._temp_file.name)
         self._muxer = MP4StreamMuxer(self._temp_file)
         self._muxer.begin()

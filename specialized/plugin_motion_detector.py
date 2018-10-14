@@ -183,7 +183,7 @@ class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcess
 
     def _take_motion_image_with_info(self, info):
         self._prepare_video_frame_cache()
-        with NamedTemporaryFile(delete=False) as temp_file:
+        with NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder) as temp_file:
             media_path = temp_file.name
             _log.info('Taking motion image with info %s to %s.', str(info), media_path)
             self.root_picamera_plugin.camera.capture(self._cached_video_frame, format='rgb', use_video_port=True)

@@ -16,5 +16,6 @@
     "trigger_thresholds": [80, 20],
     "trigger_area_fractions": [0.0001, 0.00002],
     "time_window": 2.0
-  }
+  },
+  "temp_folder": null
 }

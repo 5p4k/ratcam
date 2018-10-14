@@ -3,6 +3,7 @@ from plugins.base import Process, ProcessPack
 from plugins.plugin_host import PluginHost
 from plugins.lookup_table import PluginLookupTable
 from Pyro4 import expose as pyro_expose
+from misc.settings import SETTINGS
 import os
 
 
@@ -127,7 +128,7 @@ class ProcessesHost:
         for the ProcessPack to contain None entries. For example
             plugins = {'root_plugin': ProcessPack(None, None, MySubclassOfPluginProcessInstanceBase)}
         """
-        self._socket_dir = TemporaryDirectory()
+        self._socket_dir = TemporaryDirectory(dir=SETTINGS.temp_folder)
         self._plugin_instances = dict({k: None for k in plugins})
         self._plugin_process_host_pack = ProcessPack(*[
             self.__class__._create_host(self._socket_dir.name, plugins, process)

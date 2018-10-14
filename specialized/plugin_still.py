@@ -46,7 +46,7 @@ class StillPlugin(PluginProcessBase):
             _log.error('No %s is running on CAMERA! Will not take a still with info %s.',
                        PICAMERA_ROOT_PLUGIN_NAME, str(info))
             return
-        with NamedTemporaryFile(delete=False) as temp_file:
+        with NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder) as temp_file:
             media_path = temp_file.name
             _log.info('Taking still picture with info %s to %s.', str(info), media_path)
             camera.camera.capture(media_path, format='jpeg', use_video_port=True, quality=self.jpeg_quality)
