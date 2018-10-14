@@ -41,13 +41,16 @@ class ChatAuthStatus:
             self.transaction.chat_id = new_chat_id
 
     def start_auth(self, user):
+        if self.status != AuthStatus.UNKNOWN or self.transaction is not None:
+            raise RuntimeError('Cannot start authentication if already authenticated or already started.')
         assert self.status == AuthStatus.UNKNOWN and self.transaction is None
         self.transaction = ChatAuthTransaction()
         self.status = AuthStatus.ONGOING
         return self.transaction.generate(self.chat_id, user)
 
     def try_auth(self, pwd):
-        assert self.status == AuthStatus.ONGOING and self.transaction is not None
+        if self.status != AuthStatus.ONGOING or self.transaction is None:
+            raise RuntimeError('Cannot try authentication if no authentication is in place.')
         result = self.transaction.authenticate(pwd)
         if result == AuthAttemptResult.AUTHENTICATED:
             self.date = self.transaction.request_time
@@ -63,6 +66,7 @@ class ChatAuthStatus:
         self.status = AuthStatus.UNKNOWN
         self.user = None
         self.date = None
+        self.transaction = None
 
 
 @make_custom_serializable
@@ -87,15 +91,16 @@ class ChatAuthTransaction:
         return pwd
 
     def authenticate(self, pwd):
+        if self.retries < 0:
+            raise RuntimeError('Cannot authenticate if the password was not generated.')
         assert(self.retries >= 0)
-        if self.password is None:
-            return AuthAttemptResult.ALREADY_AUTHENTICATED
-        elif self.retries >= self.__class__.MAX_RETRIES:
-            self.password = None
+        if self.retries >= self.__class__.MAX_RETRIES:
             return AuthAttemptResult.TOO_MANY_RETRIES
         elif datetime.now() - self.request_time > self.__class__.MAX_PWD_LIFE:
             self.password = None
             return AuthAttemptResult.EXPIRED
+        elif self.password is None:
+            return AuthAttemptResult.ALREADY_AUTHENTICATED
         elif checkpw(pwd.encode(), self.password):
             self.password = None
             return AuthAttemptResult.AUTHENTICATED
