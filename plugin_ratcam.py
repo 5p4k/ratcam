@@ -12,6 +12,8 @@ import logging
 from misc.logging import camel_to_snake
 from misc.settings import SETTINGS
 from Pyro4 import expose as pyro_expose
+from specialized.support.txtutils import fuzzy_bool, bool_desc, user_desc
+import telegram
 
 
 RATCAM_PLUGIN_NAME = 'Ratcam'
@@ -113,8 +115,48 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
     def _video_timeout():
         return max(SETTINGS.telegram.video_timeout, 5.)
 
-    def _enum_recipient_chat_ids(self, _):
-        yield from self.root_telegram_plugin.authorized_chat_ids
+    def _enum_recipient_chat_ids(self, info):
+        if info is None:
+            yield from self.root_telegram_plugin.authorized_chat_ids
+        elif isinstance(telegram.Update, info):
+            yield info.effective_chat.id
+
+    @handle_command('detect', pass_args=True)
+    def cmd_detect(self, upd, args):
+        if len(args) not in (0, 1):
+            return  # More than one argument is not something we handle
+        if len(args) == 0:
+            self.root_telegram_plugin.reply_message(upd, 'Motion detection is %s.' %
+                                                    bool_desc(self.motion_detection_enabled))
+        else:
+            try:
+                enable = fuzzy_bool(args)
+                if enable:
+                    if self.motion_detection_enabled:
+                        self.root_telegram_plugin.reply_message(upd, 'Motion detection is already on.')
+                    else:
+                        self.motion_detection_enabled = True
+                        _log.info('[%s] turned detection on.', user_desc(upd))
+                        self.root_telegram_plugin.reply_message(upd, 'Motion detection was turned on.')
+
+                else:
+                    if self.motion_detection_enabled:
+                        self.motion_detection_enabled = False
+                        self.root_telegram_plugin.reply_message(upd, 'Motion detection was turned off.')
+                        _log.info('[%s] turned detection off.', user_desc(upd))
+                    else:
+                        self.root_telegram_plugin.reply_message(upd, 'Motion detection is already off.')
+            except ValueError:
+                self.root_telegram_plugin.reply_message(upd, 'Please specify \'on\' or \'off\' or nothing.')
+
+    @handle_command('photo')
+    def cmd_photo(self, upd):
+        if self.still_plugin is None:
+            self.root_telegram_plugin.reply_message(upd, 'Cannot take a picture, %s is not loaded.' %
+                                                    StillPlugin.plugin_name())
+        else:
+            _log.info('[%s] requested a photo.', user_desc(upd))
+            self.still_plugin.take_picture(info=upd)
 
     def handle_media(self, media):
         if not os.path.isfile(media.path):
