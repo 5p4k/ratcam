@@ -89,13 +89,17 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
     @pyro_expose
     @motion_detection_enabled.setter
     def motion_detection_enabled(self, enabled):
-        if self._motion_detection_enabled and not enabled:
-            if self.buffered_recorder_plugin is not None and self.buffered_recorder_plugin.is_recording:
-                self.buffered_recorder_plugin.stop_and_discard()
-        elif enabled and self.motion_detector_plugin.triggered:
-            # Fetch the status and trigger
+        if self.motion_detector_plugin is None:
+            _log.warning('Attempt to change motion detection with no %s.' % MotionDetectorCameraPlugin.plugin_name())
+            return
+        if not self._motion_detection_enabled and enabled and self.motion_detector_plugin.triggered:
+            self._motion_detection_enabled = True
             self.motion_status_changed(True)
-        self._motion_detection_enabled = enabled
+        elif self._motion_detection_enabled and not enabled and not self.motion_detector_plugin.triggered:
+            self.motion_status_changed(False)
+            self._motion_detection_enabled = False
+        else:
+            self._motion_detection_enabled = enabled
 
     @pyro_expose
     @property
@@ -125,6 +129,10 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
     def cmd_detect(self, upd, args):
         if len(args) not in (0, 1):
             return  # More than one argument is not something we handle
+        if self.motion_detector_plugin is None:
+            self.root_telegram_plugin.reply_message(upd, 'Cannot offer motion detection, the %s is not loaded.' %
+                                                    MotionDetectorCameraPlugin.plugin_name())
+            return
         if len(args) == 0:
             self.root_telegram_plugin.reply_message(upd, 'Motion detection is %s.' %
                                                     bool_desc(self.motion_detection_enabled))
@@ -179,15 +187,17 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
             _log.error('Error when sending media %s: %s', str(media.uuid), str(e))
 
     def _motion_status_changed_internal(self, is_moving):
-        if self.motion_detection_enabled:
-            if is_moving:
-                self.root_telegram_plugin.broadcast_message('Something is moving...')
-                self.motion_detector_plugin.take_motion_picture()
-            else:
-                self.root_telegram_plugin.broadcast_message('Everything quiet.')
-            if self.buffered_recorder_plugin is not None:
-                if self.buffered_recorder_plugin.is_recording and not is_moving and not self.is_recording_manually:
-                    self.buffered_recorder_plugin.stop_and_finalize()
-                elif not self.buffered_recorder_plugin.is_recording and is_moving:
-                    self._manual_recording = False
-                    self.buffered_recorder_plugin.record()
+        if not self.motion_detection_enabled:
+            return
+        assert self.motion_detector_plugin is not None
+        if is_moving:
+            self.root_telegram_plugin.broadcast_message('Something is moving...')
+            self.motion_detector_plugin.take_motion_picture()
+        else:
+            self.root_telegram_plugin.broadcast_message('Everything quiet.')
+        if self.buffered_recorder_plugin is not None:
+            if self.buffered_recorder_plugin.is_recording and not is_moving and not self.is_recording_manually:
+                self.buffered_recorder_plugin.stop_and_finalize()
+            elif not self.buffered_recorder_plugin.is_recording and is_moving:
+                self._manual_recording = False
+                self.buffered_recorder_plugin.record()
