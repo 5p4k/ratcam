@@ -1,10 +1,9 @@
 from plugins.base import PluginProcessBase, Process
 from plugins.decorators import make_plugin
 from plugins.processes_host import find_plugin, active_plugins
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, BaseFilter
 from telegram import error as terr
 from specialized.telegram_support.auth import AuthStatus, AuthAttemptResult
-from specialized.telegram_support.auth_filter import AuthStatusFilter
 import logging
 from specialized.telegram_support.auth_io import save_chat_auth_storage, load_chat_auth_storage
 from specialized.telegram_support.handlers import make_handler as _make_handler, HandlerBase
@@ -19,6 +18,15 @@ TELEGRAM_PLUGIN_NAME = 'TelegramRoot'
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(TELEGRAM_PLUGIN_NAME))
 _TELEGRAM_RETRY_CAP_SECONDS = 10
+
+
+class AuthStatusFilter(BaseFilter):
+    def __init__(self, chat_auth_storage, status):
+        self.chat_auth_storage = chat_auth_storage
+        self.requested_status = status
+
+    def filter(self, message):
+        return self.chat_auth_storage.has_auth_status(message.chat_id, self.requested_status)
 
 
 def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
