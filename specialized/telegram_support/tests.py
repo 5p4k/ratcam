@@ -7,6 +7,7 @@ from misc.extended_json_codec import ExtendedJSONCodec
 import json
 from specialized.telegram_support.auth_io import load_chat_auth_storage, save_chat_auth_storage
 import tempfile
+import os
 
 
 def through_json(obj):
@@ -248,5 +249,8 @@ class TestSaveAuthStorage(unittest.TestCase):
     def test_simple(self):
         storage = load_chat_auth_storage('')
         # Just test that the settings are saved without any exc
-        with tempfile.NamedTemporaryFile(delete=True) as temp_file:
-            save_chat_auth_storage(temp_file.name, storage)
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            path = temp_file.name
+            save_chat_auth_storage(path, storage)
+        load_chat_auth_storage(path)
+        os.unlink(path)
