@@ -5,7 +5,7 @@ from misc.extended_json_codec import ExtendedJSONCodec
 
 
 def load_chat_auth_storage(path, log=None):
-    def _discard_data():
+    def _discard_data():  # pragma: no cover
         if log:
             log.error('Data will be discarded.')
         # noinspection PyBroadException
@@ -25,10 +25,10 @@ def load_chat_auth_storage(path, log=None):
                 _discard_data()
             else:
                 return json_data
-        except OSError as exc:
+        except OSError as exc:  # pragma: no cover
             if log:
                 log.warning('Could not load auth file %s, error: %s', path, exc.strerror)
-        except json.JSONDecodeError as exc:
+        except json.JSONDecodeError as exc:  # pragma: no cover
             if log:
                 log.error('Malformed JSON auth file %s:%d:d, error: %s', path, exc.lineno, exc.colno, exc.msg)
             _discard_data()
@@ -41,6 +41,6 @@ def save_chat_auth_storage(path, chat_auth_storage, log=None):
     try:
         with open(path, 'w') as fp:
             json.dump(chat_auth_storage, fp, cls=ExtendedJSONCodec, indent=2)
-    except OSError as exc:
+    except OSError as exc:  # pragma: no cover
         if log:
             log.warning('Could not write to auth file %s, error: %s', path, exc.strerror)
