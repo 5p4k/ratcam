@@ -171,6 +171,24 @@ class TelegramRootPlugin(TelegramProcessBase):
     def broadcast_message(self, chat_ids, message, *args, retries=3, **kwargs):
         return list([self.send_message(chat_id, message, *args, retries=retries, **kwargs) for chat_id in chat_ids])
 
+    @pyro_expose
+    @pyro_oneway
+    def reply_message(self, update, message, *args, retries=3, **kwargs):
+        return self.send_message(update.message.chat_id, message, *args,
+                                 retries=retries, reply_to_message_id=update.message.message_id, **kwargs)
+
+    @pyro_expose
+    @pyro_oneway
+    def reply_photo(self, update, photo, *args, retries=3, **kwargs):
+        return self.send_photo(update.message.chat_id, photo, *args,
+                               retries=retries, reply_to_message_id=update.message.message_id, **kwargs)
+
+    @pyro_expose
+    @pyro_oneway
+    def reply_video(self, update, video, *args, retries=3, **kwargs):
+        return self.send_video(update.message.chat_id, video, *args,
+                               retries=retries, reply_to_message_id=update.message.message_id, **kwargs)
+
     def __init__(self):
         super(TelegramRootPlugin, self).__init__()
         self._updater = Updater(token=SETTINGS.telegram.token)
