@@ -14,9 +14,9 @@ from time import sleep
 from specialized.support.txtutils import user_desc
 
 
-TELEGRAM_PLUGIN_NAME = 'TelegramRoot'
+TELEGRAM_ROOT_PLUGIN_NAME = 'TelegramRoot'
 ensure_logging_setup()
-_log = logging.getLogger(camel_to_snake(TELEGRAM_PLUGIN_NAME))
+_log = logging.getLogger(camel_to_snake(TELEGRAM_ROOT_PLUGIN_NAME))
 _TELEGRAM_RETRY_CAP_SECONDS = 10
 
 
@@ -68,10 +68,10 @@ class TelegramProcessBase(PluginProcessBase, HandlerBase):
 
     @property
     def root_telegram_plugin(self):
-        return find_plugin(TELEGRAM_PLUGIN_NAME).telegram
+        return find_plugin(TELEGRAM_ROOT_PLUGIN_NAME).telegram
 
 
-@make_plugin(TELEGRAM_PLUGIN_NAME, Process.TELEGRAM)
+@make_plugin(TELEGRAM_ROOT_PLUGIN_NAME, Process.TELEGRAM)
 class TelegramRootPlugin(TelegramProcessBase):
     def _save_chat_auth_storage(self):
         save_chat_auth_storage(SETTINGS.telegram.auth_file, self._auth_storage, log=_log)
