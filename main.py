@@ -2,7 +2,8 @@ import argparse
 import logging
 from misc.settings import SETTINGS
 from plugins.decorators import get_all_plugins
-from specialized import plugin_telegram, plugin_picamera
+from specialized import plugin_telegram, plugin_picamera, plugin_motion_detector, plugin_buffered_recorder, \
+    plugin_still, plugin_media_manager
 from plugins.processes_host import ProcessesHost
 from misc.logging import ensure_logging_setup
 from misc.signal import GracefulSignal
@@ -17,9 +18,14 @@ def main(args):
     if args.verbose:
         ensure_logging_setup(logging.DEBUG, reset=True)
     plugins = get_all_plugins()
+    assert plugin_telegram.TELEGRAM_ROOT_PLUGIN_NAME in plugins
+    assert plugin_picamera.PICAMERA_ROOT_PLUGIN_NAME in plugins
+    assert plugin_media_manager.MEDIA_MANAGER_PLUGIN_NAME in plugins
+    assert plugin_buffered_recorder.BUFFERED_RECORDER_PLUGIN_NAME in plugins
+    assert plugin_motion_detector.MOTION_DETECTOR_PLUGIN_NAME in plugins
+    assert plugin_still.STILL_PLUGIN_NAME in plugins
     if not args.camera:
         del plugins[plugin_picamera.PICAMERA_ROOT_PLUGIN_NAME]
-    assert plugin_telegram.TELEGRAM_PLUGIN_NAME in plugins
     logging.info('Running the following plugins: ' + ', '.join(plugins.keys()))
     # Ignore KeyboardInterrupt. If we don't do so, it will be raised also in the child processes. We do not have control
     # over the threads running in the child processes, so they will terminate, and here we get some network exception
