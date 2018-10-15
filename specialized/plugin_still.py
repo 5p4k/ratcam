@@ -38,7 +38,11 @@ class StillPlugin(PluginProcessBase):
     @pyro_expose
     @jpeg_quality.setter
     def jpeg_quality(self, value):
-        self._jpeg_quality = max(0.0, value)
+        self._jpeg_quality = min(1.0, max(0.0, value))
+
+    @property
+    def _integral_jpg_quality(self):
+        return max(min(int(100. * self.jpeg_quality), 100), 0)
 
     def _take_still_with_info(self, info):
         camera = find_plugin(PICAMERA_ROOT_PLUGIN_NAME).camera
@@ -49,7 +53,7 @@ class StillPlugin(PluginProcessBase):
         with NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder) as temp_file:
             media_path = temp_file.name
             _log.info('Taking still picture with info %s to %s.', str(info), media_path)
-            camera.camera.capture(media_path, format='jpeg', use_video_port=True, quality=self.jpeg_quality)
+            camera.camera.capture(media_path, format='jpeg', use_video_port=True, quality=self._integral_jpg_quality)
             temp_file.flush()
             temp_file.close()
         media_mgr = find_plugin(MEDIA_MANAGER_PLUGIN_NAME, Process.CAMERA)
