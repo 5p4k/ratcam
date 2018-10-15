@@ -193,12 +193,13 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
         recipients = self._enum_recipient_chat_ids(media.info)
         # noinspection PyBroadException
         try:
-            if media.kind in _KNOWN_PHOTO_KINDS:
-                self.root_telegram_plugin.broadcast_photo(recipients, media.path,
-                                                          timeout=RatcamTelegramPlugin._photo_timeout())
-            elif media.kind in _KNOWN_VIDEO_KINDS:
-                self.root_telegram_plugin.broadcast_video(recipients, media.path,
-                                                          timeout=RatcamTelegramPlugin._video_timeout())
+            with open(media.path, 'rb') as fp:
+                if media.kind in _KNOWN_PHOTO_KINDS:
+                    self.root_telegram_plugin.broadcast_photo(recipients, fp,
+                                                              timeout=RatcamTelegramPlugin._photo_timeout())
+                elif media.kind in _KNOWN_VIDEO_KINDS:
+                    self.root_telegram_plugin.broadcast_video(recipients, fp,
+                                                              timeout=RatcamTelegramPlugin._video_timeout())
         except OSError:
             _log.exception('Could not load media file %s.', str(media.uuid))
         except:
