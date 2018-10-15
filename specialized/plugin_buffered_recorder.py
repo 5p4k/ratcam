@@ -11,6 +11,7 @@ from datetime import datetime
 from misc.settings import SETTINGS
 from safe_picamera import PiVideoFrameType
 from threading import Lock
+import math
 
 
 BUFFERED_RECORDER_PLUGIN_NAME = 'BufferedRecorder'
@@ -31,6 +32,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         self._has_just_flushed = False
         self._buffer_max_age = None
         self._sps_header_max_age = None
+        self._footage_max_age = None
 
     def __enter__(self):
         super(BufferedRecorderPlugin, self).__enter__()
@@ -56,6 +58,11 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     @property
     def total_age(self):
         return self._recorder.total_age
+
+    @pyro_expose
+    @property
+    def footage_max_age(self):
+        return self._footage_max_age
 
     @property
     def _camera(self):
@@ -96,6 +103,9 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         return self._recorder.total_age - self._last_sps_header_stamp
 
     def _handle_split_point(self):
+        if self.footage_max_age is not None and self.footage_age >= self.footage_max_age:
+            self._stop_and(True, handle_split_point_if_flushed=False)
+            self._footage_max_age = None
         if self._recorder.is_recording and not self._is_recording:
             # We requested stop, but we haven't reached a split point. Now we can really stop.
             if self._keep_media:
@@ -118,11 +128,17 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         self._last_sps_header_stamp = self._recorder.total_age
 
     @pyro_expose
-    def record(self, info=None):
-        _log.info('Requested media with info %s', str(info))
+    def record(self, info=None, stop_after_seconds=None):
+        _log.info('Requested media with info %s of maximum length %s.', str(info), str(stop_after_seconds))
         self._keep_media = True
         self._is_recording = True
         self._record_user_info = info
+        if stop_after_seconds is not None:
+            stop_after_seconds = float(stop_after_seconds)
+            if stop_after_seconds < 0 or math.isinf(stop_after_seconds):
+                self._footage_max_age = None
+            else:
+                self._footage_max_age = int(max(1., stop_after_seconds) * self._camera.framerate)
         self._recorder.record()
 
     @pyro_expose
@@ -135,13 +151,14 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def is_finalizing(self):
         return self._recorder.is_recording and self._keep_media and not self._is_recording
 
-    def _stop_and(self, finalize):
+    def _stop_and(self, finalize, handle_split_point_if_flushed=True):
         self._is_recording = False
         self._keep_media = finalize
-        with self._flush_lock:
-            # This is the only other split point at which we are sure that an SPS will have to follow
-            if self._has_just_flushed:
-                self._handle_split_point()
+        if handle_split_point_if_flushed:
+            with self._flush_lock:
+                # This is the only other split point at which we are sure that an SPS will have to follow
+                if self._has_just_flushed:
+                    self._handle_split_point()
 
     @pyro_expose
     def stop_and_discard(self):
