@@ -12,6 +12,7 @@ from misc.logging import ensure_logging_setup, camel_to_snake
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 from time import sleep
 from specialized.support.txtutils import user_desc
+import os
 
 
 TELEGRAM_ROOT_PLUGIN_NAME = 'TelegramRoot'
@@ -41,7 +42,7 @@ def _normalize_filters(some_telegram_plugin, filters, auth_status=None):
 def handle_command(command, pass_args=False, filters=None, auth_status=AuthStatus.AUTHORIZED):
     def _make_command_handler(some_telegram_plugin_, callback_, command_, pass_args_, filters_, auth_status_):
         # Enforce the handlers to use the RootTelegramPlugin, so that we get nicer error handling
-        def _drop_bot_in_call(update, _, *args, **kwargs):
+        def _drop_bot_in_call(_, update, *args, **kwargs):
             return callback_(update, *args, **kwargs)
         return CommandHandler(command_, _drop_bot_in_call,
                               filters=_normalize_filters(some_telegram_plugin_, filters_, auth_status=auth_status_),
@@ -53,7 +54,7 @@ def handle_command(command, pass_args=False, filters=None, auth_status=AuthStatu
 def handle_message(filters=None, auth_status=AuthStatus.AUTHORIZED):
     def _make_message_handler(some_telegram_plugin_, callback_, filters_, auth_status_):
         # Enforce the handlers to use the RootTelegramPlugin, so that we get nicer error handling
-        def _drop_bot_in_call(update, _, *args, **kwargs):
+        def _drop_bot_in_call(_, update, *args, **kwargs):
             return callback_(update, *args, **kwargs)
         return MessageHandler(_normalize_filters(some_telegram_plugin_, filters_, auth_status=auth_status_),
                               _drop_bot_in_call)
@@ -74,6 +75,7 @@ class TelegramProcessBase(PluginProcessBase, HandlerBase):
 @make_plugin(TELEGRAM_ROOT_PLUGIN_NAME, Process.TELEGRAM)
 class TelegramRootPlugin(TelegramProcessBase):
     def _save_chat_auth_storage(self):
+        _log.info('Saving auth storage to %s', os.path.realpath(SETTINGS.telegram.auth_file))
         save_chat_auth_storage(SETTINGS.telegram.auth_file, self._auth_storage, log=_log)
 
     def _setup_handlers(self):
@@ -235,17 +237,23 @@ class TelegramRootPlugin(TelegramProcessBase):
         password = self._auth_storage[upd.effective_chat.id].start_auth(user_desc(upd))
         self._save_chat_auth_storage()
         print('\n\nChat ID: %d, User: %s, Password: %s\n\n' % (upd.effective_chat.id, user_desc(upd), password))
-        self.send_message(chat_id=upd.effective_chat.id, text='Reply with the pass that you can read on the console.')
+        self.send_message(upd.effective_chat.id, 'Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.ONGOING)
     def _bot_start_resume_auth(self, upd):
         _log.info('Authentication resumed for chat %d, user %s.', upd.effective_chat.id, user_desc(upd))
-        self.send_message(chat_id=upd.effective_chat.id, text='Reply with the pass that you can read on the console.')
+        self.send_message(upd.effective_chat.id, 'Reply with the pass that you can read on the console.')
 
     @handle_command('start', auth_status=AuthStatus.AUTHORIZED)
     def _bot_start(self, upd):
         _log.info('Started on chat %d', upd.effective_chat.id)
-        self.send_message(chat_id=upd.effective_chat.id, text='Ratcam is active.')
+        self.send_message(upd.effective_chat.id, 'Ratcam is active.')
+
+    @handle_command('logout', auth_status=AuthStatus.AUTHORIZED)
+    def _bot_logout(self, upd):
+        _log.info('Exiting chat %d (%s).', upd.effective_chat.id, str(upd.effective_chat.title))
+        self._auth_storage[upd.effective_chat.id].revoke_auth()
+        self._save_chat_auth_storage()
 
     @handle_message(Filters.text, auth_status=AuthStatus.ONGOING)
     def _bot_try_auth(self, upd):
