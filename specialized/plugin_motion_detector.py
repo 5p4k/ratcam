@@ -13,7 +13,6 @@ import numpy as np
 from specialized.support.thread_host import CallbackThreadHost, CallbackQueueThreadHost
 from tempfile import NamedTemporaryFile
 from specialized.plugin_media_manager import MEDIA_MANAGER_PLUGIN_NAME
-import traceback
 import os
 
 
@@ -70,13 +69,11 @@ class MotionDetectorDispatcherPlugin(PluginProcessBase):
         for plugin_name, plugin in active_plugins().items():
             if plugin[proc] is None or not isinstance(plugin[proc], MotionDetectorResponder):
                 continue
+            # noinspection PyBroadException
             try:
                 plugin[proc].motion_status_changed(value)
-            except Exception as exc:  # pragma: no cover
-                _log.error('Plugin %s has triggered an exception during motion_status_changed: %s, %s',
-                           plugin_name, exc.__class__.__name__, str(exc))
-                for line in traceback.format_exc().splitlines(keepends=False):
-                    _log.error(line)
+            except:  # pragma: no cover
+                _log.exception('Plugin %s has triggered an exception during motion_status_changed.', plugin_name)
 
     @pyro_oneway
     @pyro_expose
@@ -197,8 +194,8 @@ class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcess
             _log.warning('Discarding motion image with info %s at %s', str(info), media_path)
             try:
                 os.remove(media_path)
-            except OSError as e:
-                _log.error('Could not delete %s, error: %s', media_path, e.strerror)
+            except OSError:  # pragma: no cover
+                _log.exception('Could not delete %s.', media_path)
         else:
             media = media_mgr.deliver_media(media_path, 'jpeg', info)
             _log.info('Dispatched motion image %s with info %s at %s.', str(media.uuid), str(media.info), media.path)

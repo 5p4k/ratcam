@@ -5,7 +5,6 @@ import Pyro4
 from plugins.comm import create_sync_pair
 from multiprocessing import Process
 from misc.logging import ensure_logging_setup
-import traceback
 from threading import Thread
 
 
@@ -32,10 +31,7 @@ class SingletonHost:
                 instance = singleton_cls()
             except Exception as e:  # pragma: no cover
                 # This doesn't need to be covered by testing, we use it for debugging only
-                _log.error('Unable to instantiate {}, error: {}, {}'.format(singleton_cls.__name__,
-                                                                            e.__class__.__name__, str(e)))
-                for line in traceback.format_exc().splitlines(keepends=False):
-                    _log.debug(line)
+                _log.exception('Unable to instantiate %s.', singleton_cls.__name__)
                 raise e
             id_name_pair = (id(instance), singleton_cls.__name__)
             self._hosted_singletons.append(id_name_pair)

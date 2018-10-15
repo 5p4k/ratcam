@@ -34,6 +34,7 @@ except (ImportError, OSError):
                                                'timestamp', 'complete'])
 
 _location_of_picamera_mp4 = None
+# noinspection PyBroadException
 try:
     from picamera.mp4 import MP4Muxer
 except OSError as os_import_error:
@@ -59,8 +60,8 @@ except OSError as os_import_error:
     sys.path.insert(0, _location_of_picamera_mp4)
     from mp4 import MP4Muxer
     logging.warning('I managed to import MP4Muxer with a broken Picamera install :)')
-except Exception as e:
-    logging.error('I did not manage to import MP4Muxer, error: %s', str(e))
+except:
+    logging.exception('I did not manage to import MP4Muxer.')
 
     class MP4Muxer:
         def begin(self):

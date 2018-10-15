@@ -1,7 +1,6 @@
 from enum import Enum
 from Pyro4 import expose as pyro_expose
 import logging
-import traceback
 
 
 _log = logging.getLogger('plugin_base')
@@ -97,10 +96,7 @@ class PluginProcessBase:
             self.__enter__()
         except Exception as e:  # pragma: no cover
             # This doesn't need to be covered by testing, we use it for debugging only
-            _log.error('Unable to activate {}, error: {}, {}'.format(self.get_remote_plugin_name(),
-                                                                     e.__class__.__name__, str(e)))
-            for line in traceback.format_exc().splitlines(keepends=False):
-                _log.debug(line)
+            _log.exception('Unable to activate %s.', self.get_remote_plugin_name())
             raise e
 
     @pyro_expose
@@ -109,8 +105,5 @@ class PluginProcessBase:
             self.__exit__(None, None, None)
         except Exception as e:  # pragma: no cover
             # This doesn't need to be covered by testing, we use it for debugging only
-            _log.error('Unable to deactivate {}, error: {}, {}'.format(self.get_remote_plugin_name(),
-                                                                       e.__class__.__name__, str(e)))
-            for line in traceback.format_exc().splitlines(keepends=False):
-                _log.debug(line)
+            _log.exception('Unable to deactivate %s.', self.get_remote_plugin_name())
             raise e

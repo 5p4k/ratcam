@@ -69,11 +69,11 @@ def _cam_dispatch(method_name, *args, **kwargs):
             continue
         method = getattr(plugin.camera, method_name, None)
         assert method is not None and callable(method), 'Calling a method undefined in PiCameraProcessBase?'
+        # noinspection PyBroadException
         try:
             method(*args, **kwargs)
-        except Exception as exc:  # pragma: no cover
-            _log.error('Plugin %s has triggered an exception during %s: %s',
-                       plugin_name, method_name, str(exc))
+        except:  # pragma: no cover
+            _log.exception('Plugin %s has triggered an exception during %s.', plugin_name, method_name)
 
 
 class _CameraPluginMotionDispatcher(PiMotionAnalysis):

@@ -53,8 +53,8 @@ class TemporaryMP4Muxer:
             _log.debug('Dropping temporary MP4 %s', self._temp_file.name)
             try:
                 os.remove(self._temp_file.name)
-            except OSError as e:  # pragma: no cover
-                _log.error('Unable to remove {}, error: {}'.format(self._temp_file.name, e.strerror))
+            except OSError:  # pragma: no cover
+                _log.exception('Unable to remove %s.', self._temp_file.name)
         self._temp_file = None
         self._muxer = None
         self._age = None

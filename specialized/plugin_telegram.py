@@ -114,6 +114,7 @@ class TelegramRootPlugin(TelegramProcessBase):
 
     def _send(self, method, chat_id, *args, retries=3, **kwargs):
         for i in range(retries):
+            # noinspection PyBroadException
             try:
                 if i > 0:
                     _log.info('Retrying %d/%d...', i + 1, retries)
@@ -144,8 +145,8 @@ class TelegramRootPlugin(TelegramProcessBase):
             except terr.TelegramError as e:
                 _log.error('Generic Telegram error when performing %s: %s.', str(method), e.message)
                 sleep(1)
-            except Exception as e:
-                _log.error('Error when performing %s: %s.', str(method), str(e))
+            except:
+                _log.exception('Error when performing %s.', str(method))
         return None
 
     @property

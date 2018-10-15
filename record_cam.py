@@ -65,8 +65,8 @@ def main(args):
         try:
             with open(args.mp4_output, 'wb') as fp:
                 vrec.dump_mp4(fp)
-        except OSError as e:
-            logging.error('Cannot write to %s, error: ', args.mp4_output, str(e))
+        except OSError:
+            logging.exception('Cannot write to %s.', args.mp4_output)
 
 
 if __name__ == '__main__':

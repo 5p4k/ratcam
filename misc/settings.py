@@ -25,12 +25,12 @@ def load_settings(path, log=None):
             with open(path, 'r') as fp:
                 json_data = json.load(fp, object_hook=ExtendedJSONCodec.hook)
             SETTINGS = DotDict(json_data)
-        except OSError as exc:  # pragma: no cover
+        except OSError:  # pragma: no cover
             if log:
-                log.warning('Could not load settings file %s, error: %s', path, exc.strerror)
+                log.exception('Could not load settings file %s.', path)
         except json.JSONDecodeError as exc:  # pragma: no cover
             if log:
-                log.error('Malformed JSON settings file %s:%d:d, error: %s', path, exc.lineno, exc.colno, exc.msg)
+                log.exception('Malformed JSON settings file %s:%d:d, error: %s', path, exc.lineno, exc.colno, exc.msg)
             _discard_data()
     return SETTINGS
 
@@ -41,9 +41,9 @@ def save_settings(path, log=None):
     try:
         with open(path, 'w') as fp:
             json.dump(SETTINGS.to_dict_tree(), fp, cls=ExtendedJSONCodec, indent=2)
-    except OSError as exc:  # pragma: no cover
+    except OSError:  # pragma: no cover
         if log:
-            log.warning('Could not write to settings file %s, error: %s', path, exc.strerror)
+            log.exception('Could not write to settings file %s.', path)
 
 
 load_settings(os.path.join(os.path.dirname(__file__), 'default.json'))

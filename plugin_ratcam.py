@@ -191,6 +191,7 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
             _log.warning('Unrecognized media type %s.', media.kind)
             return
         recipients = self._enum_recipient_chat_ids(media.info)
+        # noinspection PyBroadException
         try:
             if media.kind in _KNOWN_PHOTO_KINDS:
                 self.root_telegram_plugin.broadcast_photo(recipients, media.path,
@@ -198,10 +199,10 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
             elif media.kind in _KNOWN_VIDEO_KINDS:
                 self.root_telegram_plugin.broadcast_video(recipients, media.path,
                                                           timeout=RatcamTelegramPlugin._video_timeout())
-        except OSError as e:
-            _log.error('Could not load media file %s, error: %s', str(media.uuid), e.strerror)
-        except Exception as e:
-            _log.error('Error when sending media %s: %s', str(media.uuid), str(e))
+        except OSError:
+            _log.exception('Could not load media file %s.', str(media.uuid))
+        except:
+            _log.exception('Error when sending media %s.', str(media.uuid))
 
     def _motion_status_changed_internal(self, is_moving):
         if not self.motion_detection_enabled:

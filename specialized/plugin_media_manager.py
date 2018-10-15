@@ -103,8 +103,8 @@ class MediaManagerPlugin(PluginProcessBase):
             try:
                 os.remove(media.path)
                 _log.info('Removed media %s at %s', str(media.uuid), media.path)
-            except OSError as e:  # pragma: no cover
-                _log.error('Could not remove %s, error: %s', os.path.abspath(media.path), e.strerror)
+            except OSError:  # pragma: no cover
+                _log.exception('Could not remove %s.', os.path.abspath(media.path))
 
     def __enter__(self):
         self._media.clear()

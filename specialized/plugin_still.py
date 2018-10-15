@@ -58,8 +58,8 @@ class StillPlugin(PluginProcessBase):
             _log.warning('Discarding media with info %s at %s', str(info), media_path)
             try:
                 os.remove(media_path)
-            except OSError as e:
-                _log.error('Could not delete %s, error: %s', media_path, e.strerror)
+            except OSError:
+                _log.exception('Could not delete %s.', media_path)
         else:
             media = media_mgr.deliver_media(media_path, 'jpeg', info)
             _log.info('Dispatched media %s with info %s at %s.', str(media.uuid), str(media.info), media.path)
