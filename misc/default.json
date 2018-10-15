@@ -17,5 +17,8 @@
     "trigger_area_fractions": [0.0001, 0.00002],
     "time_window": 2.0
   },
+  "ratcam": {
+    "video_duration": 8.0
+  },
   "temp_folder": null
 }

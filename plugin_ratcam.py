@@ -119,6 +119,13 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
     def _video_timeout():
         return max(SETTINGS.telegram.video_timeout, 5.)
 
+    @staticmethod
+    def _video_duration():
+        if SETTINGS.ratcam.video_duration is None:
+            return 8.
+        else:
+            return max(min(SETTINGS.ratcam.video_duration, 60.), 1.)
+
     def _enum_recipient_chat_ids(self, info):
         if info is None:
             yield from self.root_telegram_plugin.authorized_chat_ids
@@ -166,6 +173,16 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
             _log.info('[%s] requested a photo.', user_desc(upd))
             self.still_plugin.take_picture(info=upd)
 
+    @handle_command('video')
+    def cmd_video(self, upd):
+        if self.buffered_recorder_plugin is None:
+            self.root_telegram_plugin.reply_message(upd, 'Cannot take a video, %s is not loaded.' %
+                                                    BufferedRecorderPlugin.plugin_name())
+        else:
+            _log.info('[%s] requested a video.', user_desc(upd))
+            self._manual_recording = True
+            self.buffered_recorder_plugin.record(info=upd, stop_after_seconds=RatcamTelegramPlugin._video_duration())
+
     def handle_media(self, media):
         if not os.path.isfile(media.path):
             return
@@ -196,8 +213,8 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
         else:
             self.root_telegram_plugin.broadcast_message('Everything quiet.')
         if self.buffered_recorder_plugin is not None:
-            if self.buffered_recorder_plugin.is_recording and not is_moving and not self.is_recording_manually:
+            if self.is_recording and not is_moving and not self.is_recording_manually:
                 self.buffered_recorder_plugin.stop_and_finalize()
-            elif not self.buffered_recorder_plugin.is_recording and is_moving:
+            elif not self.is_recording and is_moving:
                 self._manual_recording = False
                 self.buffered_recorder_plugin.record()
