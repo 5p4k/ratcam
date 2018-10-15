@@ -129,7 +129,7 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
     def _enum_recipient_chat_ids(self, info):
         if info is None:
             yield from self.root_telegram_plugin.authorized_chat_ids
-        elif isinstance(telegram.Update, info):
+        elif isinstance(info, telegram.Update):
             yield info.effective_chat.id
 
     @handle_command('detect', pass_args=True)
