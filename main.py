@@ -4,6 +4,7 @@ from misc.settings import SETTINGS
 from plugins.decorators import get_all_plugins
 from specialized import plugin_telegram, plugin_picamera, plugin_motion_detector, plugin_buffered_recorder, \
     plugin_still, plugin_media_manager
+import plugin_ratcam
 from plugins.processes_host import ProcessesHost
 from misc.logging import ensure_logging_setup
 from misc.signal import GracefulSignal
@@ -24,6 +25,7 @@ def main(args):
     assert plugin_buffered_recorder.BUFFERED_RECORDER_PLUGIN_NAME in plugins
     assert plugin_motion_detector.MOTION_DETECTOR_PLUGIN_NAME in plugins
     assert plugin_still.STILL_PLUGIN_NAME in plugins
+    assert plugin_ratcam.RATCAM_PLUGIN_NAME in plugins
     if not args.camera:
         del plugins[plugin_picamera.PICAMERA_ROOT_PLUGIN_NAME]
     logging.info('Running the following plugins: ' + ', '.join(plugins.keys()))
