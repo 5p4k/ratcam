@@ -23,4 +23,4 @@ def bool_desc(arg):
 
 def user_desc(update):
     user = update.message.from_user
-    return '@%s (%s %s)' % (user.username, user.first_name, user.last_name)
+    return '@%s %s %s' % (user.username, user.first_name, user.last_name)
