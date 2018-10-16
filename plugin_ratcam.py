@@ -210,10 +210,12 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
             return
         assert self.motion_detector_plugin is not None
         if is_moving:
-            self.root_telegram_plugin.broadcast_message('Something is moving...')
+            self.root_telegram_plugin.broadcast_message(self.root_telegram_plugin.authorized_chat_ids,
+                                                        'Something is moving...')
             self.motion_detector_plugin.take_motion_picture()
         else:
-            self.root_telegram_plugin.broadcast_message('Everything quiet.')
+            self.root_telegram_plugin.broadcast_message(self.root_telegram_plugin.authorized_chat_ids,
+                                                        'Everything quiet.')
         if self.buffered_recorder_plugin is not None:
             if self.is_recording and not is_moving and not self.is_recording_manually:
                 self.buffered_recorder_plugin.stop_and_finalize()
