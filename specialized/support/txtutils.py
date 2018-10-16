@@ -7,7 +7,7 @@ def fuzzy_bool(arg):
     if arg in BOOL_YES:
         return True
     elif arg in BOOL_NO:
-        return True
+        return False
     raise ValueError()
 
 
