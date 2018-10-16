@@ -3,6 +3,7 @@ import os
 import logging
 from safe_picamera import MP4Muxer
 from misc.settings import SETTINGS
+from threading import Lock
 
 
 _log = logging.getLogger('mp4_muxer')
@@ -34,30 +35,32 @@ class TemporaryMP4Muxer:
         self._muxer = None
         self._age = None
         self._last_frame_is_complete = True
+        self._lock = Lock()
 
     def __enter__(self):
         self._setup_new_temp()
         return self
 
     def _setup_new_temp(self):
-        self._temp_file = NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder)
-        _log.debug('Using new temporary MP4 %s', self._temp_file.name)
-        self._muxer = MP4StreamMuxer(self._temp_file)
-        self._muxer.begin()
-        self._age = 0
+        with self._lock:
+            self._temp_file = NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder)
+            _log.debug('Using new temporary MP4 %s', self._temp_file.name)
+            self._muxer = MP4StreamMuxer(self._temp_file)
+            self._muxer.begin()
+            self._age = 0
 
     def _discard_temp(self):
-        self._temp_file.close()
-        self._muxer = None
-        if os.path.isfile(self._temp_file.name):
-            _log.debug('Dropping temporary MP4 %s', self._temp_file.name)
-            try:
-                os.remove(self._temp_file.name)
-            except OSError:  # pragma: no cover
-                _log.exception('Unable to remove %s.', self._temp_file.name)
-        self._temp_file = None
-        self._muxer = None
-        self._age = None
+        with self._lock:
+            self._temp_file.close()
+            if os.path.isfile(self._temp_file.name):
+                _log.debug('Dropping temporary MP4 %s', self._temp_file.name)
+                try:
+                    os.remove(self._temp_file.name)
+                except OSError:  # pragma: no cover
+                    _log.exception('Unable to remove %s.', self._temp_file.name)
+            self._temp_file = None
+            self._muxer = None
+            self._age = None
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._discard_temp()
@@ -71,13 +74,14 @@ class TemporaryMP4Muxer:
         return self._temp_file.name
 
     def rewind(self):
-        if not self._last_frame_is_complete:  # pragma: no cover
-            raise RuntimeError('Rewinding before the last frame is complete will corrupt the media.')
-        self._temp_file.seek(0)
-        # Need to create new because it will seek to the mdat offset for finalizing the mp4
-        self._muxer = MP4StreamMuxer(self._temp_file)
-        self._muxer.begin()
-        self._age = 0
+        with self._lock:
+            if not self._last_frame_is_complete:  # pragma: no cover
+                raise RuntimeError('Rewinding before the last frame is complete will corrupt the media.')
+            self._temp_file.seek(0)
+            # Need to create new because it will seek to the mdat offset for finalizing the mp4
+            self._muxer = MP4StreamMuxer(self._temp_file)
+            self._muxer.begin()
+            self._age = 0
 
     def finalize(self, framerate, resolution):
         """
@@ -97,10 +101,13 @@ class TemporaryMP4Muxer:
         return old_temp_file.name
 
     def append(self, data, frame_is_sps_header, frame_is_complete):
-        self._muxer.append(data, frame_is_sps_header, frame_is_complete)
-        if frame_is_complete and not frame_is_sps_header:
-            self._age += 1
-        self._last_frame_is_complete = frame_is_complete
+        with self._lock:
+            if self._muxer is None:
+                return  # Has already exited
+            self._muxer.append(data, frame_is_sps_header, frame_is_complete)
+            if frame_is_complete and not frame_is_sps_header:
+                self._age += 1
+            self._last_frame_is_complete = frame_is_complete
 
 
 class DualBufferedMP4:
