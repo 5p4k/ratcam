@@ -145,7 +145,7 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
                                                     bool_desc(self.motion_detection_enabled))
         else:
             try:
-                enable = fuzzy_bool(args)
+                enable = fuzzy_bool(args[0])
                 if enable:
                     if self.motion_detection_enabled:
                         self.root_telegram_plugin.reply_message(upd, 'Motion detection is already on.')
