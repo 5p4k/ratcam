@@ -2,7 +2,7 @@ from plugins.base import PluginProcessBase, Process
 from plugins.decorators import make_plugin
 from plugins.processes_host import find_plugin, active_plugins
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, BaseFilter
-from telegram import error as terr
+from telegram import error as terr, PhotoSize
 from specialized.telegram_support.auth import AuthStatus, AuthAttemptResult
 import logging
 from specialized.telegram_support.auth_io import save_chat_auth_storage, load_chat_auth_storage
@@ -19,6 +19,10 @@ TELEGRAM_ROOT_PLUGIN_NAME = 'TelegramRoot'
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(TELEGRAM_ROOT_PLUGIN_NAME))
 _TELEGRAM_RETRY_CAP_SECONDS = 10
+
+
+def extract_largest_photo_size(photo_sizes):
+    return max(photo_sizes, key=lambda photo_size: photo_size.width * photo_size.height)
 
 
 class AuthStatusFilter(BaseFilter):
@@ -102,7 +106,11 @@ class TelegramRootPlugin(TelegramProcessBase):
                 _log.info('Beginning upload of media %s...', str(media_obj))
                 msg = method(chat_id, media_obj, *args, **kwargs)
                 if msg:
-                    file_id = msg.effective_attachment.file_id
+                    attachment = msg.effective_attachment
+                    if isinstance(attachment, list) and len(attachment) > 0 and isinstance(attachment[0], PhotoSize):
+                        file_id = extract_largest_photo_size(attachment).file_id
+                    else:
+                        file_id = attachment.file_id
                     _log.info('Media %s uploaded as file id %s...', str(media_obj), str(file_id))
                 else:
                     _log.error('Unable to send media %s.', str(media_obj))
