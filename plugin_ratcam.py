@@ -95,7 +95,7 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
         if not self._motion_detection_enabled and enabled and self.motion_detector_plugin.triggered:
             self._motion_detection_enabled = True
             self.motion_status_changed(True)
-        elif self._motion_detection_enabled and not enabled and not self.motion_detector_plugin.triggered:
+        elif self._motion_detection_enabled and not enabled and self.motion_detector_plugin.triggered:
             self.motion_status_changed(False)
             self._motion_detection_enabled = False
         else:
