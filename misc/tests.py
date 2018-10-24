@@ -95,8 +95,30 @@ class TestDotDict(unittest.TestCase):
         self.assertIsNotNone(d.b)
         self.assertIsNotNone(d.b.c)
         self.assertIsInstance(d.b.c, DotDict)
-        d = d.to_dict_tree()
+        d = d.get_storage()
         self.assertEqual(d, {'a': {}, 'b': {'c': {}}})
+
+    def test_lazy_alloc(self):
+        d = DotDict({})
+        self.assertIsNone(d.something.get('a'))
+        self.assertNotIn('something', d)
+        d.something.a = 55
+        self.assertIn('something', d)
+        self.assertIn('a', d.something)
+        self.assertEqual(d.something.a, 55)
+
+    def test_get(self):
+        d = DotDict({'a': 55})
+        self.assertIsNone(d.get('b'))
+        self.assertEqual(d.get('a'), 55)
+        self.assertEqual(d.get('b', default=42), 42)
+        d.c = '55'
+        self.assertEqual(d.get('c', cast_to_type=int), 55)
+        d.c = 'string'
+        self.assertEqual(d.get('c', cast_to_type=int, default=32), 32)
+        self.assertEqual(d.get('a', ge=56), 56)
+        self.assertEqual(d.get('a', le=54), 54)
+        self.assertEqual(d.get('a', sanitizer=lambda n: 2 * n), 110)
 
 
 class VideoEventCollector:

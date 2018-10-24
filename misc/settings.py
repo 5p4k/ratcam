@@ -40,7 +40,7 @@ def save_settings(path, log=None):
     path = os.path.abspath(path)
     try:
         with open(path, 'w') as fp:
-            json.dump(SETTINGS.to_dict_tree(), fp, cls=ExtendedJSONCodec, indent=2)
+            json.dump(SETTINGS.get_storage(downcast=True), fp, cls=ExtendedJSONCodec, indent=2)
     except OSError:  # pragma: no cover
         if log:
             log.exception('Could not write to settings file %s.', path)
