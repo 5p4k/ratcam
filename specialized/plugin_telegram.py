@@ -79,8 +79,8 @@ class TelegramProcessBase(PluginProcessBase, HandlerBase):
 @make_plugin(TELEGRAM_ROOT_PLUGIN_NAME, Process.TELEGRAM)
 class TelegramRootPlugin(TelegramProcessBase):
     def _save_chat_auth_storage(self):
-        _log.info('Saving auth storage to %s', os.path.realpath(SETTINGS.telegram.auth_file))
-        save_chat_auth_storage(SETTINGS.telegram.auth_file, self._auth_storage, log=_log)
+        _log.info('Saving auth storage to %s', os.path.realpath(SETTINGS.telegram.get('auth_file', cast_to_type=str)))
+        save_chat_auth_storage(SETTINGS.telegram.get('auth_file', cast_to_type=str), self._auth_storage, log=_log)
 
     def _setup_handlers(self):
         def _collect_handlers():
@@ -216,8 +216,8 @@ class TelegramRootPlugin(TelegramProcessBase):
 
     def __init__(self):
         super(TelegramRootPlugin, self).__init__()
-        self._updater = Updater(token=SETTINGS.telegram.token)
-        self._auth_storage = load_chat_auth_storage(SETTINGS.telegram.auth_file, log=_log)
+        self._updater = Updater(token=SETTINGS.telegram.get('token', cast_to_type=str))
+        self._auth_storage = load_chat_auth_storage(SETTINGS.telegram.get('auth_file', cast_to_type=str), log=_log)
         self._auth_filters = dict({
             status: AuthStatusFilter(self._auth_storage, status) for status in AuthStatus
         })

@@ -128,7 +128,7 @@ class ProcessesHost:
         for the ProcessPack to contain None entries. For example
             plugins = {'root_plugin': ProcessPack(None, None, MySubclassOfPluginProcessInstanceBase)}
         """
-        self._socket_dir = TemporaryDirectory(dir=SETTINGS.temp_folder)
+        self._socket_dir = TemporaryDirectory(dir=SETTINGS.get('temp_folder', cast_to_type=str, allow_none=True))
         self._plugin_instances = dict({k: None for k in plugins})
         self._plugin_process_host_pack = ProcessPack(*[
             self.__class__._create_host(self._socket_dir.name, plugins, process)

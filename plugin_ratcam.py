@@ -83,21 +83,6 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
         super(RatcamTelegramPlugin, self).__enter__()
         self._clear_plugins_cache()
 
-    @staticmethod
-    def _photo_timeout():
-        return max(SETTINGS.telegram.photo_timeout, 5.)
-
-    @staticmethod
-    def _video_timeout():
-        return max(SETTINGS.telegram.video_timeout, 5.)
-
-    @staticmethod
-    def _video_duration():
-        if SETTINGS.ratcam.video_duration is None:
-            return 8.
-        else:
-            return max(min(SETTINGS.ratcam.video_duration, 60.), 1.)
-
     def _enum_recipient_chat_ids(self, info):
         if info is None:
             yield from self.root_telegram_plugin.authorized_chat_ids
@@ -184,7 +169,8 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
         else:
             _log.info('[%s] requested a video.', user_desc(upd))
             self.set_manual_recording()
-            self.buffered_recorder_plugin.record(info=upd, stop_after_seconds=RatcamTelegramPlugin._video_duration())
+            self.buffered_recorder_plugin.record(info=upd, stop_after_seconds=SETTINGS.ratcam.get(
+                'video_duration', cast_to_type=float, ge=1., le=60., default=8.))
 
     def handle_media(self, media):
         if self.root_telegram_plugin is None or not os.path.isfile(media.path):
@@ -198,11 +184,11 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
         try:
             with open(media.path, 'rb') as fp:
                 if media.kind in _KNOWN_PHOTO_KINDS:
-                    self.root_telegram_plugin.broadcast_photo(recipients, fp,
-                                                              timeout=RatcamTelegramPlugin._photo_timeout())
+                    self.root_telegram_plugin.broadcast_photo(recipients, fp, timeout=SETTINGS.telegram.get(
+                        'photo_timeout', cast_to_type=float, ge=5., default=20.))
                 elif media.kind in _KNOWN_VIDEO_KINDS:
-                    self.root_telegram_plugin.broadcast_video(recipients, fp,
-                                                              timeout=RatcamTelegramPlugin._video_timeout())
+                    self.root_telegram_plugin.broadcast_video(recipients, fp, timeout=SETTINGS.telegram.get(
+                        'video_timeout', cast_to_type=float, ge=5., default=60.))
         except OSError:
             _log.exception('Could not load media file %s.', str(media.uuid))
         except:

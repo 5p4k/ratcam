@@ -43,7 +43,8 @@ class TemporaryMP4Muxer:
 
     def _setup_new_temp(self):
         with self._lock:
-            self._temp_file = NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder)
+            self._temp_file = NamedTemporaryFile(delete=False, dir=SETTINGS.get('temp_folder', cast_to_type=str,
+                                                                                allow_none=True))
             _log.debug('Using new temporary MP4 %s', self._temp_file.name)
             self._muxer = MP4StreamMuxer(self._temp_file)
             self._muxer.begin()

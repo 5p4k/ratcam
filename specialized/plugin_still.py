@@ -20,7 +20,7 @@ _log = logging.getLogger(camel_to_snake(STILL_PLUGIN_NAME))
 @make_plugin(STILL_PLUGIN_NAME, Process.CAMERA)
 class StillPlugin(PluginProcessBase):
     def __init__(self):
-        self._jpeg_quality = SETTINGS.camera.jpeg_quality
+        self._jpeg_quality = SETTINGS.camera.get('jpeg_quality', cast_to_type=float, default=0.5, ge=0.0, le=1.0)
         self._capture_thread = CallbackQueueThreadHost('capture_still_thread', self._take_still_with_info)
 
     def __enter__(self):
@@ -50,7 +50,8 @@ class StillPlugin(PluginProcessBase):
             _log.error('No %s is running on CAMERA! Will not take a still with info %s.',
                        PICAMERA_ROOT_PLUGIN_NAME, str(info))
             return
-        with NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder) as temp_file:
+        with NamedTemporaryFile(delete=False, dir=SETTINGS.get('temp_folder', cast_to_type=str, allow_none=True)) as \
+                temp_file:
             media_path = temp_file.name
             _log.info('Taking still picture with info %s to %s.', str(info), media_path)
             camera.camera.capture(media_path, format='jpeg', use_video_port=True, quality=self._integral_jpg_quality)

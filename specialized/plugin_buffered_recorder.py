@@ -77,7 +77,8 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def buffer_max_age(self):
         if self._buffer_max_age is None:
             # Lazily load this value, because we must be sure that a camera is instantiated
-            self._buffer_max_age = 2 * self._camera.framerate * max(1., SETTINGS.camera.buffer)
+            self._buffer_max_age = 2 * self._camera.framerate * \
+                                   SETTINGS.camera.get('buffer', cast_to_type=float, default=2.0, ge=1.0)
         return self._buffer_max_age
 
     @pyro_expose
@@ -90,7 +91,8 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def sps_header_max_age(self):
         if self._sps_header_max_age is None:
             # Lazily load this value, because we must be sure that a camera is instantiated
-            self._sps_header_max_age = self._camera.framerate * max(1., SETTINGS.camera.clip_length_tolerance)
+            self._sps_header_max_age = self._camera.framerate * SETTINGS.camera.get(
+                'clip_length_tolerance', cast_to_type=float, default=1.0, ge=1.0)
         return self._sps_header_max_age
 
     @pyro_expose

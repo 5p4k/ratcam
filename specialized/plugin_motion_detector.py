@@ -101,11 +101,24 @@ class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcess
         self._triggered = False
         self._cached_video_frame = None
         self._capture_thread = CallbackQueueThreadHost('capture_motion_image_thread', self._take_motion_image_with_info)
+
+        def _sanitizer_tpl_of(typ, default):
+            def _sanitizer(value):
+                # noinspection PyBroadException
+                try:
+                    return tuple(typ(v) for v in value)
+                except:
+                    return default
+            return _sanitizer
+
         # Load settings' defaults
-        self.trigger_thresholds = SETTINGS.detector.trigger_thresholds
-        self.trigger_area_fractions = SETTINGS.detector.trigger_area_fractions
-        self.time_window = SETTINGS.detector.time_window
-        self._jpeg_quality = clamp(int(100 * SETTINGS.camera.jpeg_quality), 0, 100)
+        self.trigger_thresholds = SETTINGS.detector.get('trigger_thresholds',
+                                                        sanitizer=_sanitizer_tpl_of(int, (80, 20)))
+        self.trigger_area_fractions = SETTINGS.detector.get('trigger_area_fractions',
+                                                            sanitizer=_sanitizer_tpl_of(float, (0.0001, 0.00002)))
+        self.time_window = SETTINGS.detector.get('time_window', cast_to_type=float, default=2.0, ge=1.0)
+        self._jpeg_quality = int(100 * SETTINGS.camera.get('jpeg_quality', cast_to_type=float, default=0.5, ge=0.0,
+                                                           le=1.0))
 
     def __enter__(self):
         self._capture_thread.__enter__()
@@ -180,7 +193,8 @@ class MotionDetectorCameraPlugin(MotionDetectorDispatcherPlugin, PiCameraProcess
 
     def _take_motion_image_with_info(self, info):
         self._prepare_video_frame_cache()
-        with NamedTemporaryFile(delete=False, dir=SETTINGS.temp_folder) as temp_file:
+        with NamedTemporaryFile(delete=False, dir=SETTINGS.get('temp_folder', cast_to_type=str, allow_none=True)) as \
+                temp_file:
             media_path = temp_file.name
             _log.info('Taking motion image with info %s to %s.', str(info), media_path)
             self.root_picamera_plugin.camera.capture(self._cached_video_frame, format='rgb', use_video_port=True)
