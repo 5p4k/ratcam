@@ -41,10 +41,13 @@ class DotDict:
         for k in self:
             yield getattr(self, k)
 
-    def get(self, key, default=None, cast_to_type=None, ge=None, le=None, sanitizer=None):
+    def get(self, key, default=None, cast_to_type=None, ge=None, le=None, sanitizer=None, allow_none=False):
         if key in self:
             retval = getattr(self, key)
-            if cast_to_type is not None:
+            if retval is None:
+                if not allow_none:
+                    retval = default
+            elif cast_to_type is not None:
                 # noinspection PyBroadException
                 try:
                     retval = cast_to_type(retval)
