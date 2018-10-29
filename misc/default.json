@@ -21,7 +21,7 @@
     "video_duration": 8.0
   },
   "pwmled": {
-    "frequency": 100,
+    "frequency": 1000,
     "bcm_pin": 12
   },
   "temp_folder": null
