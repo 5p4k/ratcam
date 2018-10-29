@@ -167,13 +167,17 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
             self.root_telegram_plugin.reply_message(upd, 'Cannot offer LED light, the %s is not loaded.' %
                                                     PWMLedPlugin.plugin_name())
             return
+        elif self.pwm_led_plugin.bcm_pin is None:
+            self.root_telegram_plugin.reply_message(upd, 'Cannot offer LED light, pin number not set.')
+            return
         if len(args) == 0:
             light_value = self.pwm_led_plugin.value
-            if light_value is None:
-                self.root_telegram_plugin.reply_message(upd, 'Cannot offer LED light, pin number not set.')
-            else:
-                self.root_telegram_plugin.reply_message(upd, 'Light is %s (set at %d%%).' %
-                                                        (bool_desc(light_value > 0), int(100. * light_value)))
+            self.root_telegram_plugin.reply_message(upd, 'Light is %s (set at %d%%).' %
+                                                    (bool_desc(light_value > 0), int(100. * light_value)))
+        elif args[0].strip().lower() in ['pulse', 'test']:
+            self.root_telegram_plugin.reply_message(upd, 'Will pulse the light for testing purposes.')
+            _log.info('[%s] requested to pulse the light.', user_desc(upd))
+            self.pwm_led_plugin.pulse()
         else:
             # Try a float first
             light_value = None
