@@ -7,6 +7,7 @@ from specialized.plugin_picamera import PiCameraRootPlugin
 from specialized.plugin_buffered_recorder import BufferedRecorderPlugin
 from specialized.plugin_motion_detector import MotionDetectorResponder, MotionDetectorCameraPlugin
 from specialized.plugin_telegram import TelegramProcessBase, handle_command, TelegramRootPlugin
+from specialized.plugin_pwmled import PWMLedPlugin
 import os
 import logging
 from misc.logging import camel_to_snake
@@ -45,7 +46,8 @@ class KnownPluginsCache:
                 MotionDetectorCameraPlugin: find_plugin(MotionDetectorCameraPlugin, Process.CAMERA),
                 PiCameraRootPlugin: find_plugin(PiCameraRootPlugin, Process.CAMERA),
                 StillPlugin: find_plugin(StillPlugin, Process.CAMERA),
-                TelegramRootPlugin: find_plugin(TelegramRootPlugin, Process.TELEGRAM)
+                TelegramRootPlugin: find_plugin(TelegramRootPlugin, Process.TELEGRAM),
+                PWMLedPlugin: find_plugin(PWMLedPlugin, Process.MAIN)
             }
 
     def _clear_plugins_cache(self):
@@ -65,6 +67,11 @@ class KnownPluginsCache:
     def motion_detector_plugin(self):
         self._ensure_plugins_cache()
         return self._plugins_cache[MotionDetectorCameraPlugin]
+
+    @property
+    def pwm_led_plugin(self):
+        self._ensure_plugins_cache()
+        return self._plugins_cache[PWMLedPlugin]
 
     @property
     def still_plugin(self):
@@ -151,6 +158,43 @@ class RatcamTelegramPlugin(TelegramProcessBase, MediaReceiver, MotionDetectorRes
                         self.root_telegram_plugin.reply_message(upd, 'Motion detection is already off.')
             except ValueError:
                 self.root_telegram_plugin.reply_message(upd, 'Please specify \'on\' or \'off\' or nothing.')
+
+    @handle_command('light', pass_args=True)
+    def cmd_detect(self, upd, args):
+        if len(args) not in (0, 1):
+            return  # More than one argument is not something we handle
+        if self.pwm_led_plugin is None:
+            self.root_telegram_plugin.reply_message(upd, 'Cannot offer LED light, the %s is not loaded.' %
+                                                    PWMLedPlugin.plugin_name())
+            return
+        if len(args) == 0:
+            light_value = self.pwm_led_plugin.value
+            if light_value is None:
+                self.root_telegram_plugin.reply_message(upd, 'Cannot offer LED light, pin number not set.')
+            else:
+                self.root_telegram_plugin.reply_message(upd, 'Light is %s (set at %d%%).' %
+                                                        (bool_desc(light_value > 0), int(100. * light_value)))
+        else:
+            # Try a float first
+            light_value = None
+            try:
+                light_value = float(args[0])
+            except ValueError:
+                try:
+                    # Try a bool then
+                    if fuzzy_bool(args[0]):
+                        light_value = 1.
+                    else:
+                        light_value = 0.
+                except ValueError:
+                    self.root_telegram_plugin.reply_message(upd, 'Please specify \'on\' or \'off\' or a valid number.')
+                    return
+            if light_value == self.pwm_led_plugin.value:
+                self.root_telegram_plugin.reply_message(upd, 'Light is already set to %d%%.' % int(100. * light_value))
+            else:
+                self.pwm_led_plugin.value = light_value
+                _log.info('[%s] set the light to %d%%.', user_desc(upd), int(100. * light_value))
+                self.root_telegram_plugin.reply_message(upd, 'Setting light to %d%%.' % int(100. * light_value))
 
     @handle_command('photo')
     def cmd_photo(self, upd):
