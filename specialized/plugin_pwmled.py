@@ -18,19 +18,30 @@ class PWMLedPlugin(PluginProcessBase):
         self._bcm_pin = SETTINGS.pwmled.get('bcm_pin', default=None, cast_to_type=int, ge=0, le=27, allow_none=True)
         self._frequency = SETTINGS.pwmled.get('frequency', default=100, cast_to_type=int, ge=10, le=10000)
         self._pwmled = None
+        self._active = False
         self._rebuild_pwmled()
 
     def _rebuild_pwmled(self):
         old_value = 0.
         if self._pwmled is not None:
-            old_value = self._pwmled.value
+            if not self._active or self._bcm_pin is None:
+                _log.info('Disabling PWM led.')
+            else:
+                old_value = self._pwmled.value
             self._pwmled.off()
             self._pwmled = None
-        if self._bcm_pin is not None:
-            _log.debug('Rebuilding PWM led on pin %d with frequency %d.', self._bcm_pin, self._frequency)
+        if self._bcm_pin is not None and self._active:
+            _log.info('Rebuilding PWM led on pin %d with frequency %d.', self._bcm_pin, self._frequency)
             self._pwmled = PWMLED(self.bcm_pin, frequency=self.frequency, initial_value=old_value)
-        else:
-            _log.debug('Disabled PWM led.')
+
+    def __enter__(self):
+        self._active = True
+        self._rebuild_pwmled()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._active = False
+        self._rebuild_pwmled()
 
     @pyro_expose
     @property
