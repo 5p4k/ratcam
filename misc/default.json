@@ -20,5 +20,9 @@
   "ratcam": {
     "video_duration": 8.0
   },
+  "pwmled": {
+    "frequency": 100,
+    "bcm_pin": 12
+  },
   "temp_folder": null
 }
