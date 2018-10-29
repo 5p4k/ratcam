@@ -115,3 +115,14 @@ class PWMLedPlugin(PluginProcessBase):
             else:
                 self.on()
 
+    @pyro_expose
+    @pyro_oneway
+    def pulse(self):
+        if self._pwmled is not None:
+            _log.info('Pulsating PWM led on pin %d.', self.bcm_pin)
+            try:
+                self._pwmled.pulse(n=5)
+            except Exception as e:  # pragma: no cover
+                _log.exception('Pulse failed!')
+                raise e
+
