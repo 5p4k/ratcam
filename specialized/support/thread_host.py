@@ -26,6 +26,9 @@ class ThreadHost:
             self._thread.join()
             logging.getLogger(self._thread_name).info('The thread %s finally joined.', self._thread_name)
 
+    def wait_stop(self, timeout=None):
+        return self._thread_stop.wait(timeout=timeout)
+
     def wake(self):
         self._thread_wake.set()
 
