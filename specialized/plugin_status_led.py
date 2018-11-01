@@ -7,7 +7,6 @@ from threading import Lock
 from misc.logging import camel_to_snake, ensure_logging_setup
 import logging
 from misc.settings import SETTINGS
-from gpiozero import RGBLED
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 
 
@@ -15,6 +14,29 @@ STATUS_LED_PLUGIN_NAME = 'StatusLEDPlugin'
 STATUS_LED_FPS = 25  # Do we really want this to be a setting too?
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(STATUS_LED_PLUGIN_NAME))
+
+
+try:
+    from gpiozero import RGBLED
+except ImportError:
+    _log.warning('Could not import RGBLED from gpiozero, running mock.')
+
+    class RGBLED:
+        def __init__(self, *_, **__):
+            self._value = (0., 0., 0.)
+
+        @property
+        def value(self):
+            return self._value
+
+        @value.setter
+        def value(self, v):
+            assert isinstance(v, (tuple, list))
+            assert len(v) == 3
+            for comp in v:
+                assert isinstance(comp, (int, float))
+                assert 0 <= comp <= 1
+            self._value = v
 
 
 def infrange(n):
