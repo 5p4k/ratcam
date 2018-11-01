@@ -17,6 +17,14 @@ ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(STATUS_LED_PLUGIN_NAME))
 
 
+def infrange(n):
+    if isinf(n):
+        while True:
+            yield float('inf')
+    else:
+        yield from range(int(n))
+
+
 class BlinkingStatus(namedtuple('BlinkingStatusBase',
                                 ['on_color', 'off_color', 'fade_in_time', 'fade_out_time', 'persist_on_time',
                                  'persist_off_time', 'n'])):
@@ -26,6 +34,14 @@ class BlinkingStatus(namedtuple('BlinkingStatusBase',
             yield tuple([l + (r - l) * i / frames for l, r in zip(col1, col2)])
 
     def generate(self, initial_color=(0., 0., 0.), fps=25):
+        if isnan(self.fade_in_time) or isinf(self.fade_in_time):
+            raise ValueError('fade_in_time')
+        if isnan(self.fade_out_time) or isinf(self.fade_out_time):
+            raise ValueError('fade_out_time')
+        if isnan(self.persist_on_time):
+            raise ValueError('persist_on_time')
+        if isnan(self.persist_off_time):
+            raise ValueError('persist_off_time')
         # Initial transition
         initial_fade_in_frames = round(self.fade_in_time * fps)
         if initial_fade_in_frames > 0 and initial_color != self.on_color:
@@ -33,23 +49,21 @@ class BlinkingStatus(namedtuple('BlinkingStatusBase',
         # Repeat the sequence
         fade_in_frames = max(1, round(self.fade_in_time * fps))
         fade_out_frames = max(1, round(self.fade_out_time * fps))
-        persist_on_frames = max(1, round(self.persist_on_time * fps))
-        persist_off_frames = max(1, round(self.persist_off_time * fps))
+        persist_on_frames = float('inf') if isinf(self.persist_on_time) else \
+            max(1, round(self.persist_on_time * fps))
+        persist_off_frames = float('inf') if isinf(self.persist_off_time) else \
+            max(1, round(self.persist_off_time * fps))
 
         def _generate_one_sequence():
-            for _ in range(persist_on_frames):
+            for _ in infrange(persist_on_frames):
                 yield self.on_color
             yield from BlinkingStatus.blend(self.on_color, self.off_color, fade_out_frames)
-            for _ in range(persist_off_frames):
+            for _ in infrange(persist_off_frames):
                 yield self.off_color
             yield from BlinkingStatus.blend(self.off_color, self.on_color, fade_in_frames)
 
-        if self.n is None or isinf(self.n) or isnan(self.n):
-            while True:
-                yield from _generate_one_sequence()
-        else:
-            for _ in range(int(self.n)):
-                yield from _generate_one_sequence()
+        for _ in infrange(self.n):
+            yield from _generate_one_sequence()
 
 
 @make_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
