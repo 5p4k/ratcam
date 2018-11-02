@@ -276,7 +276,8 @@ class Status:
                persist_off_time=0., n=float('inf')):
         plugin = find_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
         if plugin:
-            return plugin.blink(on_color, off_color=off_color, fade_in_time=fade_in_time, fade_out_time=fade_out_time,
-                                persist_on_time=persist_on_time, persist_off_time=persist_off_time, n=n)
+            return plugin.push_status(on_color, off_color=off_color, fade_in_time=fade_in_time,
+                                      fade_out_time=fade_out_time, persist_on_time=persist_on_time,
+                                      persist_off_time=persist_off_time, n=n)
         else:
             return ContextualStatus(None)
