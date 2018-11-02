@@ -13,6 +13,7 @@ from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 from time import sleep
 from specialized.support.txtutils import user_desc
 import os
+from specialized.plugin_status_led import Status
 
 
 TELEGRAM_ROOT_PLUGIN_NAME = 'TelegramRoot'
@@ -104,7 +105,8 @@ class TelegramRootPlugin(TelegramProcessBase):
             _log.info('Sending media %s to %d.', str(media_obj), chat_id)
             if file_id is None:
                 _log.info('Beginning upload of media %s...', str(media_obj))
-                msg = method(chat_id, media_obj, *args, **kwargs)
+                with Status.pulse((0, 0, 1)):
+                    msg = method(chat_id, media_obj, *args, **kwargs)
                 if msg:
                     attachment = msg.effective_attachment
                     if isinstance(attachment, list) and len(attachment) > 0 and isinstance(attachment[0], PhotoSize):
@@ -113,6 +115,7 @@ class TelegramRootPlugin(TelegramProcessBase):
                         file_id = attachment.file_id
                     _log.info('Media %s uploaded as file id %s...', str(media_obj), str(file_id))
                 else:
+                    Status.blink((1, 0, 0), n=1)
                     _log.error('Unable to send media %s.', str(media_obj))
                     return
                 retval.append(msg)
@@ -126,7 +129,8 @@ class TelegramRootPlugin(TelegramProcessBase):
             try:
                 if i > 0:
                     _log.info('Retrying %d/%d...', i + 1, retries)
-                return method(chat_id, *args, **kwargs)
+                with Status.pulse((0, 0, 1)):
+                    return method(chat_id, *args, **kwargs)
             except terr.TimedOut as e:
                 _log.error('Telegram timed out when executing %s: %s.', str(method), e.message)
             except terr.RetryAfter as e:
@@ -155,6 +159,7 @@ class TelegramRootPlugin(TelegramProcessBase):
                 sleep(1)
             except:
                 _log.exception('Error when performing %s.', str(method))
+        Status.blink((1, 0, 0), n=1)
         return None
 
     @property

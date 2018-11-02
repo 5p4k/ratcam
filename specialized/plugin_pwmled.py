@@ -5,6 +5,7 @@ import logging
 from misc.settings import SETTINGS
 from gpiozero import PWMLED
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
+from specialized.plugin_status_led import Status
 
 
 PWMLED_PLUGIN_NAME = 'PWMLed'
@@ -87,7 +88,10 @@ class PWMLedPlugin(PluginProcessBase):
         if self._pwmled is not None:
             _log.info('Setting PWM led on pin %d to value %s.', self.bcm_pin, str(v))
             try:
-                self._pwmled.value = v
+                old_v = self._pwmled.value
+                with Status.custom((old_v, old_v, old_v), (v, v, v), fade_out_time=0.5, persist_on_time=0.25,
+                                   persist_off_time=0.25, n=1):
+                    self._pwmled.value = v
             except Exception as e:  # pragma: no cover
                 _log.exception('Unable to set value to %s.', str(v))
                 raise e

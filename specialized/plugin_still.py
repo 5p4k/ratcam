@@ -10,6 +10,7 @@ from misc.settings import SETTINGS
 from tempfile import NamedTemporaryFile
 import os
 from specialized.support.thread_host import CallbackQueueThreadHost
+from specialized.plugin_status_led import Status
 
 
 STILL_PLUGIN_NAME = 'Still'
@@ -54,7 +55,9 @@ class StillPlugin(PluginProcessBase):
                 temp_file:
             media_path = temp_file.name
             _log.info('Taking still picture with info %s to %s.', str(info), media_path)
-            camera.camera.capture(media_path, format='jpeg', use_video_port=True, quality=self._integral_jpg_quality)
+            with Status.set((0, 1, 0), persist_until_canceled=True):
+                camera.camera.capture(media_path, format='jpeg', use_video_port=True,
+                                      quality=self._integral_jpg_quality)
             temp_file.flush()
             temp_file.close()
         media_mgr = find_plugin(MEDIA_MANAGER_PLUGIN_NAME, Process.CAMERA)

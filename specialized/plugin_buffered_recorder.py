@@ -12,6 +12,7 @@ from misc.settings import SETTINGS
 from safe_picamera import PiVideoFrameType
 from threading import Lock
 import math
+from specialized.plugin_status_led import Status
 
 
 BUFFERED_RECORDER_PLUGIN_NAME = 'BufferedRecorder'
@@ -33,6 +34,8 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         self._buffer_max_age = None
         self._sps_header_max_age = None
         self._footage_max_age = None
+        self._record_status = None
+        self._record_status_lock = Lock()
 
     def __enter__(self):
         super(BufferedRecorderPlugin, self).__enter__()
@@ -43,6 +46,14 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._recorder.__exit__(exc_type, exc_val, exc_tb)
         super(BufferedRecorderPlugin, self).__exit__(exc_type, exc_val, exc_tb)
+
+    def _set_recording_status(self, value):
+        with self._record_status_lock:
+            if value and self._record_status is None:
+                self._record_status = Status.pulse((0, 1, 0))
+            elif not value and self._record_status is not None:
+                self._record_status.cancel()
+                self._record_status = None
 
     @pyro_expose
     @property
@@ -141,6 +152,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
                 self._footage_max_age = None
             else:
                 self._footage_max_age = int(max(1., stop_after_seconds) * self._camera.framerate)
+        self._set_recording_status(True)
         self._recorder.record()
 
     @pyro_expose
@@ -154,6 +166,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         return self._recorder.is_recording and self._keep_media and not self._is_recording
 
     def _stop_and(self, finalize, handle_split_point_if_flushed=True):
+        self._set_recording_status(False)
         self._is_recording = False
         self._keep_media = finalize
         if handle_split_point_if_flushed:
