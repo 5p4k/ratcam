@@ -15,8 +15,8 @@ _log = logging.getLogger(camel_to_snake(PWMLED_PLUGIN_NAME))
 @make_plugin(PWMLED_PLUGIN_NAME, Process.MAIN)
 class PWMLedPlugin(PluginProcessBase):
     def __init__(self):
-        self._bcm_pin = SETTINGS.pwmled.get('bcm_pin', default=None, cast_to_type=int, ge=0, le=27, allow_none=True)
-        self._frequency = SETTINGS.pwmled.get('frequency', default=100, cast_to_type=int, ge=10, le=10000)
+        self._bcm_pin = SETTINGS.pwm_led.get('bcm_pin', default=None, cast_to_type=int, ge=0, le=27, allow_none=True)
+        self._frequency = SETTINGS.pwm_led.get('frequency', default=100, cast_to_type=int, ge=10, le=10000)
         self._pwmled = None
         self._active = False
         self._rebuild_pwmled()
