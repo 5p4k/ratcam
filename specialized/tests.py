@@ -17,6 +17,7 @@ from safe_picamera import PiVideoFrameType
 from specialized.plugin_still import StillPlugin, STILL_PLUGIN_NAME
 from specialized.plugin_motion_detector import MotionDetectorResponder, MotionDetectorCameraPlugin, \
     MotionDetectorDispatcherPlugin, MOTION_DETECTOR_PLUGIN_NAME
+from specialized.plugin_status_led import BlinkingStatus, infrange
 
 
 class RatcamUnitTestCase(unittest.TestCase):
@@ -485,3 +486,36 @@ class TestMotionDetectorPlugin(RatcamUnitTestCase):
             self.assertEqual(media_rcv.media.info, 123)
             media_rcv.let_media_go()
             self.retry_until_timeout(lambda: not os.path.isfile(media_rcv.media.path))
+
+
+class TestBlinkingStatus(unittest.TestCase):
+    def test_infrange(self):
+        self.assertEqual(list(range(10)), list(infrange(10)))
+        i = 0
+        for v in infrange(float('inf')):
+            self.assertEqual(v, float('inf'))
+            i += 1
+            if i >= 10:
+                break
+
+    def test_simple_blink(self):
+        status = BlinkingStatus((1., 1., 1.), (0., 0., 0.), 1., 1., 1., 1., 1)
+        expected = []
+        expected += list([i / 25. for i in range(25)])
+        expected += list([1. for _ in range(25)])
+        expected += list([(25 - i) / 25. for i in range(25)])
+        expected += list([0. for _ in range(25)])
+        # Decompose in components
+        obtained = list(zip(*list(status.generate((0., 0., 0.), 25))))
+
+        def round2(x):
+            return round(x, 2)
+
+        # Round everything
+        expected = list(map(round2, expected))
+        obtained[0] = list(map(round2, obtained[0]))
+        obtained[1] = list(map(round2, obtained[1]))
+        obtained[2] = list(map(round2, obtained[2]))
+        self.assertEqual(expected, obtained[0])
+        self.assertEqual(expected, obtained[1])
+        self.assertEqual(expected, obtained[2])
