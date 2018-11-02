@@ -24,5 +24,10 @@
     "frequency": 1000,
     "bcm_pin": 12
   },
+  "status_led": {
+    "bcm_pin_r": 17,
+    "bcm_pin_g": 27,
+    "bcm_pin_b": 22
+  },
   "temp_folder": null
 }
