@@ -76,16 +76,19 @@ class BlinkingStatus(namedtuple('BlinkingStatusBase',
         persist_off_frames = float('inf') if isinf(self.persist_off_time) else \
             max(1, round(self.persist_off_time * fps))
 
-        def _generate_one_sequence():
+        def _generate_one_sequence(skip_fade_in=False):
+            if not skip_fade_in:
+                yield from BlinkingStatus.blend(self.off_color, self.on_color, fade_in_frames)
             for _ in infrange(persist_on_frames):
                 yield self.on_color
             yield from BlinkingStatus.blend(self.on_color, self.off_color, fade_out_frames)
             for _ in infrange(persist_off_frames):
                 yield self.off_color
-            yield from BlinkingStatus.blend(self.off_color, self.on_color, fade_in_frames)
 
+        already_faded_in = True
         for _ in infrange(self.n):
-            yield from _generate_one_sequence()
+            yield from _generate_one_sequence(skip_fade_in=already_faded_in)
+            already_faded_in = False
 
 
 @make_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
