@@ -1,4 +1,5 @@
 from plugins.base import Process, PluginProcessBase
+from plugins.processes_host import find_plugin
 from plugins.decorators import make_plugin
 from collections import namedtuple
 from math import isinf, isnan
@@ -89,6 +90,26 @@ class BlinkingStatus(namedtuple('BlinkingStatusBase',
         for _ in infrange(self.n):
             yield from _generate_one_sequence(skip_fade_in=already_faded_in)
             already_faded_in = False
+
+
+class ContextualStatus:
+    def __init__(self, blinking_status):
+        self._blinking_status = blinking_status
+        self._entered = False
+
+    def cancel(self):
+        if self._entered:
+            self._entered = False
+            plugin = find_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
+            if plugin:
+                plugin.cancel(self._blinking_status)
+
+    def __enter__(self):
+        self._entered = True
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.cancel()
 
 
 @make_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
@@ -219,6 +240,43 @@ class StatusLEDPlugin(PluginProcessBase):
             raise TypeError('on_color')
         if not isinstance(off_color, (tuple, list)) or len(off_color) != 3:
             raise TypeError('off_color')
-        return self._push(BlinkingStatus(on_color=on_color, off_color=off_color, fade_in_time=fade_in_time,
-                                         fade_out_time=fade_out_time, persist_on_time=persist_on_time,
-                                         persist_off_time=persist_off_time, n=n))
+        return ContextualStatus(self._push(BlinkingStatus(
+            on_color=on_color, off_color=off_color, fade_in_time=fade_in_time, fade_out_time=fade_out_time,
+            persist_on_time=persist_on_time, persist_off_time=persist_off_time, n=n
+        )))
+
+
+class Status:
+    @staticmethod
+    def set(color, fade_in_time=0.5, persist_until_canceled=False):
+        plugin = find_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
+        if plugin:
+            return plugin.set(color, fade_in_time=fade_in_time, persist_until_canceled=persist_until_canceled)
+        else:
+            return ContextualStatus(None)
+
+    @staticmethod
+    def blink(color, n=float('inf'), duty_cycle=0.5, frequency=1.):
+        plugin = find_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
+        if plugin:
+            return plugin.blink(color, n=n, duty_cycle=duty_cycle, frequency=frequency)
+        else:
+            return ContextualStatus(None)
+
+    @staticmethod
+    def pulse(color, n=float('inf'), persist_time=0., frequency=1.):
+        plugin = find_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
+        if plugin:
+            return plugin.pulse(color, n=n, persist_time=persist_time, frequency=frequency)
+        else:
+            return ContextualStatus(None)
+
+    @staticmethod
+    def custom(on_color, off_color=(0., 0., 0.), fade_in_time=0., fade_out_time=0.5, persist_on_time=0.,
+               persist_off_time=0., n=float('inf')):
+        plugin = find_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
+        if plugin:
+            return plugin.blink(on_color, off_color=off_color, fade_in_time=fade_in_time, fade_out_time=fade_out_time,
+                                persist_on_time=persist_on_time, persist_off_time=persist_off_time, n=n)
+        else:
+            return ContextualStatus(None)
