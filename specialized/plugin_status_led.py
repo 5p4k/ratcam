@@ -23,20 +23,20 @@ except ImportError:
 
     class RGBLED:
         def __init__(self, *_, **__):
-            self._value = (0., 0., 0.)
+            self._color = (0., 0., 0.)
 
         @property
-        def value(self):
-            return self._value
+        def color(self):
+            return self._color
 
-        @value.setter
-        def value(self, v):
+        @color.setter
+        def color(self, v):
             assert isinstance(v, (tuple, list))
             assert len(v) == 3
             for comp in v:
                 assert isinstance(comp, (int, float))
                 assert 0 <= comp <= 1
-            self._value = v
+            self._color = v
 
 
 def infrange(n):
@@ -132,7 +132,7 @@ class StatusLEDPlugin(PluginProcessBase):
             col = self._next_color()
             if col is None:
                 break
-            self._rgbled.value = col
+            self._rgbled.color = col
             # The wait action for the stopping flags plays also the role of time.sleep
             if self._blink_thread.wait_stop(timeout=1. / STATUS_LED_FPS):
                 break
@@ -157,7 +157,8 @@ class StatusLEDPlugin(PluginProcessBase):
     def _push(self, status):
         with self._active_statuses_lock:
             self._active_statuses.append(status)
-            self._active_statuses_iterators.append(iter(status))
+            self._active_statuses_iterators.append(iter(status.generate(initial_color=self._rgbled.color,
+                                                                        fps=STATUS_LED_FPS)))
             if len(self._active_statuses) == 1:
                 self._blink_thread.wake()
         return status
