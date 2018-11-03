@@ -55,7 +55,7 @@ class StillPlugin(PluginProcessBase):
                 temp_file:
             media_path = temp_file.name
             _log.info('Taking still picture with info %s to %s.', str(info), media_path)
-            with Status.set((0, 1, 0), persist_until_canceled=True):
+            with Status.set((1, 0, 0), persist_time=float('inf')):
                 camera.camera.capture(media_path, format='jpeg', use_video_port=True,
                                       quality=self._integral_jpg_quality)
             temp_file.flush()

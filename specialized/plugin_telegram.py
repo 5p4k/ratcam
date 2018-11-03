@@ -115,7 +115,7 @@ class TelegramRootPlugin(TelegramProcessBase):
                         file_id = attachment.file_id
                     _log.info('Media %s uploaded as file id %s...', str(media_obj), str(file_id))
                 else:
-                    Status.blink((1, 0, 0), n=1)
+                    Status.blink((1, 0.8, 0), n=1)
                     _log.error('Unable to send media %s.', str(media_obj))
                     return
                 retval.append(msg)
@@ -159,7 +159,7 @@ class TelegramRootPlugin(TelegramProcessBase):
                 sleep(1)
             except:
                 _log.exception('Error when performing %s.', str(method))
-        Status.blink((1, 0, 0), n=1)
+        Status.blink((1, 0.8, 0), n=1)
         return None
 
     @property

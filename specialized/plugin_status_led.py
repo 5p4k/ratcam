@@ -2,7 +2,7 @@ from plugins.base import Process, PluginProcessBase
 from plugins.processes_host import find_plugin
 from plugins.decorators import make_plugin
 from collections import namedtuple
-from math import isinf, isnan
+from math import isinf, isnan, isclose
 from specialized.support.thread_host import CallbackThreadHost
 from threading import Lock
 from misc.logging import camel_to_snake, ensure_logging_setup
@@ -173,6 +173,16 @@ class StatusLEDPlugin(PluginProcessBase):
             for i in sorted(to_delete, reverse=True):
                 del self._active_statuses[i]
                 del self._active_statuses_iterators[i]
+            if color is None:
+                r, g, b = self._rgbled.color
+                if isclose(r, 0.) and isclose(g, 0.) and isclose(b, 0.):
+                    return None  # Stop thread
+                # Reduce them gradually
+                step_down = 1. / STATUS_LED_FPS
+                r = max(0., r - step_down)
+                g = max(0., g - step_down)
+                b = max(0., b - step_down)
+                return r, g, b
             return color
 
     def _push(self, status):
@@ -197,10 +207,9 @@ class StatusLEDPlugin(PluginProcessBase):
             del self._active_statuses_iterators[i]
 
     @pyro_expose
-    def set(self, color, fade_in_time=0.5, persist_until_canceled=False):
+    def set(self, color, fade_in_time=0.5, persist_time=1.):
         return self.push_status(on_color=color, off_color=color, fade_in_time=fade_in_time, fade_out_time=0.,
-                                persist_on_time=0., persist_off_time=float('inf') if persist_until_canceled else 0.,
-                                n=1)
+                                persist_on_time=0., persist_off_time=persist_time, n=1)
 
     @pyro_expose
     def pulse(self, color, n=float('inf'), persist_time=0., frequency=1.):
@@ -248,10 +257,10 @@ class StatusLEDPlugin(PluginProcessBase):
 
 class Status:
     @staticmethod
-    def set(color, fade_in_time=0.5, persist_until_canceled=False):
+    def set(color, fade_in_time=0.5, persist_time=1.):
         plugin = find_plugin(STATUS_LED_PLUGIN_NAME, Process.MAIN)
         if plugin:
-            return plugin.set(color, fade_in_time=fade_in_time, persist_until_canceled=persist_until_canceled)
+            return plugin.set(color, fade_in_time=fade_in_time, persist_time=persist_time)
         else:
             return ContextualStatus(None)
 

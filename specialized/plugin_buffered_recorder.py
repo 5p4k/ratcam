@@ -50,7 +50,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
     def _set_recording_status(self, value):
         with self._record_status_lock:
             if value and self._record_status is None:
-                self._record_status = Status.pulse((0, 1, 0))
+                self._record_status = Status.pulse((1, 0, 0))
             elif not value and self._record_status is not None:
                 self._record_status.cancel()
                 self._record_status = None
