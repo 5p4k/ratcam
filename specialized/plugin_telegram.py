@@ -105,8 +105,7 @@ class TelegramRootPlugin(TelegramProcessBase):
             _log.info('Sending media %s to %d.', str(media_obj), chat_id)
             if file_id is None:
                 _log.info('Beginning upload of media %s...', str(media_obj))
-                with Status.pulse((0, 0, 1)):
-                    msg = method(chat_id, media_obj, *args, **kwargs)
+                msg = method(chat_id, media_obj, *args, **kwargs)
                 if msg:
                     attachment = msg.effective_attachment
                     if isinstance(attachment, list) and len(attachment) > 0 and isinstance(attachment[0], PhotoSize):
@@ -115,7 +114,6 @@ class TelegramRootPlugin(TelegramProcessBase):
                         file_id = attachment.file_id
                     _log.info('Media %s uploaded as file id %s...', str(media_obj), str(file_id))
                 else:
-                    Status.blink((1, 0.8, 0), n=1)
                     _log.error('Unable to send media %s.', str(media_obj))
                     return
                 retval.append(msg)
