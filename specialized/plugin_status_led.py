@@ -11,7 +11,7 @@ from misc.settings import SETTINGS
 from Pyro4 import expose as pyro_expose, oneway as pyro_oneway
 
 
-STATUS_LED_PLUGIN_NAME = 'StatusLEDPlugin'
+STATUS_LED_PLUGIN_NAME = 'StatusLED'
 STATUS_LED_FPS = 25  # Do we really want this to be a setting too?
 ensure_logging_setup()
 _log = logging.getLogger(camel_to_snake(STATUS_LED_PLUGIN_NAME))
