@@ -201,6 +201,7 @@ class StatusLEDPlugin(PluginProcessBase):
             return
         with self._active_statuses_lock:
             if status not in self._active_statuses:
+                _log.warning('Canceling unknown status %s', repr(status))
                 return
             i = self._active_statuses.index(status)
             del self._active_statuses[i]
