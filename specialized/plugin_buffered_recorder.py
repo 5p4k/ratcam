@@ -44,6 +44,7 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._set_recording_status(False)
         self._recorder.__exit__(exc_type, exc_val, exc_tb)
         super(BufferedRecorderPlugin, self).__exit__(exc_type, exc_val, exc_tb)
 
@@ -51,8 +52,9 @@ class BufferedRecorderPlugin(PiCameraProcessBase):
         with self._record_status_lock:
             if value and self._record_status is None:
                 self._record_status = Status.pulse((1, 0, 0))
+                self._record_status.__enter__()
             elif not value and self._record_status is not None:
-                self._record_status.cancel()
+                self._record_status.__exit__(None, None, None)
                 self._record_status = None
 
     @pyro_expose
