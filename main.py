@@ -32,6 +32,8 @@ def main(args):
         del plugins[plugin_picamera.PICAMERA_ROOT_PLUGIN_NAME]
     if not args.light:
         del plugins[plugin_pwmled.PWMLED_PLUGIN_NAME]
+    if not args.status_led:
+        del plugins[plugin_status_led.STATUS_LED_PLUGIN_NAME]
     logging.info('Running the following plugins: ' + ', '.join(plugins.keys()))
     # Ignore KeyboardInterrupt. If we don't do so, it will be raised also in the child processes. We do not have control
     # over the threads running in the child processes, so they will terminate, and here we get some network exception
@@ -48,6 +50,8 @@ if __name__ == '__main__':
     parser.add_argument('--token', '-t', required=False, help='Telegram chat token.')
     parser.add_argument('--no-cam', '--no-camera', '-nc', required=False, dest='camera', default=True,
                         action='store_false', help='Skip initializing camera plugin.')
+    parser.add_argument('--no-status', '--no-status-led', required=False, dest='status_led', default=True,
+                        action='store_false', help='Skip initializing status LED plugin.')
     parser.add_argument('--no-light', '-nl', required=False, dest='light', default=True, action='store_false',
                         help='Skip PWM controlled led light.')
     parser.add_argument('--verbose', '-v', required=False, default=False, action='store_true',
