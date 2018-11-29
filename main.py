@@ -17,6 +17,7 @@ def main(args):
     if args.token:
         SETTINGS.telegram.token = args.token
     if args.logfile is not None:
+        logging.info('Switching over to logging to %s', args.logfile)
         ensure_logging_setup(logging.DEBUG if args.verbose else logging.INFO, reset=True, filename=args.logfile)
     else:
         ensure_logging_setup(logging.DEBUG if args.verbose else logging.INFO, reset=True)
