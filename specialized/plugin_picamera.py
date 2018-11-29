@@ -99,6 +99,7 @@ class PiCameraRootPlugin(PluginProcessBase):
         self._camera = PiCamera()
         self._bitrate = SETTINGS.camera.get('bitrate', cast_to_type=int, default=750000, ge=100)
         self.framerate = SETTINGS.camera.get('framerate', cast_to_type=float, default=30., ge=0.1, le=90.)
+        self.resolution = SETTINGS.camera.get('resolution', cast_to_type=str, default='720p')
         self._warmup_thread = Thread(target=self._warmup, name='PiCamera warmup thread')
 
     def __enter__(self):

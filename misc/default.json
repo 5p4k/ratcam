@@ -10,7 +10,8 @@
     "framerate": 30,
     "buffer": 2.0,
     "clip_length_tolerance": 1.0,
-    "jpeg_quality": 0.5
+    "jpeg_quality": 0.5,
+    "resolution": "1640x922"
   },
   "detector": {
     "trigger_thresholds": [80, 20],
