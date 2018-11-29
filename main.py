@@ -16,8 +16,11 @@ ensure_logging_setup()
 def main(args):
     if args.token:
         SETTINGS.telegram.token = args.token
-    if args.verbose:
-        ensure_logging_setup(logging.DEBUG, reset=True)
+    if args.logfile is not None:
+        ensure_logging_setup(logging.DEBUG if args.verbose else logging.INFO, reset=True, filename=args.logfile)
+    else:
+        ensure_logging_setup(logging.DEBUG if args.verbose else logging.INFO, reset=True)
+
     plugins = get_all_plugins()
     assert plugin_telegram.TELEGRAM_ROOT_PLUGIN_NAME in plugins
     assert plugin_picamera.PICAMERA_ROOT_PLUGIN_NAME in plugins
@@ -56,4 +59,6 @@ if __name__ == '__main__':
                         help='Skip PWM controlled led light.')
     parser.add_argument('--verbose', '-v', required=False, default=False, action='store_true',
                         help='Log up to debug level')
+    parser.add_argument('--logfile', '--log', dest='logfile', required=False, default=None,
+                        help='Log everything to a file.')
     main(parser.parse_args())
